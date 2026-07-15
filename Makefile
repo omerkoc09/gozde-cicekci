@@ -1,4 +1,4 @@
-.PHONY: db-up db-down test migrate-up migrate-down seed run
+.PHONY: db-up db-down test migrate-up migrate-down test-db-migrate seed run
 
 db-up:
 	docker compose up -d
@@ -15,6 +15,9 @@ migrate-up:
 
 migrate-down:
 	migrate -path migrations -database "$$DATABASE_URL" down 1
+
+test-db-migrate:
+	migrate -path migrations -database "$$TEST_DATABASE_URL" up
 
 test:
 	go test ./... -v
