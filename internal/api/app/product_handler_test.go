@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/shopspring/decimal"
@@ -23,8 +24,12 @@ func newTestAPI(t *testing.T) (*fiber.App, *product.Service, *category.Service) 
 	prodSvc := product.NewService(product.NewStore(pool))
 	catSvc := category.NewService(category.NewStore(pool))
 
+	imgStore, err := image.NewLocalStore(t.TempDir(), "http://localhost:8080/uploads")
+	require.NoError(t, err)
+	imgSvc := image.NewService(imgStore, image.NewDB(pool))
+
 	app := fiber.New()
-	Register(app.Group("/api"), catSvc, prodSvc)
+	Register(app.Group("/api"), catSvc, prodSvc, imgSvc)
 	return app, prodSvc, catSvc
 }
 
@@ -144,4 +149,55 @@ func TestCategoryHandler_Featured_RouteNotShadowed(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
 	require.Len(t, views, 1)
 	assert.Equal(t, "Doğum Günü", views[0].Name)
+}
+
+// Public görsel gösteriminde iç detay sızmamalı — image_key, id, sort_order yok.
+func TestProductHandler_ImageViewHasNoInternalFields(t *testing.T) {
+	app, svc, _ := newTestAPI(t)
+	_, err := svc.Create(context.Background(), product.CreateInput{
+		Name: "Buket", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products/buket", nil))
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(body), "image_key")
+	assert.NotContains(t, string(body), "sort_order")
+}
+
+// Görseli olmayan ürün boş dizi döner, null değil — frontend'de v-for patlamasın.
+func TestProductHandler_NoImagesReturnsEmptyArray(t *testing.T) {
+	app, svc, _ := newTestAPI(t)
+	_, err := svc.Create(context.Background(), product.CreateInput{
+		Name: "Görselsiz", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products/gorselsiz", nil))
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(body), `"images":[]`)
+	assert.NotContains(t, string(body), `"images":null`)
+}
+
+// Liste ucunda da görseller boş dizi olmalı.
+func TestProductHandler_ListImagesIsEmptyArrayNotNull(t *testing.T) {
+	app, svc, _ := newTestAPI(t)
+	_, err := svc.Create(context.Background(), product.CreateInput{
+		Name: "Görselsiz", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(body), `"images":[]`)
+	assert.NotContains(t, string(body), `"images":null`)
 }

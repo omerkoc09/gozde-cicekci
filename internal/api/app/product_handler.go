@@ -3,11 +3,13 @@ package app
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/api"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 )
 
 type productHandler struct {
-	svc *product.Service
+	svc    *product.Service
+	imgSvc *image.Service
 }
 
 // list GET /api/products?amac=&tip=&page=
@@ -31,11 +33,22 @@ func (h *productHandler) list(c *fiber.Ctx) error {
 	if err != nil {
 		return api.WriteError(c, err)
 	}
-	return c.JSON(toProductViews(list))
+
+	ids := make([]int64, 0, len(list))
+	for _, p := range list {
+		ids = append(ids, p.ID)
+	}
+	grouped, err := h.imgSvc.ListByProducts(c.Context(), ids)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toProductViews(list, h.imgSvc, grouped))
 }
 
 // getBySlug GET /api/products/:slug
-// Slug eskiyse 301 ile güncel URL'e yönlendirir (spec §4.2).
+// Slug eskiyse 301 ile güncel URL'e yönlendirir (spec §4.2) — WhatsApp'ta
+// paylaşılmış eski linkler ölmemeli.
 func (h *productHandler) getBySlug(c *fiber.Ctx) error {
 	p, redirectTo, err := h.svc.GetPublicBySlug(c.Context(), c.Params("slug"))
 	if err != nil {
@@ -46,5 +59,10 @@ func (h *productHandler) getBySlug(c *fiber.Ctx) error {
 		return c.Redirect("/api/products/"+redirectTo, fiber.StatusMovedPermanently)
 	}
 
-	return c.JSON(toProductView(*p))
+	imgs, err := h.imgSvc.ListByProduct(c.Context(), p.ID)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toProductView(*p, h.imgSvc, imgs))
 }
