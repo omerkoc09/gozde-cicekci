@@ -73,30 +73,20 @@ func (s *Service) Update(ctx context.Context, id int64, in UpdateInput) (*Produc
 		return nil, err
 	}
 
-	updated, err := s.store.Update(ctx, id, in)
-	if err != nil {
-		return nil, err
-	}
-
-	// İsim değiştiyse ve yeni slug farklıysa slug geçmişini güncelle.
+	// İsim değişiyorsa yeni slug'ı ÖNCEDEN hesapla; store.Update ürün ve
+	// slug'ı tek transaction'da yazacak.
+	newSlug := ""
 	if in.Name != nil && *in.Name != current.Name {
 		newSlugBase := Slugify(*in.Name)
 		if newSlugBase != current.Slug {
-			newSlug, err := s.uniqueSlug(ctx, newSlugBase)
-			if err != nil {
-				return nil, err
-			}
-			if err := s.store.AddSlug(ctx, id, newSlug); err != nil {
-				return nil, err
-			}
-			updated, err = s.store.GetByID(ctx, id)
+			newSlug, err = s.uniqueSlug(ctx, newSlugBase)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return updated, nil
+	return s.store.Update(ctx, id, in, newSlug)
 }
 
 func (s *Service) Delete(ctx context.Context, id int64) error {

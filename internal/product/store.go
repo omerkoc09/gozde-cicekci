@@ -164,7 +164,10 @@ func (s *Store) SlugExists(ctx context.Context, slug string) (bool, error) {
 	return exists, nil
 }
 
-func (s *Store) Update(ctx context.Context, id int64, in UpdateInput) (*Product, error) {
+// Update ürünü günceller. newSlug boş değilse slug geçmişi de AYNI
+// transaction'da güncellenir: eski slug is_current=false olur, yenisi
+// eklenir. Böylece isim ve slug asla birbirinden ayrı düşmez.
+func (s *Store) Update(ctx context.Context, id int64, in UpdateInput, newSlug string) (*Product, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("tx başlat: %w", err)
@@ -195,6 +198,22 @@ func (s *Store) Update(ctx context.Context, id int64, in UpdateInput) (*Product,
 		}
 		if err := insertCategories(ctx, tx, id, in.CategoryIDs); err != nil {
 			return nil, err
+		}
+	}
+
+	// newSlug doluysa slug geçmişi de aynı tx'te güncellenir — ürün adı
+	// ile slug'ın birbirinden ayrı düşmesi (biri commit olup diğeri
+	// olmaması) bu sayede imkânsız hale gelir.
+	if newSlug != "" {
+		if _, err := tx.Exec(ctx,
+			`UPDATE product_slugs SET is_current = false
+			 WHERE product_id = $1 AND is_current`, id); err != nil {
+			return nil, fmt.Errorf("eski slug pasifle: %w", err)
+		}
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO product_slugs (slug, product_id, is_current) VALUES ($1, $2, true)`,
+			newSlug, id); err != nil {
+			return nil, fmt.Errorf("yeni slug ekle: %w", err)
 		}
 	}
 

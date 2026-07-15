@@ -271,7 +271,7 @@ func TestStore_Update_PartialFieldsOnly(t *testing.T) {
 	require.NoError(t, err)
 
 	newName := "Gül Buketi"
-	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName})
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName}, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Gül Buketi", updated.Name)
@@ -299,7 +299,7 @@ func TestStore_Update_AllFields(t *testing.T) {
 		Description: &newDesc,
 		Price:       &newPrice,
 		IsActive:    &newActive,
-	})
+	}, "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "Kırmızı Gül Buketi", updated.Name)
@@ -320,7 +320,7 @@ func TestStore_Update_SetsUpdatedAt(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	newName := "Gül Buketi"
-	updated, err := store.Update(ctx, before.ID, UpdateInput{Name: &newName})
+	updated, err := store.Update(ctx, before.ID, UpdateInput{Name: &newName}, "")
 
 	require.NoError(t, err)
 	assert.True(t, updated.UpdatedAt.After(before.UpdatedAt),
@@ -339,7 +339,7 @@ func TestStore_Update_CategoryIDsNilDoesNotTouchCategories(t *testing.T) {
 	require.NoError(t, err)
 
 	newName := "Yeni Ad"
-	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName})
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName}, "")
 
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []int64{dogumGunu, buket}, updated.CategoryIDs,
@@ -358,7 +358,7 @@ func TestStore_Update_CategoryIDsEmptySliceRemovesAll(t *testing.T) {
 	}, "test")
 	require.NoError(t, err)
 
-	updated, err := store.Update(ctx, p.ID, UpdateInput{CategoryIDs: []int64{}})
+	updated, err := store.Update(ctx, p.ID, UpdateInput{CategoryIDs: []int64{}}, "")
 
 	require.NoError(t, err)
 	assert.Empty(t, updated.CategoryIDs, "boş slice tüm kategorileri kaldırmalı")
@@ -368,7 +368,50 @@ func TestStore_Update_NotFound(t *testing.T) {
 	store, _, ctx := newTestStore(t)
 
 	newName := "Yok"
-	_, err := store.Update(ctx, 9999, UpdateInput{Name: &newName})
+	_, err := store.Update(ctx, 9999, UpdateInput{Name: &newName}, "")
 
 	require.ErrorIs(t, err, errorsx.ErrNotFound)
+}
+
+// Slug ve isim aynı transaction'da yazılır — biri olup diğeri olmaz durumu
+// oluşamaz. newSlug verilince eski slug is_current=false olur, yenisi güncel.
+func TestStore_Update_WithNewSlugIsAtomic(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Buket", Price: price(t, "500"), IsActive: true,
+	}, "buket")
+	require.NoError(t, err)
+
+	newName := "Gül Buketi"
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName}, "gul-buketi")
+
+	require.NoError(t, err)
+	assert.Equal(t, "Gül Buketi", updated.Name)
+	assert.Equal(t, "gul-buketi", updated.Slug, "yeni slug güncel olmalı")
+
+	// Eski slug hâlâ çözülmeli (301 için) ama güncel olmamalı.
+	oldID, oldIsCurrent, err := store.FindSlug(ctx, "buket")
+	require.NoError(t, err)
+	assert.Equal(t, p.ID, oldID)
+	assert.False(t, oldIsCurrent, "eski slug is_current=false olmalı")
+}
+
+// newSlug boşsa slug'a hiç dokunulmaz.
+func TestStore_Update_EmptySlugLeavesSlugAlone(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Buket", Price: price(t, "500"), IsActive: true,
+	}, "buket")
+	require.NoError(t, err)
+
+	newPrice := price(t, "600")
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Price: &newPrice}, "")
+
+	require.NoError(t, err)
+	assert.Equal(t, "buket", updated.Slug)
+
+	var count int
+	require.NoError(t, pool.QueryRow(ctx,
+		`SELECT count(*) FROM product_slugs WHERE product_id = $1`, p.ID).Scan(&count))
+	assert.Equal(t, 1, count, "yeni slug kaydı eklenmemeli")
 }
