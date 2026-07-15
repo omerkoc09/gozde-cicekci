@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,7 @@ type Config struct {
 	Port           string
 	WhatsAppNumber string
 	SiteURL        string
+	AppEnv         string // "development" | "production"
 }
 
 // Load .env dosyasını okur (varsa) ve ortam değişkenlerinden Config üretir.
@@ -38,5 +40,24 @@ func Load() (*Config, error) {
 		cfg.Port = "8080"
 	}
 
+	cfg.AppEnv = os.Getenv("APP_ENV")
+	if cfg.AppEnv == "" {
+		cfg.AppEnv = "development"
+	}
+	if cfg.AppEnv != "development" && cfg.AppEnv != "production" {
+		return nil, fmt.Errorf("geçersiz APP_ENV: %q (development veya production)", cfg.AppEnv)
+	}
+	// Production'da cookie Secure bayrağı açılır; bu yüzden site HTTPS olmalı.
+	// Yanlış yapılandırmayı sessizce geçmek yerine burada yakalıyoruz.
+	if cfg.AppEnv == "production" && !strings.HasPrefix(cfg.SiteURL, "https://") {
+		return nil, fmt.Errorf("APP_ENV=production ise SITE_URL https:// ile başlamalı (şu an: %q)", cfg.SiteURL)
+	}
+
 	return cfg, nil
+}
+
+// IsProduction production ortamında mı çalıştığımızı söyler.
+// Cookie'nin Secure bayrağı buna bağlı.
+func (c *Config) IsProduction() bool {
+	return c.AppEnv == "production"
 }

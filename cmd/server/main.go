@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -39,7 +38,7 @@ func main() {
 	catSvc := category.NewService(category.NewStore(pool))
 	prodSvc := product.NewService(product.NewStore(pool))
 
-	isProduction := strings.HasPrefix(cfg.SiteURL, "https://")
+	isProduction := cfg.IsProduction()
 
 	f := fiber.New(fiber.Config{
 		AppName:               "cicekci",
