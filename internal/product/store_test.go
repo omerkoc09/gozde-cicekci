@@ -3,6 +3,7 @@ package product
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -255,4 +256,119 @@ func TestStore_CategoryDelete_KeepsProduct(t *testing.T) {
 	fetched, err := store.GetByID(ctx, p.ID)
 	require.NoError(t, err, "ürün silinmemeli")
 	assert.Empty(t, fetched.CategoryIDs, "sadece bağ kopmalı")
+}
+
+// UpdateInput'ta nil olan alan değişmez (PATCH semantiği) — COALESCE
+// parametrelerinin doğru sırayla eşleştiğini kanıtlar.
+func TestStore_Update_PartialFieldsOnly(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	p, err := store.Create(ctx, CreateInput{
+		Name:        "Buket",
+		Description: "Orijinal açıklama",
+		Price:       price(t, "500.00"),
+		IsActive:    true,
+	}, "buket")
+	require.NoError(t, err)
+
+	newName := "Gül Buketi"
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName})
+
+	require.NoError(t, err)
+	assert.Equal(t, "Gül Buketi", updated.Name)
+	assert.Equal(t, "Orijinal açıklama", updated.Description, "açıklama değişmemeli")
+	assert.Equal(t, "500.00", updated.Price.StringFixed(2), "fiyat değişmemeli")
+	assert.True(t, updated.IsActive, "is_active değişmemeli")
+}
+
+func TestStore_Update_AllFields(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	p, err := store.Create(ctx, CreateInput{
+		Name:        "Buket",
+		Description: "Eski",
+		Price:       price(t, "500.00"),
+		IsActive:    true,
+	}, "buket")
+	require.NoError(t, err)
+
+	newName := "Kırmızı Gül Buketi"
+	newDesc := "Yeni açıklama"
+	newPrice := price(t, "1850.50")
+	newActive := false
+	updated, err := store.Update(ctx, p.ID, UpdateInput{
+		Name:        &newName,
+		Description: &newDesc,
+		Price:       &newPrice,
+		IsActive:    &newActive,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "Kırmızı Gül Buketi", updated.Name)
+	assert.Equal(t, "Yeni açıklama", updated.Description)
+	assert.Equal(t, "1850.50", updated.Price.StringFixed(2))
+	assert.False(t, updated.IsActive)
+}
+
+// Şemada UPDATE trigger'ı yok — updated_at'i sorgu elle set ediyor
+// (`updated_at = now()`). O satır silinirse bu test yakalar.
+func TestStore_Update_SetsUpdatedAt(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	before, err := store.Create(ctx, CreateInput{
+		Name: "Buket", Price: price(t, "500"), IsActive: true,
+	}, "buket")
+	require.NoError(t, err)
+
+	time.Sleep(10 * time.Millisecond)
+
+	newName := "Gül Buketi"
+	updated, err := store.Update(ctx, before.ID, UpdateInput{Name: &newName})
+
+	require.NoError(t, err)
+	assert.True(t, updated.UpdatedAt.After(before.UpdatedAt),
+		"updated_at artmalı: önce %v, sonra %v", before.UpdatedAt, updated.UpdatedAt)
+}
+
+// CategoryIDs nil ise kategorilere dokunulmaz.
+func TestStore_Update_CategoryIDsNilDoesNotTouchCategories(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	dogumGunu := insertCategory(t, pool, "Doğum Günü", "dogum-gunu", "occasion")
+	buket := insertCategory(t, pool, "Buket", "buket", "type")
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Test", Price: price(t, "500"), IsActive: true,
+		CategoryIDs: []int64{dogumGunu, buket},
+	}, "test")
+	require.NoError(t, err)
+
+	newName := "Yeni Ad"
+	updated, err := store.Update(ctx, p.ID, UpdateInput{Name: &newName})
+
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []int64{dogumGunu, buket}, updated.CategoryIDs,
+		"CategoryIDs nil ise kategoriler aynen kalmalı")
+}
+
+// CategoryIDs boş slice ise tüm kategoriler kaldırılır. Bir önceki testle
+// birlikte nil/boş ayrımını kilitler.
+func TestStore_Update_CategoryIDsEmptySliceRemovesAll(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	dogumGunu := insertCategory(t, pool, "Doğum Günü", "dogum-gunu", "occasion")
+	buket := insertCategory(t, pool, "Buket", "buket", "type")
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Test", Price: price(t, "500"), IsActive: true,
+		CategoryIDs: []int64{dogumGunu, buket},
+	}, "test")
+	require.NoError(t, err)
+
+	updated, err := store.Update(ctx, p.ID, UpdateInput{CategoryIDs: []int64{}})
+
+	require.NoError(t, err)
+	assert.Empty(t, updated.CategoryIDs, "boş slice tüm kategorileri kaldırmalı")
+}
+
+func TestStore_Update_NotFound(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+
+	newName := "Yok"
+	_, err := store.Update(ctx, 9999, UpdateInput{Name: &newName})
+
+	require.ErrorIs(t, err, errorsx.ErrNotFound)
 }
