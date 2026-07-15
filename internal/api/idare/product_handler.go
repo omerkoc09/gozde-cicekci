@@ -3,12 +3,14 @@ package idare
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/api"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/shopspring/decimal"
 )
 
 type productHandler struct {
-	svc *product.Service
+	svc    *product.Service
+	imgSvc *image.Service
 }
 
 type createProductRequest struct {
@@ -39,39 +41,49 @@ func (h *productHandler) list(c *fiber.Ctx) error {
 	if err != nil {
 		return api.WriteError(c, err)
 	}
-	return c.JSON(toProductViews(list))
+
+	ids := make([]int64, 0, len(list))
+	for _, p := range list {
+		ids = append(ids, p.ID)
+	}
+	grouped, err := h.imgSvc.ListByProducts(c.Context(), ids)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toProductViews(list, h.imgSvc, grouped))
 }
 
 // get GET /api/admin/products/:id — pasif olsa da döner
 func (h *productHandler) get(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
 	}
 
 	p, err := h.svc.GetByID(c.Context(), int64(id))
 	if err != nil {
 		return api.WriteError(c, err)
 	}
-	return c.JSON(toProductView(*p))
+
+	imgs, err := h.imgSvc.ListByProduct(c.Context(), p.ID)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toProductView(*p, h.imgSvc, imgs))
 }
 
 // create POST /api/admin/products
 func (h *productHandler) create(c *fiber.Ctx) error {
 	var req createProductRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz istek"},
-		})
+		return badRequest(c, "Geçersiz istek")
 	}
 
 	price, err := decimal.NewFromString(req.Price)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz fiyat"},
-		})
+		return badRequest(c, "Geçersiz fiyat")
 	}
 
 	in := product.CreateInput{
@@ -89,23 +101,21 @@ func (h *productHandler) create(c *fiber.Ctx) error {
 	if err != nil {
 		return api.WriteError(c, err)
 	}
-	return c.Status(fiber.StatusCreated).JSON(toProductView(*p))
+
+	// Yeni ürünün henüz görseli yok.
+	return c.Status(fiber.StatusCreated).JSON(toProductView(*p, h.imgSvc, nil))
 }
 
 // update PATCH /api/admin/products/:id
 func (h *productHandler) update(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
 	}
 
 	var req updateProductRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz istek"},
-		})
+		return badRequest(c, "Geçersiz istek")
 	}
 
 	in := product.UpdateInput{
@@ -118,9 +128,7 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 	if req.Price != nil {
 		price, err := decimal.NewFromString(*req.Price)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-				Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz fiyat"},
-			})
+			return badRequest(c, "Geçersiz fiyat")
 		}
 		in.Price = &price
 	}
@@ -129,16 +137,26 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 	if err != nil {
 		return api.WriteError(c, err)
 	}
-	return c.JSON(toProductView(*p))
+
+	imgs, err := h.imgSvc.ListByProduct(c.Context(), p.ID)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toProductView(*p, h.imgSvc, imgs))
 }
 
 // delete DELETE /api/admin/products/:id
 func (h *productHandler) delete(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
+	}
+
+	// Önce saklamadaki dosyaları temizle — ürün silinince product_images
+	// CASCADE ile gider ve key'ler öğrenilemez hale gelir (spec §4.4).
+	if err := h.imgSvc.DeleteAllForProduct(c.Context(), int64(id)); err != nil {
+		return api.WriteError(c, err)
 	}
 
 	if err := h.svc.Delete(c.Context(), int64(id)); err != nil {

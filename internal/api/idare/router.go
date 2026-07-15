@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 )
 
@@ -11,6 +12,7 @@ type Deps struct {
 	AuthSvc      *auth.Service
 	CatSvc       *category.Service
 	ProdSvc      *product.Service
+	ImgSvc       *image.Service
 	JWTSecret    string
 	SecureCookie bool
 }
@@ -19,7 +21,8 @@ type Deps struct {
 func Register(router fiber.Router, d Deps) {
 	ah := &authHandler{svc: d.AuthSvc, secureCookie: d.SecureCookie}
 	ch := &categoryHandler{svc: d.CatSvc}
-	ph := &productHandler{svc: d.ProdSvc}
+	ph := &productHandler{svc: d.ProdSvc, imgSvc: d.ImgSvc}
+	ih := &imageHandler{svc: d.ImgSvc, prodSvc: d.ProdSvc}
 
 	router.Post("/login", ah.login)
 
@@ -33,6 +36,11 @@ func Register(router fiber.Router, d Deps) {
 	protected.Get("/products/:id", ph.get)
 	protected.Patch("/products/:id", ph.update)
 	protected.Delete("/products/:id", ph.delete)
+
+	protected.Get("/products/:id/images", ih.list)
+	protected.Post("/products/:id/images", ih.upload)
+	protected.Patch("/products/:id/images/order", ih.reorder)
+	protected.Delete("/images/:id", ih.delete)
 
 	protected.Get("/categories", ch.list)
 	protected.Post("/categories", ch.create)

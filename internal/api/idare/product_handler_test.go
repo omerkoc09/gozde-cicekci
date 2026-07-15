@@ -12,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
@@ -27,11 +28,15 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 	authSvc := auth.NewService(auth.NewStore(pool), testSecret)
 	require.NoError(t, authSvc.CreateAdmin(context.Background(), "cicekci", "test-sifre-123"))
 
+	imgStore, err := image.NewLocalStore(t.TempDir(), "http://localhost:8080/uploads")
+	require.NoError(t, err)
+
 	app := fiber.New()
 	Register(app.Group("/api/admin"), Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       category.NewService(category.NewStore(pool)),
 		ProdSvc:      product.NewService(product.NewStore(pool)),
+		ImgSvc:       image.NewService(imgStore, image.NewDB(pool)),
 		JWTSecret:    testSecret,
 		SecureCookie: false,
 	})

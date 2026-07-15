@@ -38,9 +38,7 @@ func (h *categoryHandler) list(c *fiber.Ctx) error {
 func (h *categoryHandler) create(c *fiber.Ctx) error {
 	var req createCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz istek"},
-		})
+		return badRequest(c, "Geçersiz istek")
 	}
 
 	in := category.CreateInput{
@@ -69,16 +67,12 @@ func (h *categoryHandler) create(c *fiber.Ctx) error {
 func (h *categoryHandler) update(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
 	}
 
 	var req updateCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz istek"},
-		})
+		return badRequest(c, "Geçersiz istek")
 	}
 
 	cat, err := h.svc.Update(c.Context(), int64(id), category.UpdateInput{
@@ -98,9 +92,7 @@ func (h *categoryHandler) update(c *fiber.Ctx) error {
 func (h *categoryHandler) productCount(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
 	}
 
 	count, err := h.svc.ProductCount(c.Context(), int64(id))
@@ -115,9 +107,7 @@ func (h *categoryHandler) productCount(c *fiber.Ctx) error {
 func (h *categoryHandler) delete(c *fiber.Ctx) error {
 	id, err := c.ParamsInt("id")
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz id"},
-		})
+		return badRequest(c, "Geçersiz id")
 	}
 
 	if err := h.svc.Delete(c.Context(), int64(id)); err != nil {

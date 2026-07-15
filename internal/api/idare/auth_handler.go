@@ -23,9 +23,7 @@ type loginRequest struct {
 func (h *authHandler) login(c *fiber.Ctx) error {
 	var req loginRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(api.ErrorResponse{
-			Error: api.ErrorBody{Code: "invalid_input", Message: "Geçersiz istek"},
-		})
+		return badRequest(c, "Geçersiz istek")
 	}
 
 	token, err := h.svc.Login(c.Context(), req.Username, req.Password)
