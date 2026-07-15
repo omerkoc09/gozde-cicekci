@@ -90,6 +90,11 @@ func (s *Service) GetByID(ctx context.Context, id int64) (*Category, error) {
 }
 
 // ProductCount silme öncesi uyarı için — "Bu kategoride N ürün var" (spec §4.1).
+// Kategori yoksa ErrNotFound döner — count(*) aggregate olduğu için store
+// tek başına bunu ayırt edemez, sayım 0 döner.
 func (s *Service) ProductCount(ctx context.Context, id int64) (int, error) {
+	if _, err := s.store.GetByID(ctx, id); err != nil {
+		return 0, err
+	}
 	return s.store.ProductCount(ctx, id)
 }

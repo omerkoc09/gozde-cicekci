@@ -201,3 +201,13 @@ func TestService_ProductCount_Empty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
+
+// Olmayan kategori için count(*) 0 döner (aggregate) ama bu yanıltıcıdır —
+// service GetByID ile önce kategorinin var olduğunu doğrulamalı.
+func TestService_ProductCount_NotFound(t *testing.T) {
+	svc, ctx := newTestService(t)
+
+	_, err := svc.ProductCount(ctx, 9999)
+
+	require.ErrorIs(t, err, errorsx.ErrNotFound)
+}

@@ -167,3 +167,67 @@ func TestAdmin_CategoryProductCount(t *testing.T) {
 func itoa(i int64) string {
 	return strconv.FormatInt(i, 10)
 }
+
+// Olmayan kategori için product-count 404 dönmeli — count(*) aggregate
+// olduğu için store tek başına ayırt edemez, service katmanı doğruluyor.
+func TestAdmin_ProductCount_NotFound(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+
+	resp, err := app.Test(authedRequest(http.MethodGet,
+		"/api/admin/categories/9999/product-count", "", token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+// PATCH ile sadece name gönderilince description ve price aynen kalmalı
+// (pointer/nil PATCH semantiği — spec, store seviyesinde zaten test edilmişti,
+// burada HTTP seviyesinde de kanıtlanıyor).
+func TestAdmin_UpdateProduct_PartialOnlyChangesGivenFields(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"Eski Ad","description":"Eski açıklama","price":"250.00"}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID), `{"name":"Yeni Ad"}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	var updated ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&updated))
+	assert.Equal(t, "Yeni Ad", updated.Name)
+	assert.Equal(t, "Eski açıklama", updated.Description, "description değişmemeli")
+	assert.Equal(t, "250.00", updated.Price, "price değişmemeli")
+}
+
+// PATCH ile category_ids:[] gönderilince tüm kategoriler kaldırılmalı —
+// JSON'da [] boş slice'a çözümlenir (nil değil), bu da "hepsini kaldır" demektir.
+func TestAdmin_UpdateProduct_EmptyCategoryIDsRemovesAll(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+
+	catResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/categories",
+		`{"name":"Buket","axis":"type"}`, token))
+	require.NoError(t, err)
+	var cat CategoryView
+	require.NoError(t, json.NewDecoder(catResp.Body).Decode(&cat))
+
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"Test","price":"100","category_ids":[`+itoa(cat.ID)+`]}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+	require.Len(t, created.CategoryIDs, 1, "ürün kategoriyle oluşmalı")
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID), `{"category_ids":[]}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	var updated ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&updated))
+	assert.Empty(t, updated.CategoryIDs, "category_ids boş olmalı")
+}
