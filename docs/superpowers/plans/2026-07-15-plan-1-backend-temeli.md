@@ -587,7 +587,7 @@ func TestSlugify(t *testing.T) {
 	}{
 		{"basit", "Buket", "buket"},
 		{"bosluk", "51 Gül Buket", "51-gul-buket"},
-		{"turkce karakterler", "Çiçek Şöleni Ğüzel", "cicek-solen i-guzel"},
+		{"turkce karakterler", "Çiçek Şöleni Güzel", "cicek-soleni-guzel"},
 		{"buyuk I", "İstanbul Lalesi", "istanbul-lalesi"},
 		{"noktali i", "Ilık Bahar", "ilik-bahar"},
 		{"noktalama", "Gül & Papatya (Özel!)", "gul-papatya-ozel"},
@@ -613,8 +613,6 @@ func TestSlugify_EmptyFallback(t *testing.T) {
 	assert.Equal(t, "urun", Slugify("!!!"))
 }
 ```
-
-**Not:** `{"turkce karakterler", "Çiçek Şöleni Ğüzel", "cicek-solen i-guzel"}` satırındaki beklenen değer bilerek yanlış yazıldı mı diye kontrol et — doğrusu `cicek-soleni-guzel`. Testi yazarken düzelt.
 
 - [ ] **Step 2: Testi çalıştır, başarısız olduğunu gör**
 
@@ -4075,6 +4073,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -4238,8 +4237,6 @@ func itoa(i int64) string {
 }
 ```
 
-`strconv` importunu eklemeyi unutma — `itoa` helper'ı onu kullanıyor.
-
 - [ ] **Step 8: Testi çalıştır**
 
 Run: `go test ./internal/api/idare/ -v`
@@ -4330,9 +4327,10 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	api := f.Group("/api")
-	app.Register(api, catSvc, prodSvc)
-	idare.Register(api.Group("/admin"), idare.Deps{
+	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
+	apiGroup := f.Group("/api")
+	app.Register(apiGroup, catSvc, prodSvc)
+	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
 		ProdSvc:      prodSvc,
