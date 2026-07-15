@@ -11,6 +11,11 @@ import (
 
 // NewTestDB test veritabanına bağlanır ve tüm tabloları temizler.
 // TEST_DATABASE_URL yoksa test skip edilir.
+//
+// DİKKAT: Tüm test paketleri aynı veritabanını paylaşır ve bu fonksiyon
+// TRUNCATE çalıştırır. Testleri `make test` ile (yani `go test -p 1`)
+// çalıştır — `go test ./...` paketleri paralel koşturur ve paketler
+// birbirinin verisini siler.
 func NewTestDB(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
