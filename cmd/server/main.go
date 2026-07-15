@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -16,6 +17,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/api/idare"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/config"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -37,6 +39,12 @@ func main() {
 	authSvc := auth.NewService(auth.NewStore(pool), cfg.JWTSecret)
 	catSvc := category.NewService(category.NewStore(pool))
 	prodSvc := product.NewService(product.NewStore(pool))
+
+	imgStore, err := newImageStore(cfg)
+	if err != nil {
+		log.Fatalf("görsel saklama: %v", err)
+	}
+	imgSvc := image.NewService(imgStore, image.NewDB(pool))
 
 	isProduction := cfg.IsProduction()
 
@@ -63,14 +71,23 @@ func main() {
 
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
-	app.Register(apiGroup, catSvc, prodSvc)
+	app.Register(apiGroup, catSvc, prodSvc, imgSvc)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
 		ProdSvc:      prodSvc,
+		ImgSvc:       imgSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})
+
+	// Local saklama modunda görselleri statik servis et.
+	// R2 modunda gerekmez — CDN servis ediyor.
+	if cfg.StorageDriver == "local" {
+		f.Static("/uploads", cfg.UploadDir, fiber.Static{
+			MaxAge: 31536000, // key'ler rastgele, içerik değişmiyor
+		})
+	}
 
 	go func() {
 		if err := f.Listen(":" + cfg.Port); err != nil {
@@ -87,5 +104,25 @@ func main() {
 	defer cancel()
 	if err := f.ShutdownWithContext(shutdownCtx); err != nil {
 		log.Printf("kapatma hatası: %v", err)
+	}
+}
+
+// newImageStore config'e göre saklama implementasyonunu seçer.
+// Uygulamanın geri kalanı hangisi olduğunu bilmez — spec §4.4'teki mimari
+// kısıt burada somutlaşıyor: R2'den diske geçiş tek config satırı.
+func newImageStore(cfg *config.Config) (image.Store, error) {
+	switch cfg.StorageDriver {
+	case "r2":
+		return image.NewR2Store(image.R2Config{
+			AccountID:       cfg.R2AccountID,
+			AccessKeyID:     cfg.R2AccessKey,
+			SecretAccessKey: cfg.R2SecretKey,
+			Bucket:          cfg.R2Bucket,
+			PublicURL:       cfg.R2PublicURL,
+		})
+	case "local":
+		return image.NewLocalStore(cfg.UploadDir, cfg.UploadBaseURL)
+	default:
+		return nil, fmt.Errorf("bilinmeyen STORAGE_DRIVER: %q", cfg.StorageDriver)
 	}
 }
