@@ -19,10 +19,10 @@ migrate-down:
 test-db-migrate:
 	migrate -path migrations -database "$$TEST_DATABASE_URL" up
 
+# -p 1: test paketleri seri çalışır. Hepsi aynı test veritabanını paylaşıyor
+# ve NewTestDB her pakette TRUNCATE çalıştırıyor — paralel çalışırlarsa
+# birbirlerinin verisini silerler.
 test:
-	# -p 1: test paketleri seri çalışır. Hepsi aynı test veritabanını paylaşıyor
-	# ve NewTestDB her pakette TRUNCATE çalıştırıyor — paralel çalışırlarsa
-	# birbirlerinin verisini silerler.
 	go test -p 1 ./... -v
 
 seed:
