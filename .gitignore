@@ -1,0 +1,14 @@
+.env
+/tmp
+/bin
+*.test
+
+# Nuxt (Plan 3)
+node_modules/
+.nuxt/
+.output/
+dist/
+
+# IDE
+.idea/
+.DS_Store
