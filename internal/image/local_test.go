@@ -47,13 +47,13 @@ func TestLocalStore_PutAndRead(t *testing.T) {
 	ctx := context.Background()
 	key := NewKey()
 
-	err := store.Put(ctx, key, Size400, []byte("fake-webp-data"))
+	err := store.Put(ctx, key, Size400, []byte("sahte-gorsel-verisi"))
 
 	require.NoError(t, err)
-	path := filepath.Join(store.baseDir, "products", key, "400.webp")
+	path := filepath.Join(store.baseDir, "products", key, "400.jpg")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	assert.Equal(t, "fake-webp-data", string(data))
+	assert.Equal(t, "sahte-gorsel-verisi", string(data))
 }
 
 func TestLocalStore_Put_CreatesNestedDirs(t *testing.T) {
@@ -72,7 +72,7 @@ func TestLocalStore_Put_Overwrites(t *testing.T) {
 
 	require.NoError(t, store.Put(ctx, key, Size400, []byte("yeni")))
 
-	data, err := os.ReadFile(filepath.Join(store.baseDir, "products", key, "400.webp"))
+	data, err := os.ReadFile(filepath.Join(store.baseDir, "products", key, "400.jpg"))
 	require.NoError(t, err)
 	assert.Equal(t, "yeni", string(data))
 }
@@ -106,7 +106,7 @@ func TestLocalStore_URL(t *testing.T) {
 
 	url := store.URL("abc123", Size400)
 
-	assert.Equal(t, "http://localhost:8080/uploads/products/abc123/400.webp", url)
+	assert.Equal(t, "http://localhost:8080/uploads/products/abc123/400.jpg", url)
 }
 
 func TestLocalStore_URL_TrimsTrailingSlash(t *testing.T) {
@@ -115,7 +115,7 @@ func TestLocalStore_URL_TrimsTrailingSlash(t *testing.T) {
 
 	url := store.URL("abc123", Size1200)
 
-	assert.Equal(t, "http://localhost:8080/uploads/products/abc123/1200.webp", url,
+	assert.Equal(t, "http://localhost:8080/uploads/products/abc123/1200.jpg", url,
 		"çift slash olmamalı")
 }
 

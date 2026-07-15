@@ -60,7 +60,7 @@ func NewKey() string {
 	return hex.EncodeToString(b)
 }
 
-// objectPath key ve boyuttan saklama yolunu üretir: "products/a3f8c2d1/400.webp"
+// objectPath key ve boyuttan saklama yolunu üretir: "products/a3f8c2d1/400.jpg"
 func objectPath(key string, size Size) string {
-	return fmt.Sprintf("products/%s/%s.webp", key, size)
+	return fmt.Sprintf("products/%s/%s.jpg", key, size)
 }

@@ -21,7 +21,8 @@ butona sağlıklı bir şekilde götürmek üzerine kuruludur.
 - Admin panel (`/admin`): JWT login, ürün CRUD, kategori CRUD, görsel yönetimi
 - WhatsApp sipariş yönlendirmesi (önceden doldurulmuş mesaj)
 - SEO: SSR, meta etiketleri, sitemap.xml, WhatsApp link önizlemesi
-- Görsel işleme: yükleme anında yeniden boyutlandırma + WebP
+- Görsel işleme: yükleme anında yeniden boyutlandırma (bkz. §4.4 — format
+  kararı uygulamada değişti)
 
 ### Bu fazda yok (bilinçli)
 - Ödeme entegrasyonu (Faz 3), sepet (Faz 2), teslimat planlama (Faz 2)
@@ -40,7 +41,7 @@ butona sağlıklı bir şekilde götürmek üzerine kuruludur.
 | Migration | golang-migrate | Şema ilk günden migration ile yönetilir, elle DDL yok. |
 | Frontend | Nuxt 3 (Vue 3, Composition API) | SSR zorunlu — bkz. §5.1 |
 | Görsel saklama | Cloudflare R2 (S3-uyumlu) | `ImageStore` interface'i arkasında — bkz. §4.4 |
-| Görsel işleme | `disintegration/imaging` + WebP encode | |
+| Görsel işleme | `disintegration/imaging` + stdlib `image/jpeg` | WebP denendi, derlenemedi — bkz. §4.4 |
 | Deployment | PaaS (Railway benzeri) + R2 | Kesin platform ürün hazır olunca seçilecek |
 | Auth | JWT, HttpOnly cookie | |
 
@@ -322,12 +323,28 @@ Base URL `.env`'den gelir.
 **Boyutlar:** `Size400` (liste kartları), `Size1200` (detay + `og:image`).
 Orijinal saklanmaz.
 
-**Format: sadece WebP.** JPEG fallback yazılmayacak — 2026'da desteklemeyen
-kitle %1'in altında, iki format üretmek iki kat depolama ve `<picture>`
-karmaşası demek.
+**Format: girdi JPEG/PNG, çıktı JPEG.**
+
+> **2026-07-16 güncellemesi — WebP kararı geri alındı.** Spec başta "sadece
+> WebP" diyordu. Uygulamada `gen2brain/webp` (saf Go, WASM tabanlı)
+> derlenirken Go derleyicisi bellek yetmezliğinden öldürüldü
+> (`signal: killed`); PaaS build container'larında da patlardı. Alternatifler
+> (`chai2010/webp`, `kolesa-team/go-webp`) cgo'lu — Docker imajına
+> `libwebp-dev` bağımlılığı ve cross-compile zorluğu getiriyordu.
+>
+> **Karar: JPEG çıktı.** Gerekçe: asıl kazanç formatta değil **boyutta** —
+> esnafın attığı 4000px fotoğraf liste kartında 400px'e düşünce veri ~100 kat
+> azalıyor. WebP'nin ek kazancı bu ölçekte marjinal (görsel başına ~8KB;
+> 20 ürünlük sayfada ~160KB). Buna karşılık maliyeti somut: build kırılganlığı.
+>
+> İleride gerekirse encoder değiştirmek ucuz — `Process()` fonksiyonu formatı
+> zaten soyutluyor, tek yerde encode ediliyor.
+
+**Şeffaflık:** PNG'nin alfa kanalı JPEG'de siyah çıkar. `imaging.Overlay` ile
+beyaz zemine harmanlanıyor (`Paste` değil — Paste alfayı yok sayıp kopyalar).
 
 **Yükleme akışı:** handler multipart alır → `imaging` ile 400 ve 1200 üretilir →
-WebP encode → her ikisi de R2'ye yazılır → **ikisi de başarılıysa** DB'ye
+JPEG encode → her ikisi de R2'ye yazılır → **ikisi de başarılıysa** DB'ye
 `image_key` yazılır. Ara adımda hata olursa yazılanlar silinir. Senkron, kuyruk
 yok (tek fotoğraf birkaç yüz ms).
 
