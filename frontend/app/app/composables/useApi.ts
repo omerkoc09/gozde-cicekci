@@ -4,8 +4,9 @@ import type { Category, Product } from '~/types/api'
  * Public API istemcisi.
  *
  * Auth YOK — public site hiçbir korumalı uca dokunmaz (/api/admin/* çağrılmaz).
- * SSR'da bu çağrılar sunucudan yapılır, CORS'a takılmaz; backend'in CORS ayarı
- * admin panelin origin'ini (5173) taşıyor.
+ * Çağrılar same-origin Nitro proxy'sine (/api/go) gider, CORS'a hiç takılmaz.
+ * (Backend'in CORS ayarı yalnızca admin panelini ilgilendirir: dev'de :5173
+ * ayrı origin'den istek atar, prod'da aynı origin'dedir.)
  *
  * useFetch kullanılıyor, $fetch değil: useFetch SSR'da çektiği veriyi
  * hydration'a taşır, aynı veri tarayıcıda ikinci kez çekilmez.

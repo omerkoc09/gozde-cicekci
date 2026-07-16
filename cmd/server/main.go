@@ -57,7 +57,7 @@ func main() {
 	f.Use(recover.New())
 	f.Use(logger.New())
 	f.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.SiteURL,
+		AllowOrigins:     allowedOrigins(cfg.SiteURL, isProduction),
 		AllowCredentials: true, // cookie gönderimi için zorunlu
 		AllowMethods:     "GET,POST,PATCH,DELETE,OPTIONS",
 	}))
@@ -105,6 +105,22 @@ func main() {
 	if err := f.ShutdownWithContext(shutdownCtx); err != nil {
 		log.Printf("kapatma hatası: %v", err)
 	}
+}
+
+// allowedOrigins CORS'a izin verilen origin listesini kurar.
+//
+// Prod'da yalnızca SITE_URL: admin paneli Caddy arkasında aynı origin'den
+// (/api) servis edilir, cross-origin isteği yoktur.
+//
+// Development'ta admin paneli Vite dev sunucusunda (:5173) ayrı origin'de
+// çalışır ve doğrudan :8080'e istek atar (frontend/idare/.env.development →
+// VITE_API_BASE_URL=http://localhost:8080/api). Bu origin eklenmezse tarayıcı
+// preflight'ı bloklar ve panele giriş yapılamaz.
+func allowedOrigins(siteURL string, isProduction bool) string {
+	if isProduction {
+		return siteURL
+	}
+	return siteURL + ",http://localhost:5173"
 }
 
 // newImageStore config'e göre saklama implementasyonunu seçer.
