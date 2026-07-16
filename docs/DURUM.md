@@ -11,8 +11,8 @@ Son güncelleme: 2026-07-16
 | Plan 2 — Görsel hattı | ✅ **Uygulandı** — 8/8 iş, 179 test toplam |
 | Template — admin panel iskeleti | ✅ Eklendi ve Node 22'ye uyarlandı |
 | Plan 4 — Admin panel | ✅ **Uygulandı** — 8/8 task, tarayıcıda doğrulandı |
-| Plan 3 — Nuxt public site | ⬜ Plan yazılmadı ← SIRADA |
-| Final whole-branch review | ⬜ Ertelendi (Plan 1+2 birlikte yapılacak) |
+| Plan 3 — Nuxt public site | ✅ **Uygulandı** — 8/8 task, production SSR doğrulandı |
+| Final whole-branch review | ⬜ Ertelendi (Plan 1+2+3+4 birlikte) ← SIRADA |
 
 Branch: `feat/backend-temeli` (her şey burada)
 
@@ -41,13 +41,22 @@ doğrulandı (Playwright/Chromium):
 eklenmesine rağmen ~%18 küçüldü (casl, apexcharts, tiptap, mapbox, swiper,
 moment vb. + 16 kullanılmayan demo dialog silindi).
 
-## Sırada: Plan 3 — Nuxt Public Site
+Çalışan bir public site (`frontend/app/`, Nuxt 4 SSR). Production build'e
+(`node .output/server`) ve gerçek tarayıcıya karşı doğrulandı:
+- Ana sayfa — featured kategoriler + öne çıkan ürünler
+- Ürün listesi — iki eksenli AND filtresi, state URL'de (paylaşılabilir,
+  geri tuşu çalışıyor), kombinasyonlar noindex
+- Ürün detayı — galeri, WhatsApp sipariş butonu, **og:image SSR'da**
+  (WhatsApp önizlemesi çalışıyor)
+- Slug 301 — eski slug tarayıcı adresini kanonik slug'a taşıyor
+- Kategori sayfaları (index), hakkımızda/iletişim, sitemap.xml
+- Pasif ürün public'te yok (liste yok, detay 404); görselsiz ürün patlamıyor
 
-Plan henüz yazılmadı. Admin panel bittiğine göre API'nin frontend'den nasıl
-tüketildiği görüldü: `frontend/idare/src/services/ApiService.ts` (cookie auth,
-düz JSON, `[error, data]` deseni) ve `src/composables/use*.ts` örnek olarak
-kullanılabilir. Public site'ta auth yok, SSR var — ApiService'in cookie
-kısmı gerekmeyecek.
+## Sırada: Final whole-branch review
+
+Dört planın (1+2+3+4) tamamı `feat/backend-temeli`'nde. Whole-branch review
+ertelenmişti — artık backend + admin panel + public site birlikte
+gözden geçirilebilir. Sonra deployment.
 
 ## Uygulama sırasında verilen önemli kararlar
 
@@ -79,6 +88,19 @@ sanılıyordu. Gerçek sebep: tüm test paketleri aynı DB'yi paylaşıyor ve
 
 **Şeffaf PNG bug'ı.** `imaging.Paste` alfa kanalını yok sayıp kopyalıyordu,
 şeffaf alanlar JPEG'de siyah çıkıyordu. `Overlay` ile harmanlanıyor.
+
+**Public site API proxy'si (Plan 3, plan dışı ZORUNLU).** Plan "SSR olduğu
+için CORS'a takılmaz" varsayıyordu. Yanlıştı: filtre chip'ine tıklanınca
+Nuxt client-side gezinme yapıyor ve `useFetch` çağrıyı TARAYICIDAN yapıyor.
+Backend CORS'u sadece admin origin'ini (`5173`) taşıdığı için public site
+(`3000`) bloke oluyordu — filtre sessizce "0 ürün" gösteriyordu. Çözüm:
+`frontend/app/server/api/go/[...path].ts` Nitro proxy'si. Composable'lar
+same-origin `/api/go/*` çağırıyor, proxy sunucu-sunucu Go'ya iletiyor.
+Admin uçlarına proxy yok (404). Gerçek Go adresi `goApiBase` **private**
+runtimeConfig'te (`NUXT_API_BASE`), tarayıcıya sızmıyor. og:image ve ürün
+görselleri proxy'den geçmiyor — onlar `<img>`, tarayıcı doğrudan 8080'den
+yüklüyor (CORS `<img>`'e uygulanmaz). **İki SITE_URL:** admin panel
+`SITE_URL=5173`, public site proxy sayesinde origin'den bağımsız çalışıyor.
 
 **Görsel bölümü kaydettikten sonra açılmıyordu (Plan 4, plan dışı düzeltme).**
 Ürün oluşturulunca `router.replace` ile `/urunler/yeni` → `/urunler/:id`
@@ -142,7 +164,7 @@ Final review'da triyaj edilecek — `.superpowers/sdd/plan1/progress.md` ve
 ## Frontend yapısı
 
 - `frontend/idare/` — Vuetify 3 + Vite SPA, admin paneli (Plan 4 ile çalışır durumda)
-- `frontend/app/` — Nuxt 3 public site (henüz boş, Plan 3'te)
+- `frontend/app/` — Nuxt 4 SSR public site (Plan 3 ile çalışır durumda)
 
 **Neden ayrı:** Public site SSR olmak ZORUNDA — WhatsApp'ın önizleme botu
 JavaScript çalıştırmıyor, SPA'da paylaşılan linkte ürün fotoğrafı çıkmaz.

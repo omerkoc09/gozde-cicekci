@@ -1,6 +1,6 @@
 # Plan 3 — Nuxt Public Site Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Müşterinin gördüğü site. Ürünleri gezip WhatsApp'tan sipariş verdiği yer. Projenin tek dönüşüm noktası.
 
@@ -158,7 +158,7 @@ frontend/app/
 - Create: `frontend/app/` (Nuxt projesi)
 - Create: `frontend/app/.env`, `.env.example`
 
-- [ ] **Step 1: Nuxt projesini kur**
+- [x] **Step 1: Nuxt projesini kur**
 
 ```bash
 cd /Users/omerkoc/GolandProjects/cicekci/frontend
@@ -168,7 +168,7 @@ cd app
 ```
 Kurulum sırasında soru sorarsa: TypeScript **evet**, ESLint **evet**.
 
-- [ ] **Step 2: Gerekli modülleri ekle**
+- [x] **Step 2: Gerekli modülleri ekle**
 
 ```bash
 pnpm add -D @nuxt/image @nuxtjs/sitemap
@@ -179,7 +179,7 @@ sayfadan ibaret, kendi CSS'imizi yazacağız. Admin panelde Vuetify var ama
 public site'ta ağır bir bileşen kütüphanesi taşımak gereksiz; sayfa hızı
 bu sitenin satış aracı.
 
-- [ ] **Step 3: nuxt.config.ts**
+- [x] **Step 3: nuxt.config.ts**
 
 ```ts
 export default defineNuxtConfig({
@@ -218,7 +218,7 @@ export default defineNuxtConfig({
 })
 ```
 
-- [ ] **Step 4: .env ve .env.example**
+- [x] **Step 4: .env ve .env.example**
 
 `.env`:
 ```
@@ -230,7 +230,7 @@ NUXT_PUBLIC_SITE_URL=http://localhost:3000
 
 `.gitignore`'a `.env` ekli olduğunu doğrula (Nuxt varsayılan ekler).
 
-- [ ] **Step 5: Çalıştığını doğrula**
+- [x] **Step 5: Çalıştığını doğrula**
 
 ```bash
 pnpm dev
@@ -238,7 +238,7 @@ pnpm dev
 `http://localhost:3000` açılmalı — Nuxt karşılama sayfası.
 `Ctrl+C` ile durdur.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/omerkoc/GolandProjects/cicekci
@@ -260,7 +260,7 @@ satış aracı."
 - Create: `types/api.ts`, `utils/price.ts`
 - Test: `utils/price.test.ts` (Vitest)
 
-- [ ] **Step 1: types/api.ts**
+- [x] **Step 1: types/api.ts**
 
 ```ts
 /** Public API tipleri — backend'in app viewmodel'lerine birebir karşılık. */
@@ -296,7 +296,7 @@ export const AXIS_LABELS: Record<Axis, string> = {
 }
 ```
 
-- [ ] **Step 2: Vitest kur**
+- [x] **Step 2: Vitest kur**
 
 ```bash
 pnpm add -D vitest @nuxt/test-utils
@@ -313,7 +313,7 @@ export default defineConfig({
 
 `package.json` scripts'e ekle: `"test": "vitest run"`
 
-- [ ] **Step 3: Fiyat formatı testini yaz**
+- [x] **Step 3: Fiyat formatı testini yaz**
 
 `utils/price.test.ts`:
 ```ts
@@ -350,12 +350,12 @@ describe('whatsappPrice', () => {
 })
 ```
 
-- [ ] **Step 4: Testi çalıştır, BAŞARISIZ olduğunu gör**
+- [x] **Step 4: Testi çalıştır, BAŞARISIZ olduğunu gör**
 
 Run: `pnpm test`
 Expected: FAIL — `formatPrice` yok
 
-- [ ] **Step 5: utils/price.ts yaz**
+- [x] **Step 5: utils/price.ts yaz**
 
 ```ts
 /**
@@ -381,12 +381,12 @@ export function whatsappPrice(price: string): string {
 }
 ```
 
-- [ ] **Step 6: Testi çalıştır, GEÇTİĞİNİ gör**
+- [x] **Step 6: Testi çalıştır, GEÇTİĞİNİ gör**
 
 Run: `pnpm test`
 Expected: PASS — 6 test
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add frontend/app/types frontend/app/utils frontend/app/vitest.config.ts frontend/app/package.json
@@ -406,7 +406,7 @@ Kuruş sıfırsa gösterilmiyor — esnaf öyle yazar."
 **Interfaces:**
 - Produces: `useProducts()`, `useCategories()` — SSR uyumlu veri çekme
 
-- [ ] **Step 1: composables/useApi.ts**
+- [x] **Step 1: composables/useApi.ts**
 
 ```ts
 import type { Category, Product } from '~/types/api'
@@ -479,7 +479,7 @@ export function useFeaturedCategories() {
 **Not:** `useFetch` SSR'da sunucudan çağırır ve sonucu hydration'a taşır —
 aynı veri iki kez çekilmez. `$fetch` kullanma (SSR'da tekrar çeker).
 
-- [ ] **Step 2: Backend'i başlat ve API'yi doğrula**
+- [x] **Step 2: Backend'i başlat ve API'yi doğrula**
 
 Backend çalışırken:
 ```bash
@@ -488,7 +488,7 @@ curl -s localhost:8080/api/categories
 ```
 Yanıtların yukarıdaki tiplere uyduğunu gör.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add frontend/app/composables
@@ -504,7 +504,7 @@ git commit -m "feat: public API katmanı — useFetch ile SSR uyumlu"
 - Create: `components/ProductCard.vue`
 - Modify: `app.vue`, `pages/index.vue`
 
-- [ ] **Step 1: app.vue**
+- [x] **Step 1: app.vue**
 
 ```vue
 <template>
@@ -514,7 +514,7 @@ git commit -m "feat: public API katmanı — useFetch ile SSR uyumlu"
 </template>
 ```
 
-- [ ] **Step 2: layouts/default.vue + TheHeader + TheFooter**
+- [x] **Step 2: layouts/default.vue + TheHeader + TheFooter**
 
 Header: logo/isim, navigasyon (Ürünler, Hakkımızda, İletişim), mobilde
 hamburger menü. Footer: iletişim bilgisi, telif.
@@ -522,7 +522,7 @@ hamburger menü. Footer: iletişim bilgisi, telif.
 **Mobile-first** (spec §5.1, brief): önce dar ekran, sonra genişlet.
 Medya sorgusu `min-width` ile yazılsın.
 
-- [ ] **Step 3: components/ProductCard.vue**
+- [x] **Step 3: components/ProductCard.vue**
 
 Props: `product: Product`
 
@@ -534,7 +534,7 @@ Props: `product: Product`
 - Ürün adı, fiyat (`formatPrice`)
 - Tıklanınca `/urun/[slug]`
 
-- [ ] **Step 4: pages/index.vue — ana sayfa**
+- [x] **Step 4: pages/index.vue — ana sayfa**
 
 Spec §5.2: featured kategoriler + öne çıkan ürünler.
 
@@ -544,7 +544,7 @@ Spec §5.2: featured kategoriler + öne çıkan ürünler.
 - Kısa tanıtım metni
 - `useSeoMeta()`: title, description, og:title, og:description
 
-- [ ] **Step 5: Tarayıcıda doğrula**
+- [x] **Step 5: Tarayıcıda doğrula**
 
 Backend + `pnpm dev` çalışırken `http://localhost:3000`:
 - Featured kategoriler görünüyor mu (admin panelden `is_featured` açık
@@ -560,7 +560,7 @@ curl -s localhost:3000 | grep -c "gül"   # ürün adı HTML'de olmalı
 Ürün adı **curl çıktısında görünmeli** — JavaScript çalışmadan. Görünmüyorsa
 SSR çalışmıyor demektir ve bu sitenin varlık sebebi kaybolur.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add frontend/app
@@ -577,7 +577,7 @@ git commit -m "feat: ana sayfa, layout ve ürün kartı"
 
 Bu planın en kritik task'ı. Sitenin tek dönüşüm noktası burada.
 
-- [ ] **Step 1: composables/useWhatsApp.ts**
+- [x] **Step 1: composables/useWhatsApp.ts**
 
 Spec §5.3 — mesaj formatı tartışıldı ve seçildi:
 
@@ -611,7 +611,7 @@ export function useWhatsAppLink(product: Product) {
 }
 ```
 
-- [ ] **Step 2: Mesaj formatını test et**
+- [x] **Step 2: Mesaj formatını test et**
 
 `composables/useWhatsApp.test.ts` — Türkçe karakter kodlaması kritik:
 
@@ -635,7 +635,7 @@ describe('WhatsApp mesajı', () => {
 
 Run: `pnpm test` → PASS
 
-- [ ] **Step 3: components/ProductGallery.vue**
+- [x] **Step 3: components/ProductGallery.vue**
 
 Props: `images: ProductImage[]`, `alt: string`
 
@@ -646,7 +646,7 @@ Props: `images: ProductImage[]`, `alt: string`
 - **Görsel yoksa yer tutucu** — çiçekçi henüz fotoğraf yüklememiş olabilir
 - İlk görsel `loading="eager"` (ekranda hemen görünüyor), diğerleri lazy
 
-- [ ] **Step 4: components/WhatsAppButton.vue**
+- [x] **Step 4: components/WhatsAppButton.vue**
 
 Props: `product: Product`
 
@@ -655,7 +655,7 @@ Props: `product: Product`
 - `target="_blank"`, `rel="noopener"`
 - Mobilde tam genişlik, sticky olabilir (sayfa uzunsa hep görünsün)
 
-- [ ] **Step 5: pages/urun/[slug].vue**
+- [x] **Step 5: pages/urun/[slug].vue**
 
 ```vue
 <script setup lang="ts">
@@ -705,7 +705,7 @@ useSeoMeta({
 })
 ```
 
-- [ ] **Step 6: SSR ve WhatsApp önizlemesini DOĞRULA — bu task'ın asıl testi**
+- [x] **Step 6: SSR ve WhatsApp önizlemesini DOĞRULA — bu task'ın asıl testi**
 
 ```bash
 # Ürün sayfası SSR'da tam mı geliyor?
@@ -727,7 +727,7 @@ grep -o 'href="https://wa.me/[^"]*"' /tmp/urun.html | head -1
 **Hepsi dolu gelmeli.** `og:image` boşsa veya ürün adı HTML'de yoksa SSR
 çalışmıyor demektir — bu sitenin tüm tasarımı bunun üstüne kurulu.
 
-- [ ] **Step 7: 301'i canlı test et**
+- [x] **Step 7: 301'i canlı test et**
 
 Admin panelden (veya API'den) ürünün adını değiştir, sonra:
 ```bash
@@ -736,7 +736,7 @@ curl -s -i localhost:3000/urun/gul | head -3
 Beklenen: `HTTP/1.1 301` + `Location: /urun/<yeni-slug>`
 **Adres çubuğu yeni slug'a geçmeli** — tarayıcıda da doğrula.
 
-- [ ] **Step 8: WhatsApp butonunu GERÇEKTEN tıkla**
+- [x] **Step 8: WhatsApp butonunu GERÇEKTEN tıkla**
 
 Tarayıcıda ürün sayfasını aç, butona tıkla. WhatsApp Web/uygulama açılmalı
 ve mesaj kutusunda şu görünmeli:
@@ -747,7 +747,7 @@ http://localhost:3000/urun/gul
 ```
 Türkçe karakterler bozuk olmamalı, satır başları korunmalı.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add frontend/app
@@ -768,7 +768,7 @@ adresi eski slug'da kalıyordu. Yanıttaki slug farklıysa sayfa yolunda
 **Files:**
 - Create: `pages/urunler/index.vue`, `components/CategoryFilter.vue`
 
-- [ ] **Step 1: components/CategoryFilter.vue**
+- [x] **Step 1: components/CategoryFilter.vue**
 
 Spec §5.6: **iki ayrı filtre grubu** — "Gönderim Amacına Göre" ve "Ürün
 Tipine Göre". Kullanıcı ikisinden de seçebilir; sonuç **her iki koşula da
@@ -780,7 +780,7 @@ uyan** ürünler (AND).
 - "Temizle" butonu
 - Mobilde: filtreler açılır panelde (yer kaplamasın)
 
-- [ ] **Step 2: pages/urunler/index.vue**
+- [x] **Step 2: pages/urunler/index.vue**
 
 **Filtre state'i URL'de** (spec §5.6) — Vue state'inde değil:
 ```ts
@@ -811,7 +811,7 @@ useSeoMeta({
 Sebep: 10 occasion × 6 type = 60 kombinasyon, Google'da ince içerikli sayfa
 üretir. Tekil kategoriler kendi path'lerinde indexlenir (`/kategori/[slug]`).
 
-- [ ] **Step 3: AND filtresini DOĞRULA — spec §5.6'nın kalbi**
+- [x] **Step 3: AND filtresini DOĞRULA — spec §5.6'nın kalbi**
 
 Admin panelden iki kategori ve şu ürünleri hazırla:
 - Ürün A: Doğum Günü + Buket
@@ -830,7 +830,7 @@ curl -s "localhost:3000/urunler?amac=dogum-gunu&tip=buket" | grep -c "Ürün C" 
 Tarayıcıda da: filtre seç → URL değişmeli → geri tuşu çalışmalı →
 URL'i kopyalayıp yeni sekmede aç → aynı filtre gelmeli.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/app
@@ -848,7 +848,7 @@ Kombinasyonlar noindex: 60 kombinasyon Google'da ince içerik üretir."
 - Create: `pages/kategori/[slug].vue`, `pages/hakkimizda.vue`, `pages/iletisim.vue`
 - Modify: `nuxt.config.ts` (sitemap)
 
-- [ ] **Step 1: pages/kategori/[slug].vue**
+- [x] **Step 1: pages/kategori/[slug].vue**
 
 SEO'nun asıl hedefi — "geçmiş olsun çiçeği" arayan müşteri buraya düşer.
 
@@ -859,7 +859,7 @@ SEO'nun asıl hedefi — "geçmiş olsun çiçeği" arayan müşteri buraya dü�
 - `useSeoMeta()`: title `"{Kategori} | Çiçekçi"`, description
 - **Bu sayfa indexlenir** (filtre kombinasyonlarının aksine)
 
-- [ ] **Step 2: hakkimizda.vue ve iletisim.vue**
+- [x] **Step 2: hakkimizda.vue ve iletisim.vue**
 
 Basit statik sayfalar. İletişim bilgileri `runtimeConfig`'den gelsin
 (spec §5.3 — `settings` tablosu ertelendi, `.env`'den okunuyor).
@@ -874,7 +874,7 @@ contactHours: process.env.NUXT_PUBLIC_CONTACT_HOURS || '',
 
 İletişim sayfasında WhatsApp linki de olsun (ürünsüz, genel mesaj).
 
-- [ ] **Step 3: Sitemap**
+- [x] **Step 3: Sitemap**
 
 `@nuxtjs/sitemap` kurulu. Dinamik URL'ler için `server/api/_sitemap-urls.ts`:
 
@@ -906,14 +906,14 @@ sitemap: {
 },
 ```
 
-- [ ] **Step 4: Sitemap'i doğrula**
+- [x] **Step 4: Sitemap'i doğrula**
 
 ```bash
 curl -s localhost:3000/sitemap.xml | head -30
 ```
 Ürün ve kategori URL'leri görünmeli. **Filtre kombinasyonları GÖRÜNMEMELİ.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/app
@@ -924,7 +924,7 @@ git commit -m "feat: kategori sayfası, statik sayfalar, sitemap"
 
 ## Task 8: Son doğrulama — esnafın ve müşterinin akışı
 
-- [ ] **Step 1: Build**
+- [x] **Step 1: Build**
 
 ```bash
 cd frontend/app
@@ -932,14 +932,14 @@ pnpm build
 ```
 Hatasız olmalı.
 
-- [ ] **Step 2: Production build'i çalıştır ve SSR'ı doğrula**
+- [x] **Step 2: Production build'i çalıştır ve SSR'ı doğrula**
 
 ```bash
 node .output/server/index.mjs
 ```
 `pnpm dev` değil — production'da SSR gerçekten çalışıyor mu görmek için.
 
-- [ ] **Step 3: MÜŞTERİNİN AKIŞI — uçtan uca**
+- [x] **Step 3: MÜŞTERİNİN AKIŞI — uçtan uca**
 
 Temiz veriyle (admin panelden hazırla):
 1. Ana sayfa → featured kategoriler ve öne çıkan ürünler görünüyor
@@ -950,7 +950,7 @@ Temiz veriyle (admin panelden hazırla):
 6. "WhatsApp'tan Sipariş Ver" → mesaj doğru, Türkçe karakterler bozulmamış
 7. Mobil genişlikte (DevTools) hepsini tekrar gez — düzen bozulmuyor
 
-- [ ] **Step 4: SSR KANITI — bu projenin varlık sebebi**
+- [x] **Step 4: SSR KANITI — bu projenin varlık sebebi**
 
 ```bash
 # Ürün sayfası JavaScript olmadan tam mı?
@@ -961,7 +961,7 @@ curl -s localhost:3000/urun/<slug> | grep -o '<title>[^<]*</title>'
 `og:image` dolu olmalı. **Bu satır, müşterinin WhatsApp'ta ürün fotoğrafını
 görüp görmeyeceğini belirliyor.** Boşsa tüm SSR kararı boşa gitmiş demektir.
 
-- [ ] **Step 5: Pasif ürün sızıyor mu**
+- [x] **Step 5: Pasif ürün sızıyor mu**
 
 Admin panelden bir ürünü pasif yap:
 ```bash
@@ -969,13 +969,13 @@ curl -s localhost:3000/urunler | grep -c "<pasif ürün adı>"   # 0 olmalı
 curl -s -i localhost:3000/urun/<pasif-slug> | head -1          # 404 olmalı
 ```
 
-- [ ] **Step 6: Görselsiz ürün patlatıyor mu**
+- [x] **Step 6: Görselsiz ürün patlatıyor mu**
 
 Görseli olmayan bir ürün oluştur, sayfasını aç. Yer tutucu görünmeli,
 sayfa patlamamalı. `og:image` boş olacak — bu kabul edilebilir (fotoğrafı
 yok), ama sayfa çalışmalı.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A frontend/app
@@ -986,19 +986,71 @@ git commit -m "feat: public site tamamlandı — uçtan uca doğrulandı"
 
 ## Plan 3 Bitiş Kriterleri
 
-- [ ] `pnpm build` hatasız, production build çalışıyor
-- [ ] `pnpm test` geçiyor (fiyat formatı + WhatsApp kodlaması)
-- [ ] **`og:image` SSR'da geliyor** — curl ile doğrulandı
-- [ ] Ürün adı ve fiyatı JavaScript olmadan HTML'de
-- [ ] WhatsApp mesajı doğru: sipariş niyetli, fiyatlı, Türkçe karakterler sağlam
-- [ ] Eski slug → 301 → **tarayıcı adresi yeni slug'a geçiyor**
-- [ ] İki eksenli filtre AND çalışıyor (OR değil)
-- [ ] Filtre URL'de, geri tuşu çalışıyor, liste paylaşılabiliyor
-- [ ] Filtre kombinasyonları `noindex`, kategori sayfaları indexleniyor
-- [ ] `sitemap.xml` ürün ve kategorileri içeriyor
-- [ ] Pasif ürün public'te görünmüyor (liste yok, detay 404)
-- [ ] Görselsiz ürün sayfası patlamıyor
-- [ ] Mobile-first: dar ekranda düzen bozulmuyor
-- [ ] Görseller lazy, sabit aspect-ratio ile — sayfa zıplamıyor
+- [x] `pnpm build` hatasız, production build çalışıyor
+- [x] `pnpm test` geçiyor (fiyat formatı + WhatsApp kodlaması)
+- [x] **`og:image` SSR'da geliyor** — curl ile doğrulandı
+- [x] Ürün adı ve fiyatı JavaScript olmadan HTML'de
+- [x] WhatsApp mesajı doğru: sipariş niyetli, fiyatlı, Türkçe karakterler sağlam
+- [x] Eski slug → 301 → **tarayıcı adresi yeni slug'a geçiyor**
+- [x] İki eksenli filtre AND çalışıyor (OR değil)
+- [x] Filtre URL'de, geri tuşu çalışıyor, liste paylaşılabiliyor
+- [x] Filtre kombinasyonları `noindex`, kategori sayfaları indexleniyor
+- [x] `sitemap.xml` ürün ve kategorileri içeriyor
+- [x] Pasif ürün public'te görünmüyor (liste yok, detay 404)
+- [x] Görselsiz ürün sayfası patlamıyor
+- [x] Mobile-first: dar ekranda düzen bozulmuyor
+- [x] Görseller lazy, sabit aspect-ratio ile — sayfa zıplamıyor
 
 **Sonraki:** Final whole-branch review (Plan 1+2+3+4), sonra deployment.
+
+---
+
+## Uygulama Notu (2026-07-16)
+
+Tüm kriterler gerçek sunucu + gerçek tarayıcıya (Playwright/Chromium) ve
+production build'e (`node .output/server`) karşı doğrulandı. 11 vitest testi
+geçiyor.
+
+**En önemli sapma — API proxy (plan dışı, zorunlu).** Plan "SSR olduğu için
+CORS'a takılmaz" diyordu. Doğru değildi: filtre chip'ine tıklanınca Nuxt
+client-side gezinme yapıyor ve `useFetch` çağrıyı TARAYICIDAN yapıyor.
+Backend'in CORS'u sadece admin panelin origin'ini (`localhost:5173`)
+taşıdığı için public site (`3000`) bloke oluyordu — filtre "0 ürün"
+gösteriyordu. Çözüm: `server/api/go/[...path].ts` Nitro proxy'si.
+Composable'lar same-origin `/api/go/*` çağırıyor, proxy sunucu-sunucu Go
+backend'ine iletiyor. Admin uçlarına proxy yok (404 döner). Bu, planın
+Task 3 notunun ("client-side fetch yaparsan CORS'a takılırsın") kaçınılmaz
+sonucuydu — plan bunu uyarı olarak yazmış ama filtrenin client-side
+çalışacağını öngörmemişti.
+
+**İkinci sapma — env var adı.** `goApiBase` için `NUXT_PUBLIC_API_BASE`
+kullanınca Nuxt onu otomatik `public.apiBase`'e ("/api/go") eşleyip
+eziyordu, client yine 8080'i çağırıyordu. `NUXT_API_BASE`'e çevrildi
+(private runtimeConfig, tarayıcıya sızmıyor).
+
+**Üçüncü sapma — Nuxt 4.** Plan Nuxt 3 diyordu ama `nuxi@latest` artık
+4.4.8 kuruyor. Kullanıcı kararıyla 4'te kalındı. Fark dosya yolları:
+sayfa/bileşen/composable `app/` altında. SSR/useFetch/useSeoMeta aynı.
+
+**Dördüncü sapma — WhatsApp testi.** Plandaki test sadece
+`encodeURIComponent` builtin'ini test ediyordu, `useWhatsAppLink`'i hiç
+çağırmıyordu — kırık olsa da geçerdi. Mesaj kurma mantığı
+`utils/whatsapp.ts`'e (Nuxt'tan bağımsız) alındı ve gerçek fonksiyonu
+test eden 5 test yazıldı (Türkçe karakter + satır başı kodlaması dahil).
+
+**Filtre reactivity düzeltmesi.** `useProductList` başta düz string
+alıyordu — ilk değeri donduruyordu. `MaybeRefOrGetter` + reactive `key` +
+`watch([url])` ile query değişince yeniden çekiyor.
+
+**og:image ve ürün görselleri proxy'den GEÇMİYOR** — onlar `<img>`
+etiketleri, tarayıcı doğrudan `localhost:8080/uploads/...`'tan yüklüyor
+(CORS `<img>` için geçerli değil). Sadece fetch çağrıları proxy'den geçiyor.
+
+**Elle bakılmadı, otomasyonla doğrulandı:** AND filtresinin OR olmadığı
+(B ve C ürünleri dogum-gunu+buket'te gelmiyor), 301'in tarayıcı adresini
+değiştirdiği, WhatsApp mesajının Türkçe karakterlerinin bozulmadığı,
+pasif ürünün 404 verdiği, görselsiz ürünün patlamadığı. Ekran görüntüleri
+alındı ve incelendi (ana sayfa, mobil, ürün detay).
+
+**vue-tsc kurulmadı** — plan istemiyordu. Production build zaten Vite'ın
+tip kontrolünden geçiyor; ayrıca typecheck aracı eklemek kapsam genişletir.
