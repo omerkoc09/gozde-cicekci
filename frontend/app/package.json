@@ -7,6 +7,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "test": "vitest run",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
@@ -16,6 +17,8 @@
   },
   "devDependencies": {
     "@nuxt/image": "^2.0.0",
-    "@nuxtjs/sitemap": "^8.2.2"
+    "@nuxt/test-utils": "^4.0.3",
+    "@nuxtjs/sitemap": "^8.2.2",
+    "vitest": "^4.1.10"
   }
 }
