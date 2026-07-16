@@ -8,9 +8,15 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   runtimeConfig: {
+    // Proxy'nin arkasındaki gerçek Go API — yalnızca sunucuda (Nitro) görünür,
+    // tarayıcıya sızmaz. NUXT_API_BASE env var'ıyla override edilir.
+    goApiBase: process.env.NUXT_API_BASE || 'http://localhost:8080/api',
+
     public: {
-      // SSR'da sunucu-sunucu çağrısı yapılır; tarayıcıdan çağrılırsa CORS'a takılır
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080/api',
+      // Composable'ların çağırdığı adres — same-origin Nitro proxy'si.
+      // Hem SSR hem client çağrıları buraya gider, CORS'a takılmaz.
+      apiBase: '/api/go',
+
       whatsappNumber: process.env.NUXT_PUBLIC_WHATSAPP_NUMBER || '905551234567',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
 

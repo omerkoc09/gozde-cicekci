@@ -55,8 +55,10 @@ export function useProductList(query: {
     return `${apiBase()}/products?${params}`
   })
 
+  // url reactive; değişince useFetch yeniden çeker. watch açıkça url'i
+  // izliyor ki client tarafında filtre değişince liste yenilensin.
   return useFetch<Product[]>(url, {
-    key: 'products',
+    key: () => `products-${url.value}`,
     watch: [url],
     default: () => [],
   })
