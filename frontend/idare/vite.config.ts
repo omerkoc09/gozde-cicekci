@@ -13,6 +13,10 @@ import svgLoader from 'vite-svg-loader'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Prod'da admin panel /idare alt yolunda servis ediliyor (tek domain).
+  // Router import.meta.env.BASE_URL'i, varlık yolları da base'i takip eder.
+  // Dev'de '/' kalır (VITE_BASE tanımsız), çalışma bozulmaz.
+  base: process.env.VITE_BASE || '/',
   plugins: [
     // Docs: https://github.com/posva/unplugin-vue-router
     // ℹ️ This plugin should be placed before vue plugin

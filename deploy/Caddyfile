@@ -1,0 +1,53 @@
+# Caddy — otomatik TLS (Let's Encrypt) + reverse proxy.
+# Tek domain, path'e göre dağıtım (CORS derdi yok, her şey aynı origin).
+#
+# {$SITE_DOMAIN} compose'tan gelir (örn. cicekci.com). Domain almadan önce
+# lokal test için :80 kullanılabilir (DEPLOYMENT.md'ye bak).
+
+{$SITE_DOMAIN} {
+	# Backend API — public uçlar
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	# Görsel dosyaları (local storage) — backend statik servis ediyor
+	handle /uploads/* {
+		reverse_proxy backend:8080
+	}
+
+	# Sağlık kontrolü
+	handle /health {
+		reverse_proxy backend:8080
+	}
+
+	# Admin panel — statik SPA, /idare alt yolunda.
+	# try_files ile SPA fallback: bilinmeyen yol index.html'e düşer (client router).
+	handle_path /idare/* {
+		root * /srv/idare
+		try_files {path} /index.html
+		file_server
+	}
+
+	# /idare (sondaki slash yok) → /idare/'e yönlendir
+	redir /idare /idare/
+
+	# Geri kalan her şey → Nuxt SSR public site
+	handle {
+		reverse_proxy app:3000
+	}
+
+	# Sıkıştırma
+	encode gzip zstd
+
+	# Güvenlik başlıkları
+	header {
+		# HTTPS zorunlu (tarayıcı sonraki ziyaretlerde http denemesin)
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# MIME sniffing kapalı
+		X-Content-Type-Options "nosniff"
+		# Clickjacking koruması
+		X-Frame-Options "SAMEORIGIN"
+		# Sunucu bilgisini sızdırma
+		-Server
+	}
+}

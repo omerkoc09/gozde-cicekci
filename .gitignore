@@ -1,7 +1,13 @@
 .env
+.env.*
+!.env.example
+!.env.prod.example
 /tmp
 /bin
 *.test
+
+# Prod yedekleri (pg_dump + uploads arşivi) — asla commit edilmez
+/backups
 
 # Nuxt (Plan 3)
 node_modules/

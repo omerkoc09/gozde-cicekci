@@ -1,0 +1,152 @@
+# Production compose — tek VPS, tüm servisler.
+#
+# Kullanım:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# name: dev compose'tan (proje adı "cicekci") AYRI proje adı. Aksi halde aynı
+# dizinde çalıştırınca dev postgres container/volume'unu ezer — volume'lar da
+# ayrı isimli, dev verisi asla silinmesin.
+#
+# Servisler:
+#   postgres  — veritabanı (volume: kalıcı)
+#   migrate   — migration'ları çalıştırıp çıkar (one-shot)
+#   backend   — Go API
+#   app       — Nuxt SSR public site
+#   idare     — admin panel dist'ini volume'a kopyalar (one-shot)
+#   caddy     — reverse proxy + otomatik TLS
+#   backup    — günlük pg_dump + uploads yedeği
+
+name: cicekci-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Port dışarı açılmıyor — sadece iç ağ
+
+  # Migration'ları uygulayıp çıkar. backend bunun bitmesini bekler.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["migrate", "-path", "/app/migrations", "-database", "${DATABASE_URL}", "up"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      WHATSAPP_NUMBER: ${WHATSAPP_NUMBER}
+      SITE_URL: ${SITE_URL}
+      APP_ENV: production
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: /app/uploads
+      UPLOAD_BASE_URL: ${SITE_URL}/uploads
+      PORT: "8080"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  app:
+    build:
+      context: ./frontend/app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # SSR proxy'nin arkasındaki gerçek Go API (iç ağ, container adı)
+      NUXT_API_BASE: http://backend:8080/api
+      NUXT_PUBLIC_SITE_URL: ${SITE_URL}
+      NUXT_PUBLIC_WHATSAPP_NUMBER: ${WHATSAPP_NUMBER}
+      NUXT_PUBLIC_CONTACT_PHONE: ${CONTACT_PHONE}
+      NUXT_PUBLIC_CONTACT_ADDRESS: ${CONTACT_ADDRESS}
+      NUXT_PUBLIC_CONTACT_HOURS: ${CONTACT_HOURS}
+      PORT: "3000"
+      HOST: "0.0.0.0"
+    depends_on:
+      - backend
+
+  # Admin panel dist'ini paylaşılan volume'a kopyalayıp çıkar; Caddy servis eder.
+  idare:
+    build:
+      context: ./frontend/idare
+      dockerfile: Dockerfile
+    volumes:
+      - idare_dist:/output
+    restart: "no"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - idare_dist:/srv/idare:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+      - backend
+      - idare
+
+  # Günlük yedek: pg_dump + uploads arşivi, /backups'a yazar (host volume).
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      PGHOST: postgres
+    volumes:
+      - ./backups:/backups
+      - uploads:/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Basit günlük döngü: her 24 saatte bir yedek al, 7 günden eskiyi sil
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while true; do
+          TS=$$(date +%Y%m%d_%H%M%S)
+          pg_dump -Fc -f /backups/db_$$TS.dump && echo "db yedek: db_$$TS.dump"
+          tar czf /backups/uploads_$$TS.tar.gz -C /uploads . && echo "uploads yedek: uploads_$$TS.tar.gz"
+          find /backups -name 'db_*.dump' -mtime +7 -delete
+          find /backups -name 'uploads_*.tar.gz' -mtime +7 -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  uploads:
+  idare_dist:
+  caddy_data:
+  caddy_config:

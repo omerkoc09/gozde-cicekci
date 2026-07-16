@@ -1,0 +1,12 @@
+# Frontend build çıktıları ve bağımlılıkları backend imajına girmesin
+frontend/*/node_modules
+frontend/*/.output
+frontend/*/.nuxt
+frontend/*/dist
+node_modules
+.git
+*.md
+.env
+.env.*
+!.env.example
+uploads

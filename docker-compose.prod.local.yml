@@ -1,0 +1,15 @@
+# Lokal prod testi için override. Prod compose'un üstüne uygulanır:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml \
+#     --env-file .env.prod.local up -d --build
+#
+# Tek fark: Caddy internal (self-signed) TLS kullanıyor, çünkü localhost için
+# Let's Encrypt sertifikası alınamaz. Diğer her şey prod'la birebir aynı —
+# APP_ENV=production, https zorunluluğu, migration akışı hepsi test ediliyor.
+
+services:
+  caddy:
+    volumes:
+      - ./deploy/Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - idare_dist:/srv/idare:ro
+      - caddy_data:/data
+      - caddy_config:/config

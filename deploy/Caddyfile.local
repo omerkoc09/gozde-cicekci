@@ -1,0 +1,33 @@
+# Lokal test için Caddyfile — internal (self-signed) TLS.
+# Prod Caddyfile'ın aynısı ama Let's Encrypt yerine 'tls internal'.
+# Sadece docker-compose.prod.local.yml ile kullanılır.
+
+{$SITE_DOMAIN} {
+	tls internal
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle /uploads/* {
+		reverse_proxy backend:8080
+	}
+
+	handle /health {
+		reverse_proxy backend:8080
+	}
+
+	handle_path /idare/* {
+		root * /srv/idare
+		try_files {path} /index.html
+		file_server
+	}
+
+	redir /idare /idare/
+
+	handle {
+		reverse_proxy app:3000
+	}
+
+	encode gzip zstd
+}

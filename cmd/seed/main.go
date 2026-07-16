@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,12 @@ import (
 )
 
 func main() {
+	// Bayraklar verilirse etkileşimsiz çalışır (prod/container için).
+	// Verilmezse eski etkileşimli TTY akışı korunur (make seed).
+	flagUser := flag.String("username", "", "admin kullanıcı adı (etkileşimsiz mod)")
+	flagPass := flag.String("password", "", "admin şifresi (etkileşimsiz mod)")
+	flag.Parse()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("config: %v", err)
@@ -28,22 +35,12 @@ func main() {
 	}
 	defer pool.Close()
 
-	reader := bufio.NewReader(os.Stdin)
+	username, password := *flagUser, *flagPass
 
-	fmt.Print("Admin kullanıcı adı: ")
-	username, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatalf("okuma: %v", err)
+	// Bayraklar eksikse etkileşimli sor (TTY gerekir).
+	if username == "" || password == "" {
+		username, password = promptCredentials()
 	}
-	username = strings.TrimSpace(username)
-
-	fmt.Print("Şifre (en az 8 karakter): ")
-	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		log.Fatalf("şifre okuma: %v", err)
-	}
-	fmt.Println()
-	password := strings.TrimSpace(string(passwordBytes))
 
 	svc := auth.NewService(auth.NewStore(pool), cfg.JWTSecret)
 	if err := svc.CreateAdmin(ctx, username, password); err != nil {
@@ -51,4 +48,26 @@ func main() {
 	}
 
 	fmt.Printf("Admin kullanıcısı oluşturuldu: %s\n", username)
+}
+
+// promptCredentials kullanıcı adı ve şifreyi TTY'den okur.
+func promptCredentials() (username, password string) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Admin kullanıcı adı: ")
+	u, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatalf("okuma: %v", err)
+	}
+	username = strings.TrimSpace(u)
+
+	fmt.Print("Şifre (en az 8 karakter): ")
+	passwordBytes, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		log.Fatalf("şifre okuma: %v", err)
+	}
+	fmt.Println()
+	password = strings.TrimSpace(string(passwordBytes))
+
+	return username, password
 }
