@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VForm } from 'vuetify/components'
+import type { VForm } from 'vuetify/lib/components/VForm/index.mjs'
 import authV1BottomShape from '@images/svg/auth-v1-bottom-shape.svg'
 import authV1TopShape from '@images/svg/auth-v1-top-shape.svg'
 import { requiredValidator } from '@validators'

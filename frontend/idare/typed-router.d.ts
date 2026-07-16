@@ -21,12 +21,9 @@ declare module 'vue-router/auto-routes' {
     'root': RouteRecordInfo<'root', '/', Record<never, never>, Record<never, never>>,
     '$all': RouteRecordInfo<'$all', '/:all(.*)', { all: ParamValue<true> }, { all: ParamValue<false> }>,
     '$error': RouteRecordInfo<'$error', '/:error(.*)', { error: ParamValue<true> }, { error: ParamValue<false> }>,
-    'auth-forgot-password': RouteRecordInfo<'auth-forgot-password', '/auth/forgot-password', Record<never, never>, Record<never, never>>,
     'auth-login': RouteRecordInfo<'auth-login', '/auth/login', Record<never, never>, Record<never, never>>,
-    'not-authorized': RouteRecordInfo<'not-authorized', '/not-authorized', Record<never, never>, Record<never, never>>,
-    'profile': RouteRecordInfo<'profile', '/profile', Record<never, never>, Record<never, never>>,
-    'second-page': RouteRecordInfo<'second-page', '/second-page', Record<never, never>, Record<never, never>>,
-    'users': RouteRecordInfo<'users', '/users', Record<never, never>, Record<never, never>>,
-    'version': RouteRecordInfo<'version', '/version', Record<never, never>, Record<never, never>>,
+    'kategoriler': RouteRecordInfo<'kategoriler', '/kategoriler', Record<never, never>, Record<never, never>>,
+    'siparisler': RouteRecordInfo<'siparisler', '/siparisler', Record<never, never>, Record<never, never>>,
+    'urunler-id': RouteRecordInfo<'urunler-id', '/urunler/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
   }
 }

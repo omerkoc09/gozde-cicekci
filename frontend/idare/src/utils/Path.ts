@@ -1,5 +1,6 @@
 export function pathJoin(...parts: any[]) {
   const separator = '/'
+
   parts = parts.map((part, index) => {
     part = String(part)
     if (index)

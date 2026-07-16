@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VForm } from 'vuetify/components'
+import type { VForm } from 'vuetify/lib/components/VForm/index.mjs'
 import { useCategories } from '@/composables/useCategories'
 import type { Axis, Category } from '@/model/category'
 import { AXIS_LABELS } from '@/model/category'
@@ -207,7 +207,10 @@ const remove = async (c: Category) => {
             location="top"
           >
             <template #activator="{ props }">
-              <div v-bind="props" class="d-inline-block">
+              <div
+                v-bind="props"
+                class="d-inline-block"
+              >
                 <VSwitch
                   :model-value="item.is_featured"
                   :disabled="!item.is_active"
@@ -268,8 +271,10 @@ const remove = async (c: Category) => {
               </VCol>
 
               <VCol cols="12">
-                <!-- Eksen yalnızca oluştururken seçilir; sonradan
-                     değiştirilemez çünkü ürün ilişkileri anlamsızlaşır. -->
+                <!--
+                  Eksen yalnızca oluştururken seçilir; sonradan
+                  değiştirilemez çünkü ürün ilişkileri anlamsızlaşır.
+                -->
                 <VRadioGroup
                   v-if="!editing"
                   v-model="form.axis"
@@ -297,7 +302,10 @@ const remove = async (c: Category) => {
                 />
               </VCol>
 
-              <VCol cols="12" sm="6">
+              <VCol
+                cols="12"
+                sm="6"
+              >
                 <VTextField
                   v-model.number="form.sort_order"
                   label="Sıra"
@@ -305,7 +313,10 @@ const remove = async (c: Category) => {
                 />
               </VCol>
 
-              <VCol cols="12" sm="6">
+              <VCol
+                cols="12"
+                sm="6"
+              >
                 <VSwitch
                   v-model="form.is_active"
                   label="Aktif"
