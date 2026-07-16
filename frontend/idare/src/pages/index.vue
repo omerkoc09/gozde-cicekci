@@ -27,6 +27,7 @@ const headers = [
   { title: 'Fiyat', key: 'price', width: 130 },
   { title: 'Kategoriler', key: 'category_ids', sortable: false },
   { title: 'Durum', key: 'is_active', width: 110 },
+  { title: 'Vitrin', key: 'is_featured', sortable: false, width: 110 },
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 110 },
 ]
 
@@ -65,6 +66,18 @@ const load = async () => {
 
   products.value = pData ?? []
   categories.value = cData ?? []
+}
+
+/**
+ * Vitrin switch'i anında kaydeder — ürünü düzenlemeye girmeye gerek yok.
+ * İyimser değil: yanıt gelene kadar satırdaki değer eski kalır.
+ */
+const toggleFeatured = async (p: Product, value: boolean) => {
+  const [err] = await productApi.update(p.id, { is_featured: value })
+  if (err)
+    return ErrorPopup(err.message)
+
+  await load()
 }
 
 onMounted(load)
@@ -173,6 +186,30 @@ const remove = async (p: Product) => {
           >
             {{ item.is_active ? 'Aktif' : 'Pasif' }}
           </VChip>
+        </template>
+
+        <template #item.is_featured="{ item }">
+          <!-- Pasif ürün ana sayfada görünmez — öne çıkarmanın anlamı yok. -->
+          <VTooltip
+            :disabled="item.is_active"
+            text="Pasif ürün öne çıkarılamaz"
+            location="top"
+          >
+            <template #activator="{ props }">
+              <div
+                v-bind="props"
+                class="d-inline-block"
+              >
+                <VSwitch
+                  :model-value="item.is_featured"
+                  :disabled="!item.is_active"
+                  density="compact"
+                  hide-details
+                  @update:model-value="toggleFeatured(item, $event as boolean)"
+                />
+              </div>
+            </template>
+          </VTooltip>
         </template>
 
         <template #item.actions="{ item }">

@@ -17,5 +17,20 @@ export function useCategories() {
   const productCount = (id: number) =>
     ApiService.get<{ product_count: number }>(`admin/categories/${id}/product-count`)
 
-  return { list, create, update, remove, productCount }
+  /** Kart görseli. Ayrı uç: eski dosya backend'de siliniyor. */
+  const replaceImage = (id: number, file: File) => {
+    const fd = new FormData()
+
+    fd.append('image', file)
+
+    return ApiService.put<Category>(`admin/categories/${id}/image`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  }
+
+  /** Görseli kaldırır — kategori silinmez, site yedek görsele döner. */
+  const removeImage = (id: number) =>
+    ApiService.delete<Category>(`admin/categories/${id}/image`)
+
+  return { list, create, update, remove, productCount, replaceImage, removeImage }
 }

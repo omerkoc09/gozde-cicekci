@@ -5,7 +5,10 @@ export function useImages() {
   const list = (productId: number) =>
     ApiService.get<ProductImage[]>(`admin/products/${productId}/images`)
 
-  /** multipart/form-data, alan adı "image". Backend JPEG/PNG kabul eder. */
+  /**
+   * multipart/form-data, alan adı "image". Backend JPEG/PNG/WebP kabul eder;
+   * hepsini JPEG'e çevirip saklar.
+   */
   const upload = (productId: number, file: File) => {
     const fd = new FormData()
 

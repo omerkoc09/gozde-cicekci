@@ -19,4 +19,11 @@ dist/
 .idea/
 .DS_Store
 .superpowers/
-/uploads
+
+# Yerel geliştirmede yüklenen görseller (STORAGE_DRIVER=local).
+# Prod'da bu dizin volume; imaja da girmiyor (backend/.dockerignore).
+/backend/uploads
+
+# Referans tasarım çıktıları (~15MB) — kaynak kod değil, çalışma materyali.
+# Repoyu şişirmesin; yerelde durmaya devam eder.
+/frontend/app/referans_tasarım/

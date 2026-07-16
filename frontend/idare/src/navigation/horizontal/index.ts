@@ -10,6 +10,11 @@ export default [
     icon: { icon: 'tabler-tags' },
   },
   {
+    title: 'Slider Yönetimi',
+    to: { name: 'slider' },
+    icon: { icon: 'tabler-slideshow' },
+  },
+  {
     title: 'Siparişler',
     to: { name: 'siparisler' },
     icon: { icon: 'tabler-shopping-cart' },

@@ -26,6 +26,26 @@ const form = ref({
   sort_order: 0,
 })
 
+// Kart görseli. Boş bırakılırsa mevcut görsel korunur; yeni kategoride
+// görsel zorunlu değil — site yedek görsele düşer.
+const imageFile = ref<File[]>([])
+
+const secilenDosya = computed(() => imageFile.value[0])
+
+const preview = ref('')
+
+watch(secilenDosya, file => {
+  if (preview.value)
+    URL.revokeObjectURL(preview.value)
+
+  preview.value = file ? URL.createObjectURL(file) : ''
+})
+
+onBeforeUnmount(() => {
+  if (preview.value)
+    URL.revokeObjectURL(preview.value)
+})
+
 const byAxis = (axis: Axis) =>
   categories.value
     .filter(c => c.axis === axis)
@@ -35,12 +55,13 @@ const occasionCategories = computed(() => byAxis('occasion'))
 const typeCategories = computed(() => byAxis('type'))
 
 const headers = [
+  { title: 'Görsel', key: 'image', sortable: false, width: 90 },
   { title: 'Ad', key: 'name' },
   { title: 'Link (slug)', key: 'slug', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Öne Çıkan', key: 'is_featured', sortable: false, width: 130 },
   { title: 'Sıra', key: 'sort_order', width: 90 },
-  { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 110 },
+  { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 150 },
 ]
 
 const load = async () => {
@@ -61,6 +82,7 @@ onMounted(load)
 const openCreate = () => {
   editing.value = null
   form.value = { name: '', axis: 'occasion', is_active: true, is_featured: false, sort_order: 0 }
+  imageFile.value = []
   dialog.value = true
 }
 
@@ -73,6 +95,7 @@ const openEdit = (c: Category) => {
     is_featured: c.is_featured,
     sort_order: c.sort_order,
   }
+  imageFile.value = []
   dialog.value = true
 }
 
@@ -84,7 +107,7 @@ const save = async () => {
   saving.value = true
 
   // axis yalnızca oluştururken gönderilir — değiştirilemez (spec §4.1).
-  const [err] = editing.value
+  const [err, kategori] = editing.value
     ? await api.update(editing.value.id, {
       name: form.value.name,
       is_active: form.value.is_active,
@@ -93,13 +116,45 @@ const save = async () => {
     })
     : await api.create({ ...form.value })
 
-  saving.value = false
+  if (err) {
+    saving.value = false
 
+    return ErrorPopup(err.message)
+  }
+
+  // Görsel ayrı uçta: yeni kategoride önce kayıt oluşur, id'siyle yüklenir.
+  // Dosya seçilmediyse hiç dokunulmaz — düzenlemede mevcut görsel korunur.
+  if (secilenDosya.value) {
+    const [imgErr] = await api.replaceImage(kategori.id, secilenDosya.value)
+    if (imgErr) {
+      saving.value = false
+      await load() // kategori kaydedildi, görsel yüklenemedi — liste doğruyu göstersin
+
+      return ErrorPopup(`Kategori kaydedildi ama görsel yüklenemedi: ${imgErr.message}`)
+    }
+  }
+
+  saving.value = false
+  dialog.value = false
+  SuccessToast(editing.value ? 'Kategori güncellendi' : 'Kategori oluşturuldu')
+  await load()
+}
+
+const removeImage = async (c: Category) => {
+  const ok = await ConfirmPopup(
+    `"${c.name}" kategorisinin görseli kaldırılacak. Site varsayılan görseli gösterecek. Devam edilsin mi?`,
+    'Kaldır',
+    'Vazgeç',
+  )
+
+  if (!ok)
+    return
+
+  const [err] = await api.removeImage(c.id)
   if (err)
     return ErrorPopup(err.message)
 
-  dialog.value = false
-  SuccessToast(editing.value ? 'Kategori güncellendi' : 'Kategori oluşturuldu')
+  SuccessToast('Görsel kaldırıldı')
   await load()
 }
 
@@ -183,6 +238,34 @@ const remove = async (c: Category) => {
         no-data-text="Bu eksende henüz kategori yok"
         loading-text="Yükleniyor..."
       >
+        <template #item.image="{ item }">
+          <VImg
+            v-if="item.url_400"
+            :src="item.url_400"
+            :alt="item.name"
+            width="48"
+            height="64"
+            cover
+            class="rounded my-2"
+          />
+          <!-- Görsel yoksa site yedek görsel gösteriyor; panelde bunu
+               açıkça belirt ki "yüklendi mi?" diye tereddüt olmasın. -->
+          <VTooltip
+            v-else
+            text="Görsel yok — site varsayılan görseli gösterir"
+            location="top"
+          >
+            <template #activator="{ props }">
+              <VIcon
+                v-bind="props"
+                icon="tabler-photo-off"
+                size="20"
+                class="text-disabled my-2"
+              />
+            </template>
+          </VTooltip>
+        </template>
+
         <template #item.name="{ item }">
           <span :class="{ 'text-disabled': !item.is_active }">{{ item.name }}</span>
         </template>
@@ -228,6 +311,14 @@ const remove = async (c: Category) => {
         </template>
 
         <template #item.actions="{ item }">
+          <VBtn
+            v-if="item.url_400"
+            icon="tabler-photo-off"
+            variant="text"
+            size="small"
+            title="Görseli kaldır"
+            @click="removeImage(item)"
+          />
           <VBtn
             icon="tabler-pencil"
             variant="text"
@@ -299,6 +390,34 @@ const remove = async (c: Category) => {
                   disabled
                   hint="Eksen değiştirilemez"
                   persistent-hint
+                />
+              </VCol>
+
+              <VCol cols="12">
+                <VFileInput
+                  v-model="imageFile"
+                  label="Kart Görseli"
+                  accept="image/jpeg,image/png,image/webp"
+                  prepend-icon=""
+                  prepend-inner-icon="tabler-photo"
+                  :hint="editing?.url_400
+                    ? 'Boş bırakılırsa mevcut görsel korunur'
+                    : 'İsteğe bağlı — yüklenmezse site varsayılan görseli gösterir. Dikey (3:4), en az 900px genişlik önerilir.'"
+                  persistent-hint
+                />
+              </VCol>
+
+              <!-- Önizleme: yeni dosya seçildiyse onu, seçilmediyse mevcudu. -->
+              <VCol
+                v-if="preview || editing?.url_400"
+                cols="12"
+              >
+                <VImg
+                  :src="preview || editing?.url_900"
+                  :aspect-ratio="3 / 4"
+                  cover
+                  max-width="180"
+                  class="rounded border"
                 />
               </VCol>
 

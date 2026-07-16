@@ -38,7 +38,7 @@ services:
   # Migration'ları uygulayıp çıkar. backend bunun bitmesini bekler.
   migrate:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     command: ["migrate", "-path", "/app/migrations", "-database", "${DATABASE_URL}", "up"]
     environment:
@@ -50,7 +50,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:

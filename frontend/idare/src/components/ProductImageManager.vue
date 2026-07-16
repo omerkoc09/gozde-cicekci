@@ -96,13 +96,13 @@ const remove = async (img: ProductImage) => {
     <VFileInput
       v-model="files"
       label="Fotoğraf seç"
-      accept="image/jpeg,image/png"
+      accept="image/jpeg,image/png,image/webp"
       prepend-icon="tabler-camera"
       multiple
       chips
       :disabled="uploading || busy"
       :loading="uploading"
-      hint="JPEG veya PNG. İlk görsel kapak olarak kullanılır."
+      hint="JPEG, PNG veya WebP. İlk görsel kapak olarak kullanılır."
       persistent-hint
       class="mb-4"
       @update:model-value="upload"

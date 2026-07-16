@@ -1,5 +1,9 @@
 .PHONY: db-up db-down test migrate-up migrate-down test-db-migrate seed run
 
+# Go kaynakları backend/ altında; compose ve deploy dosyaları kökte kaldığı
+# için Makefile kökte duruyor ve go komutlarını backend'e yönlendiriyor.
+BACKEND := backend
+
 db-up:
 	docker compose up -d
 	@echo "Postgres hazır bekleniyor..."
@@ -11,22 +15,22 @@ db-down:
 	docker compose down
 
 migrate-up:
-	migrate -path migrations -database "$$DATABASE_URL" up
+	migrate -path $(BACKEND)/migrations -database "$$DATABASE_URL" up
 
 migrate-down:
-	migrate -path migrations -database "$$DATABASE_URL" down 1
+	migrate -path $(BACKEND)/migrations -database "$$DATABASE_URL" down 1
 
 test-db-migrate:
-	migrate -path migrations -database "$$TEST_DATABASE_URL" up
+	migrate -path $(BACKEND)/migrations -database "$$TEST_DATABASE_URL" up
 
 # -p 1: test paketleri seri çalışır. Hepsi aynı test veritabanını paylaşıyor
 # ve NewTestDB her pakette TRUNCATE çalıştırıyor — paralel çalışırlarsa
 # birbirlerinin verisini silerler.
 test:
-	go test -p 1 ./... -v
+	cd $(BACKEND) && go test -p 1 ./... -v
 
 seed:
-	go run ./cmd/seed
+	cd $(BACKEND) && go run ./cmd/seed
 
 run:
-	go run ./cmd/server
+	cd $(BACKEND) && go run ./cmd/server

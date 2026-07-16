@@ -2,11 +2,26 @@
 import heroGorsel from '~/assets/img/hero.webp'
 import { kategoriGorseli } from '~/composables/useKategoriGorsel'
 
-const { data: featuredCategories } = await useFeaturedCategories()
+const { data: slides } = await useSlides()
 
-// Ana sayfanın işi vitrin, katalog değil — 8 ürün yeter (spec §5.2).
-// Referans 4 gösteriyor ama grid 4'lü olduğu için 8 = iki tam sıra.
-const { data: products } = await useProductList({ limit: 8 })
+// İki eksen ayrı çekiliyor: "Özel Günler" (occasion) ve "Çiçek Türlerine
+// Göre" (type). Panelden hangi kategorinin öne çıkacağı seçiliyor; hiçbiri
+// seçilmemişse ilgili bölüm hiç görünmez.
+const { data: ozelGunler } = await useFeaturedCategories('occasion')
+const { data: cicekTurleri } = await useFeaturedCategories('type')
+
+// Tek şablon iki bölümü de basıyor — kart yapısı birebir aynı.
+// Boş bölümler burada eleniyor: şablonda v-for + v-show olsaydı boş section
+// DOM'da kalır ve section-gap boşluğu ortada asılı dururdu.
+const kategoriBolumleri = computed(() =>
+  [
+    { baslik: 'Özel Günler', kategoriler: ozelGunler.value ?? [] },
+    { baslik: 'Çiçek Türleri', kategoriler: cicekTurleri.value ?? [] },
+  ].filter(b => b.kategoriler.length > 0))
+
+// Ana sayfanın işi vitrin, katalog değil — panelden "öne çıkan" işaretlenen
+// ürünler gelir (spec §5.2). Grid 4'lü olduğu için 8 = iki tam sıra.
+const { data: products } = await useProductList({ oneCikan: true, limit: 8 })
 
 useSeoMeta({
   title: 'Gözde Tasarım Çiçekçilik — Taze Çiçek ve Buket',
@@ -19,8 +34,17 @@ useSeoMeta({
 
 <template>
   <div>
-    <!-- Hero -->
-    <section class="relative isolate flex min-h-[520px] items-center overflow-hidden md:min-h-[620px]">
+    <!-- Hero: panelden slayt girilmişse slider, girilmemişse statik görsel.
+         Yedek şart — slider boşken ana sayfa başsız kalmasın. -->
+    <HeroSlider
+      v-if="slides?.length"
+      :slides="slides"
+    />
+
+    <section
+      v-else
+      class="relative isolate flex min-h-[520px] items-center overflow-hidden md:min-h-[620px]"
+    >
       <!-- Yerel asset, zaten webp'e optimize edilmiş (spec §4.2) — IPX'ten
            geçirmeye gerek yok, düz <img> yeterli ve daha hızlı. -->
       <img
@@ -55,82 +79,79 @@ useSeoMeta({
       </div>
     </section>
 
-    <!-- Gönderim türüne göre -->
-    <section v-if="featuredCategories?.length" class="section-gap">
-      <div class="site-container">
-        <h2 class="text-center font-serif text-3xl text-primary md:text-4xl">
-          Gönderim Türüne Göre
-        </h2>
+    
 
-        <div class="mt-12 grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-          <NuxtLink
-            v-for="(kategori, i) in featuredCategories"
-            :key="kategori.id"
-            :to="`/kategori/${kategori.slug}`"
-            class="group relative block overflow-hidden rounded-lg"
-            style="aspect-ratio: 3 / 4"
-          >
-            <img
-              :src="kategoriGorseli(kategori.slug, kategori.name, i)"
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              width="900"
-              height="1200"
-              class="size-full object-cover transition-transform duration-700 group-hover:scale-105"
-            >
-            <span
-              class="absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/10 to-transparent"
-              aria-hidden="true"
-            />
-            <h3 class="absolute inset-x-0 bottom-0 p-4 font-serif text-lg text-white md:p-5 md:text-xl">
-              {{ kategori.name }}
-            </h3>
-          </NuxtLink>
-        </div>
-      </div>
-    </section>
+    <!-- Öne çıkan kategoriler: Özel Günler (occasion) + Çiçek Türleri (type).
+         Panelde o eksende hiçbir kategori öne çıkarılmamışsa bölüm görünmez.
+         Kartlar yana kayar — 4'ten fazlası alta inmez. -->
+    <CardCarousel
+      v-for="bolum in kategoriBolumleri"
+      :key="bolum.baslik"
+      :baslik="bolum.baslik"
+    >
+      <NuxtLink
+        v-for="(kategori, i) in bolum.kategoriler"
+        :key="kategori.id"
+        :to="`/kategori/${kategori.slug}`"
+        class="group relative block shrink-0 snap-start overflow-hidden rounded-lg
+               w-[66vw] sm:w-[45vw] lg:w-[calc((100%-3*1.5rem)/4)]"
+        style="aspect-ratio: 3 / 4"
+      >
+        <!-- Panelden görsel yüklenmişse srcset ile küçük ekrana 400'lük
+             gider; yedek görselde tek dosya var, srcset anlamsız. -->
+        <img
+          :src="kategoriGorseli(kategori, i)"
+          :srcset="kategori.url_400 ? `${kategori.url_400} 400w, ${kategori.url_900} 900w` : undefined"
+          sizes="(min-width: 1024px) 25vw, 66vw"
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          width="900"
+          height="1200"
+          class="size-full object-cover transition-transform duration-700 group-hover:scale-105"
+        >
+        <span
+          class="absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/10 to-transparent"
+          aria-hidden="true"
+        />
+        <h3 class="absolute inset-x-0 bottom-0 p-4 font-serif text-lg text-white md:p-5 md:text-xl">
+          {{ kategori.name }}
+        </h3>
+      </NuxtLink>
+    </CardCarousel>
 
     <div class="site-container">
       <GoldDivider />
     </div>
 
-    <!-- En çok tercih edilenler -->
-    <section class="section-gap">
-      <div class="site-container">
-        <div class="flex items-baseline justify-between gap-4">
-          <h2 class="font-serif text-3xl text-primary md:text-4xl">
-            En Çok Tercih Edilenler
-          </h2>
-          <NuxtLink
-            to="/urunler"
-            class="text-label-caps group flex shrink-0 items-center gap-1.5 text-secondary hover:text-secondary-hover"
-          >
-            Tümünü Gör
-            <Icon
-              name="material-symbols:arrow-forward"
-              size="14"
-              class="transition-transform group-hover:translate-x-0.5"
-            />
-          </NuxtLink>
-        </div>
-
-        <div v-if="products?.length" class="mt-10 grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
-          <ProductCard
-            v-for="product in products"
-            :key="product.id"
-            :product="product"
+    <!-- En çok tercih edilenler: panelden öne çıkarılan ürünler.
+         Hiçbiri seçilmemişse bölüm hiç görünmez — "Ürünler yakında" demek
+         yanıltıcı olurdu, katalogda ürün olabilir. -->
+    <CardCarousel
+      v-if="products?.length"
+      baslik="En Çok Tercih Edilenler"
+    >
+      <template #aksiyon>
+        <NuxtLink
+          to="/urunler"
+          class="text-label-caps group flex shrink-0 items-center gap-1.5 text-secondary hover:text-secondary-hover"
+        >
+          Tümünü Gör
+          <Icon
+            name="material-symbols:arrow-forward"
+            size="14"
+            class="transition-transform group-hover:translate-x-0.5"
           />
-        </div>
+        </NuxtLink>
+      </template>
 
-        <EmptyState
-          v-else
-          icon="material-symbols:local-florist-outline"
-          title="Ürünler yakında"
-          description="Koleksiyonumuz hazırlanıyor. Çok yakında burada olacak."
-        />
-      </div>
-    </section>
+      <ProductCard
+        v-for="product in products"
+        :key="product.id"
+        :product="product"
+        class="w-[66vw] shrink-0 snap-start sm:w-[45vw] lg:w-[calc((100%-3*1.5rem)/4)]"
+      />
+    </CardCarousel>
 
     <!-- Teslimat şeridi -->
     <section class="bg-surface-container-low">

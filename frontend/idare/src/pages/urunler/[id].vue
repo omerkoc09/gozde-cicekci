@@ -31,6 +31,7 @@ const form = ref({
   description: '',
   price: '',
   is_active: true,
+  is_featured: false,
   category_ids: [] as number[],
 })
 
@@ -99,6 +100,7 @@ const loadProduct = async () => {
     description: data.description,
     price: data.price,
     is_active: data.is_active,
+    is_featured: data.is_featured,
     category_ids: data.category_ids ?? [],
   }
 }
@@ -124,6 +126,7 @@ const save = async () => {
     description: form.value.description,
     price: Number.parseFloat(form.value.price).toFixed(2),
     is_active: form.value.is_active,
+    is_featured: form.value.is_featured,
     category_ids: form.value.category_ids,
   }
 
@@ -242,13 +245,32 @@ const save = async () => {
                 <VCol
                   cols="12"
                   sm="6"
-                  class="d-flex align-center"
+                  class="d-flex align-center gap-6"
                 >
                   <VSwitch
                     v-model="form.is_active"
                     label="Aktif (sitede görünür)"
                     hide-details
                   />
+
+                  <!-- Pasif ürün ana sayfada görünmez — öne çıkarmanın
+                       anlamı kalmaz (kategorilerdeki kuralın aynısı). -->
+                  <VTooltip
+                    :disabled="form.is_active"
+                    text="Pasif ürün öne çıkarılamaz"
+                    location="top"
+                  >
+                    <template #activator="{ props }">
+                      <div v-bind="props">
+                        <VSwitch
+                          v-model="form.is_featured"
+                          label="Ana sayfada öne çıkar"
+                          :disabled="!form.is_active"
+                          hide-details
+                        />
+                      </div>
+                    </template>
+                  </VTooltip>
                 </VCol>
 
                 <VCol cols="12">

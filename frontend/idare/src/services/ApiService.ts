@@ -46,7 +46,7 @@ class ApiService {
 
   /** [error, data] döner — Go'daki hata deseninin TypeScript karşılığı. */
   static async request<T>(
-    method: 'get' | 'post' | 'patch' | 'delete',
+    method: 'get' | 'post' | 'put' | 'patch' | 'delete',
     url: string,
     data?: unknown,
     config?: object,
@@ -69,8 +69,12 @@ class ApiService {
     return ApiService.request<T>('post', url, data, config)
   }
 
-  static patch<T>(url: string, data?: unknown) {
-    return ApiService.request<T>('patch', url, data)
+  static put<T>(url: string, data?: unknown, config?: object) {
+    return ApiService.request<T>('put', url, data, config)
+  }
+
+  static patch<T>(url: string, data?: unknown, config?: object) {
+    return ApiService.request<T>('patch', url, data, config)
   }
 
   static delete<T>(url: string) {

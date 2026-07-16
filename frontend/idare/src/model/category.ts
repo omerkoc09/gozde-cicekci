@@ -8,6 +8,9 @@ export interface Category {
   is_active: boolean
   is_featured: boolean
   sort_order: number
+  /** Kart görseli. Yüklenmemişse boş string — site yedek görsel gösterir. */
+  url_400: string
+  url_900: string
 }
 
 export interface CategoryCreate {

@@ -12,6 +12,8 @@ export interface Product {
   description: string
   price: string // "1850.00" — float precision için string (spec §4.1)
   is_active: boolean
+  /** Ana sayfa "En Çok Tercih Edilenler" vitrininde gösterilir. */
+  is_featured: boolean
   category_ids: number[]
   images: ProductImage[]
 }
@@ -21,6 +23,7 @@ export interface ProductCreate {
   description: string
   price: string
   is_active?: boolean
+  is_featured?: boolean
   category_ids?: number[]
 }
 
@@ -31,5 +34,6 @@ export interface ProductUpdate {
   description?: string
   price?: string
   is_active?: boolean
+  is_featured?: boolean
   category_ids?: number[]
 }

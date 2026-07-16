@@ -1,4 +1,4 @@
-import type { Category, Product } from '~/types/api'
+import type { Axis, Category, Product, Slide } from '~/types/api'
 
 /**
  * Public API istemcisi.
@@ -25,6 +25,8 @@ function apiBase(): string {
 export function useProductList(query: {
   amac?: MaybeRefOrGetter<string | undefined>
   tip?: MaybeRefOrGetter<string | undefined>
+  /** true → yalnızca panelden öne çıkarılmış ürünler (ana sayfa vitrini). */
+  oneCikan?: boolean
   limit?: number
 }) {
   const url = computed(() => {
@@ -37,6 +39,9 @@ export function useProductList(query: {
 
     if (tip)
       params.set('tip', tip)
+
+    if (query.oneCikan)
+      params.set('one_cikan', 'true')
 
     params.set('limit', String(query.limit ?? 24))
 
@@ -69,15 +74,36 @@ export function useCategoryList() {
   })
 }
 
-export function useFeaturedCategories() {
-  return useFetch<Category[]>(() => `${apiBase()}/categories/featured`, {
-    key: 'categories-featured',
-    default: () => [],
-  })
+/**
+ * Öne çıkan kategoriler. Ana sayfa iki bölümü ayrı çekiyor:
+ * "Özel Günler" (occasion) ve "Çiçek Türlerine Göre" (type).
+ *
+ * key eksene göre ayrılıyor — sabit olsaydı iki bölüm aynı önbelleği
+ * paylaşır, ikincisi birincinin verisini gösterirdi.
+ */
+export function useFeaturedCategories(axis?: Axis) {
+  return useFetch<Category[]>(
+    () => `${apiBase()}/categories/featured${axis ? `?axis=${axis}` : ''}`,
+    {
+      key: `categories-featured-${axis ?? 'all'}`,
+      default: () => [],
+    },
+  )
 }
 
 export function useCategory(slug: string) {
   return useFetch<Category>(`${apiBase()}/categories/${slug}`, {
     key: `category-${slug}`,
+  })
+}
+
+/**
+ * Ana sayfa slider'ı — yalnızca aktif slaytlar, sıraya dizili gelir.
+ * Boş dönerse ana sayfa statik hero'ya düşer (bkz. pages/index.vue).
+ */
+export function useSlides() {
+  return useFetch<Slide[]>(() => `${apiBase()}/slides`, {
+    key: 'slides',
+    default: () => [],
   })
 }

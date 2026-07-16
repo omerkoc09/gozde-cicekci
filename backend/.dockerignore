@@ -1,0 +1,12 @@
+# Build context artık ./backend — frontend zaten context dışında,
+# ayrıca dışlamaya gerek yok.
+
+# Yerel geliştirmede biriken görseller imaja girmesin; prod'da bu dizin
+# volume olarak bağlanıyor.
+uploads
+
+.git
+*.md
+.env
+.env.*
+!.env.example
