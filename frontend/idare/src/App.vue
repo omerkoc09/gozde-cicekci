@@ -4,7 +4,6 @@ import ScrollToTop from '@core/components/ScrollToTop.vue'
 import initCore from '@core/initCore'
 import { initConfigStore, useConfigStore } from '@core/stores/config'
 import { hexToRgb } from '@layouts/utils'
-import { useUserStore } from '@/store/user'
 
 const { global } = useTheme()
 
@@ -14,11 +13,8 @@ initConfigStore()
 
 const configStore = useConfigStore()
 
-const userStore = useUserStore()
-
-onMounted(() => {
-  userStore.updateUser()
-})
+// Oturum kontrolü router guard'ında (plugins/1.router) — cookie HttpOnly
+// olduğu için oturum ancak sunucuya sorularak öğrenilir.
 </script>
 
 <template>

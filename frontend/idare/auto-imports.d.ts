@@ -198,6 +198,7 @@ declare global {
   const useBroadcastChannel: typeof import('@vueuse/core')['useBroadcastChannel']
   const useBrowserLocation: typeof import('@vueuse/core')['useBrowserLocation']
   const useCached: typeof import('@vueuse/core')['useCached']
+  const useCategories: typeof import('./src/composables/useCategories')['useCategories']
   const useCeil: typeof import('@vueuse/math')['useCeil']
   const useClamp: typeof import('@vueuse/math')['useClamp']
   const useClipboard: typeof import('@vueuse/core')['useClipboard']
@@ -251,6 +252,7 @@ declare global {
   const useId: typeof import('vue')['useId']
   const useIdle: typeof import('@vueuse/core')['useIdle']
   const useImage: typeof import('@vueuse/core')['useImage']
+  const useImages: typeof import('./src/composables/useImages')['useImages']
   const useInfiniteScroll: typeof import('@vueuse/core')['useInfiniteScroll']
   const useIntersectionObserver: typeof import('@vueuse/core')['useIntersectionObserver']
   const useInterval: typeof import('@vueuse/core')['useInterval']
@@ -295,6 +297,7 @@ declare global {
   const usePreferredLanguages: typeof import('@vueuse/core')['usePreferredLanguages']
   const usePreferredReducedMotion: typeof import('@vueuse/core')['usePreferredReducedMotion']
   const usePrevious: typeof import('@vueuse/core')['usePrevious']
+  const useProducts: typeof import('./src/composables/useProducts')['useProducts']
   const useProjection: typeof import('@vueuse/math')['useProjection']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
@@ -392,7 +395,6 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly ErrorPopup: UnwrapRef<typeof import('./src/utils/Popup')['ErrorPopup']>
     readonly ErrorToast: UnwrapRef<typeof import('./src/utils/Popup')['ErrorToast']>
-    readonly ExDate: UnwrapRef<typeof import('./src/utils/ExDate')['default']>
     readonly SuccessPopup: UnwrapRef<typeof import('./src/utils/Popup')['SuccessPopup']>
     readonly SuccessToast: UnwrapRef<typeof import('./src/utils/Popup')['SuccessToast']>
     readonly Truncate: UnwrapRef<typeof import('./src/utils/String')['Truncate']>
@@ -527,7 +529,6 @@ declare module 'vue' {
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
-    readonly tarihSaatFormat: UnwrapRef<typeof import('./src/utils/ExDate')['tarihSaatFormat']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
@@ -573,6 +574,7 @@ declare module 'vue' {
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useCategories: UnwrapRef<typeof import('./src/composables/useCategories')['useCategories']>
     readonly useCeil: UnwrapRef<typeof import('@vueuse/math')['useCeil']>
     readonly useClamp: UnwrapRef<typeof import('@vueuse/math')['useClamp']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
@@ -625,6 +627,7 @@ declare module 'vue' {
     readonly useId: UnwrapRef<typeof import('vue')['useId']>
     readonly useIdle: UnwrapRef<typeof import('@vueuse/core')['useIdle']>
     readonly useImage: UnwrapRef<typeof import('@vueuse/core')['useImage']>
+    readonly useImages: UnwrapRef<typeof import('./src/composables/useImages')['useImages']>
     readonly useInfiniteScroll: UnwrapRef<typeof import('@vueuse/core')['useInfiniteScroll']>
     readonly useIntersectionObserver: UnwrapRef<typeof import('@vueuse/core')['useIntersectionObserver']>
     readonly useInterval: UnwrapRef<typeof import('@vueuse/core')['useInterval']>
@@ -668,6 +671,7 @@ declare module 'vue' {
     readonly usePreferredLanguages: UnwrapRef<typeof import('@vueuse/core')['usePreferredLanguages']>
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
+    readonly useProducts: UnwrapRef<typeof import('./src/composables/useProducts')['useProducts']>
     readonly useProjection: UnwrapRef<typeof import('@vueuse/math')['useProjection']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>

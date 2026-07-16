@@ -1,13 +1,17 @@
 export default [
   {
-    title: 'Anasayfa',
+    title: 'Ürünler',
     to: { name: 'root' },
-    icon: { icon: 'tabler-smart-home' },
+    icon: { icon: 'tabler-flower' },
   },
   {
-    title: 'Kullanıcı Yönetimi',
-    to: { name: 'users' },
-    icon: { icon: 'tabler-users' },
-    role: ['admin'],
+    title: 'Kategoriler',
+    to: { name: 'kategoriler' },
+    icon: { icon: 'tabler-tags' },
+  },
+  {
+    title: 'Siparişler',
+    to: { name: 'siparisler' },
+    icon: { icon: 'tabler-shopping-cart' },
   },
 ]

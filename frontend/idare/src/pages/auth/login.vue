@@ -2,8 +2,7 @@
 import { VForm } from 'vuetify/components'
 import authV1BottomShape from '@images/svg/auth-v1-bottom-shape.svg'
 import authV1TopShape from '@images/svg/auth-v1-top-shape.svg'
-import { emailValidator, requiredValidator } from '@validators'
-import ApiService from '@/services/ApiService'
+import { requiredValidator } from '@validators'
 import { ErrorPopup } from '@/utils/Popup'
 import { useUserStore } from '@/store/user'
 
@@ -12,7 +11,7 @@ const isPasswordVisible = ref(false)
 const formRef = ref<VForm>()
 
 const form = ref({
-  email: '',
+  username: '',
   password: '',
 })
 
@@ -22,13 +21,15 @@ const onSubmit = async () => {
   const { valid } = await formRef.value!.validate()
   if (!valid)
     return
-  console.log(import.meta.env.VITE_API_BASE_URL)
+
   loading.value = true
-  const [error, resp] = await ApiService.post<any>('auth/login', form.value)
+
+  const errMsg = await useUserStore().login(form.value.username, form.value.password)
+
   loading.value = false
-  if (error)
-    return ErrorPopup(error)
-  await useUserStore().login(resp.data.access_token, resp.data.refresh_token)
+
+  if (errMsg)
+    return ErrorPopup(errMsg)
 
   await router.push('/')
 }
@@ -67,58 +68,36 @@ const onSubmit = async () => {
           </template>
         </VCardItem>
 
-        <VCardText class="pt-1">
-          <!--          <h5 class="text-h5 font-weight-semibold mb-1"> -->
-          <!--            {{ themeConfig.app.title }}e Hoş Geldiniz! 👋🏻 -->
-          <!--          </h5> -->
-          <!--          <p class="mb-0"> -->
-          <!--            Please sign-in to your account and start the adventure -->
-          <!--          </p> -->
-        </VCardText>
-
         <VCardText>
           <VForm
             ref="formRef"
             @submit.prevent="onSubmit"
           >
             <VRow>
-              <!-- email -->
+              <!-- kullanıcı adı -->
               <VCol cols="12">
                 <VTextField
-                  v-model="form.email"
-                  label="Email"
-                  type="email"
-                  :rules="[requiredValidator, emailValidator]"
+                  v-model="form.username"
+                  label="Kullanıcı Adı"
+                  autocomplete="username"
+                  :rules="[requiredValidator]"
                 />
               </VCol>
 
-              <!-- password -->
+              <!-- parola -->
               <VCol cols="12">
                 <VTextField
                   v-model="form.password"
                   label="Parola"
+                  autocomplete="current-password"
                   :type="isPasswordVisible ? 'text' : 'password'"
                   :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
                   :rules="[requiredValidator]"
+                  class="mb-4"
                   @click:append-inner="isPasswordVisible = !isPasswordVisible"
                 />
 
-                <!-- remember me checkbox -->
-                <div class="d-flex align-center justify-space-between flex-wrap mt-2 mb-4">
-                  <!--                  <VCheckbox -->
-                  <!--                    v-model="form.remember" -->
-                  <!--                    label="Remember me" -->
-                  <!--                  /> -->
-
-                  <!--                  <RouterLink -->
-                  <!--                    class="text-primary ms-2 mb-1" -->
-                  <!--                    :to="{ name: 'auth-forgot-password' }" -->
-                  <!--                  > -->
-                  <!--                    Parolamı Unuttum? -->
-                  <!--                  </RouterLink> -->
-                </div>
-
-                <!-- login button -->
+                <!-- giriş butonu -->
                 <VBtn
                   block
                   type="submit"
@@ -127,39 +106,6 @@ const onSubmit = async () => {
                   GİRİŞ
                 </VBtn>
               </VCol>
-
-              <!-- create account -->
-              <!--              <VCol -->
-              <!--                cols="12" -->
-              <!--                class="text-center text-base" -->
-              <!--              > -->
-              <!--                <span>Hesabınız yok mu?</span> -->
-              <!--                <RouterLink -->
-              <!--                  class="text-primary ms-2" -->
-              <!--                  :to="{ name: 'auth-register' }" -->
-              <!--                > -->
-              <!--                  Hesap oluştur -->
-              <!--                </RouterLink> -->
-              <!--              </VCol> -->
-
-              <!--
-                <VCol
-                cols="12"
-                class="d-flex align-center"
-                >
-                <VDivider />
-                <span class="mx-4">or</span>
-                <VDivider />
-                </VCol>
-
-                &lt;!&ndash; auth providers &ndash;&gt;
-                <VCol
-                cols="12"
-                class="text-center"
-                >
-                <AuthProvider />
-                </VCol>
-              -->
             </VRow>
           </VForm>
         </VCardText>

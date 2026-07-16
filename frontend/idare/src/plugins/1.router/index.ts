@@ -4,7 +4,6 @@ import type { App } from 'vue'
 import type { RouteRecordRaw } from 'vue-router/auto'
 
 import { createRouter, createWebHistory } from 'vue-router/auto'
-import JwtService from '@/services/JwtService'
 import { useUserStore } from '@/store/user'
 
 function recursiveLayouts(route: RouteRecordRaw): RouteRecordRaw {
@@ -31,22 +30,27 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
-  const isLoggedIn = !!JwtService.getAccessToken()
-  if (!isLoggedIn) {
-    if (to.meta.redirectIfLoggedIn)
-      return next()
+// Oturum bir kez sunucuya sorulur. Token HttpOnly cookie'de olduğu için
+// JavaScript ona bakamaz — sayfa ilk açıldığında /me çağrısı yapılmadan
+// oturumun var olup olmadığı bilinemez.
+let sessionChecked = false
 
-    return next({ name: 'auth-login', query: { to: to.name !== 'root' ? to.fullPath : undefined } })
+router.beforeEach(async to => {
+  const userStore = useUserStore()
+
+  if (!sessionChecked) {
+    sessionChecked = true
+    await userStore.checkSession()
   }
 
+  // Girişliyken login sayfası → panele gönder
   if (to.meta.redirectIfLoggedIn)
-    return next('/')
+    return userStore.isAuthenticated ? '/' : true
 
-  if (!useUserStore().hasRole(to.meta.role))
-    return next({ name: 'not-authorized' })
+  if (!userStore.isAuthenticated)
+    return { name: 'auth-login', query: { to: to.name !== 'root' ? to.fullPath : undefined } }
 
-  return next()
+  return true
 })
 
 export { router }

@@ -1,60 +1,46 @@
 import { defineStore } from 'pinia'
 import ApiService from '@/services/ApiService'
-import JwtService from '@/services/JwtService'
-import { ErrorPopup } from '@/utils/Popup'
 
-export type UserRole = 'admin' | 'teacher' | 'parent'
-
-export interface User {
-  id: number
-  name: string
-  surname: string
-  email: string
-  role: UserRole
-}
-
+/**
+ * Oturum durumu. Token HttpOnly cookie'de olduğu için JavaScript onu
+ * okuyamaz — oturumun geçerliliği /me çağrısıyla anlaşılır.
+ * Tek admin var, rol sistemi yok.
+ */
 export const useUserStore = defineStore('UserStore', {
   state: () => ({
-    user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user') as string) : {} as User,
-    isAuthenticated: !!JwtService.getAccessToken(),
+    username: '',
+    isAuthenticated: false,
   }),
-  getters: {
-    isUserAuthenticated: state => state.isAuthenticated,
-    hasRole: state => (roles?: UserRole[]) => !roles || roles.includes(state.user.role), // role paramteresi verilmediyse true döndürür
-    getRole: state => () => state.user.role, // todo: SOR
-  },
   actions: {
-    async login(access_token: string, refresh_token: string) {
-      JwtService.saveTokens(access_token, refresh_token)
-      this.isAuthenticated = true
-      await this.updateUser()
+    async login(username: string, password: string): Promise<string | null> {
+      const [err] = await ApiService.post('admin/login', { username, password })
+      if (err)
+        return err.message
+
+      await this.checkSession()
+
+      return null
     },
 
     async logout() {
+      await ApiService.post('admin/logout')
+      this.username = ''
       this.isAuthenticated = false
-      this.user = {} as User
-      JwtService.destroyTokens()
-      localStorage.removeItem('user')
-
-      const redirect = window.location.pathname + window.location.search
-      const urlParams = new URLSearchParams()
-
-      urlParams.set('redirect', redirect)
-      document.location.href = `/auth/login?${urlParams.toString()}`
     },
 
-    async updateUser() {
-      if (this.isAuthenticated !== true)
-        return
+    /** Cookie geçerli mi — sayfa yenilendiğinde oturumu geri kazanmak için. */
+    async checkSession(): Promise<boolean> {
+      const [err, data] = await ApiService.get<{ username: string }>('admin/me')
+      if (err) {
+        this.isAuthenticated = false
+        this.username = ''
 
-      const [error, data] = await ApiService.get<User>('user/me')
-      if (error) {
-        ErrorPopup(error)
-
-        return
+        return false
       }
-      this.user = data.data
-      localStorage.setItem('user', JSON.stringify(this.user))
+      this.username = data.username
+      this.isAuthenticated = true
+
+      return true
     },
   },
 })

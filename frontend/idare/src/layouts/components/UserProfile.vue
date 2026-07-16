@@ -2,8 +2,12 @@
 import placeholder from '@images/avatars/placeholder.png'
 import { useUserStore } from '@/store/user'
 
-const logout = () => {
-  useUserStore().logout()
+const userStore = useUserStore()
+const router = useRouter()
+
+const logout = async () => {
+  await userStore.logout()
+  await router.push({ name: 'auth-login' })
 }
 </script>
 
@@ -31,93 +35,13 @@ const logout = () => {
         offset="14px"
       >
         <VList>
-          <!-- 👉 User Avatar & Name -->
-          <!--
-            <VListItem>
-            <template #prepend>
-            <VListItemAction start>
-            <VBadge
-            dot
-            location="bottom right"
-            offset-x="3"
-            offset-y="3"
-            color="success"
-            >
-            <VAvatar
-            color="primary"
-            variant="tonal"
-            >
-            <VImg :src="avatar1" />
-            </VAvatar>
-            </VBadge>
-            </VListItemAction>
-            </template>
-
+          <!-- 👉 Oturum açan kullanıcı -->
+          <VListItem>
             <VListItemTitle class="font-weight-semibold">
-            John Doe
+              {{ userStore.username || 'Yönetici' }}
             </VListItemTitle>
-            <VListItemSubtitle>Admin</VListItemSubtitle>
-            </VListItem>
-
-            <VDivider class="my-2" />
-          -->
-
-          <!-- 👉 Profile -->
-          <VListItem
-            link
-            to="/profile"
-          >
-            <template #prepend>
-              <VIcon
-                class="me-2"
-                icon="tabler-user"
-                size="22"
-              />
-            </template>
-
-            <VListItemTitle>Profil Yönetimi</VListItemTitle>
           </VListItem>
 
-          <!-- 👉 Settings -->
-          <!--          <VListItem link> -->
-          <!--            <template #prepend> -->
-          <!--              <VIcon -->
-          <!--                class="me-2" -->
-          <!--                icon="tabler-settings" -->
-          <!--                size="22" -->
-          <!--              /> -->
-          <!--            </template> -->
-
-          <!--            <VListItemTitle>Settings</VListItemTitle> -->
-          <!--          </VListItem> -->
-
-          <!-- 👉 Pricing -->
-          <!--          <VListItem link> -->
-          <!--            <template #prepend> -->
-          <!--              <VIcon -->
-          <!--                class="me-2" -->
-          <!--                icon="tabler-currency-dollar" -->
-          <!--                size="22" -->
-          <!--              /> -->
-          <!--            </template> -->
-
-          <!--            <VListItemTitle>Pricing</VListItemTitle> -->
-          <!--          </VListItem> -->
-
-          <!-- 👉 FAQ -->
-          <!--          <VListItem link> -->
-          <!--            <template #prepend> -->
-          <!--              <VIcon -->
-          <!--                class="me-2" -->
-          <!--                icon="tabler-help" -->
-          <!--                size="22" -->
-          <!--              /> -->
-          <!--            </template> -->
-
-          <!--            <VListItemTitle>FAQ</VListItemTitle> -->
-          <!--          </VListItem> -->
-
-          <!-- Divider -->
           <VDivider class="my-2" />
 
           <!-- 👉 Logout -->
