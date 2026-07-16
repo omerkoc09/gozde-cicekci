@@ -5,6 +5,8 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/image', '@nuxtjs/sitemap'],
 
+  css: ['~/assets/css/main.css'],
+
   runtimeConfig: {
     public: {
       // SSR'da sunucu-sunucu çağrısı yapılır; tarayıcıdan çağrılırsa CORS'a takılır

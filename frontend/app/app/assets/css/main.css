@@ -1,0 +1,117 @@
+/* Mobile-first: temel stiller dar ekran için; genişletmeler min-width ile. */
+
+:root {
+  --renk-metin: #2d2a32;
+  --renk-soluk: #6b6673;
+  --renk-vurgu: #c2185b;
+  --renk-vurgu-koyu: #8c0032;
+  --renk-zemin: #fff;
+  --renk-zemin-alt: #faf7f8;
+  --renk-cizgi: #ebe6e9;
+  --renk-whatsapp: #25d366;
+  --renk-whatsapp-koyu: #128c7e;
+
+  --bosluk: 1rem;
+  --yuvarlak: 10px;
+  --genislik: 1120px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--renk-metin);
+  background: var(--renk-zemin);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  line-height: 1.6;
+}
+
+h1, h2, h3 {
+  line-height: 1.25;
+  margin: 0 0 0.5em;
+}
+
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.3rem; }
+
+@media (min-width: 768px) {
+  h1 { font-size: 2.1rem; }
+  h2 { font-size: 1.6rem; }
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.kapsayici {
+  max-width: var(--genislik);
+  margin-inline: auto;
+  padding-inline: var(--bosluk);
+}
+
+.bolum {
+  padding-block: 2rem;
+}
+
+@media (min-width: 768px) {
+  .bolum { padding-block: 3rem; }
+}
+
+/* Ürün ızgarası — dar ekranda iki sütun, çiçek fotoğrafı küçükken de seçilebiliyor.
+   minmax(0, 1fr): görselin intrinsic width'i (400px) sütunu şişirmesin. */
+.urun-izgara {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--bosluk);
+}
+
+@media (min-width: 640px) {
+  .urun-izgara { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 960px) {
+  .urun-izgara { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.buton {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border: 0;
+  border-radius: var(--yuvarlak);
+  background: var(--renk-vurgu);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+
+.buton:hover {
+  background: var(--renk-vurgu-koyu);
+}
+
+.soluk {
+  color: var(--renk-soluk);
+}
+
+/* Görsel yer tutucu — çiçekçi henüz fotoğraf yüklememiş olabilir */
+.gorsel-yok {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: var(--renk-zemin-alt);
+  color: var(--renk-soluk);
+  font-size: 2rem;
+}
