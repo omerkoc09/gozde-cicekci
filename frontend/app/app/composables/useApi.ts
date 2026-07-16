@@ -14,19 +14,6 @@ function apiBase(): string {
   return useRuntimeConfig().public.apiBase
 }
 
-/** Backend hata formatı: {"error": {"code": "...", "message": "..."}} */
-export function apiErrorMessage(err: unknown): string {
-  const e = err as { data?: { error?: { message?: string } }, statusCode?: number }
-
-  if (e?.data?.error?.message)
-    return e.data.error.message
-
-  if (e?.statusCode === 404)
-    return 'Ürün bulunamadı'
-
-  return 'Bir şeyler ters gitti, lütfen tekrar deneyin'
-}
-
 /**
  * Ürün listesi. İki eksen birlikte verilirse backend AND uyguluyor —
  * ikisine de uyan ürünler döner (spec §5.6).

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Category } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 
 const route = useRoute()
@@ -20,32 +21,57 @@ if (error.value || !product.value) {
 // ama tarayıcının adresi eski slug'da kalır. Sonuç: Google iki URL'de aynı
 // içeriği görür ve slug geçmişinin amacı boşa gider.
 // Çözüm: yanıttaki slug istenen slug'dan farklıysa SAYFA yolunda 301 yap.
-if (product.value.slug !== slug) {
+// <script setup>'ta üst seviye return yasak; bunun yerine yönlendirme
+// bayrağıyla altındaki setup'ı (kategori isteği + useSeoMeta) atlıyoruz ki
+// eski slug'la gereksiz iş yapılmasın.
+const yonlendiriliyor = product.value.slug !== slug
+
+if (yonlendiriliyor) {
   await navigateTo(`/urun/${product.value.slug}`, {
     redirectCode: 301,
     replace: true,
   })
 }
 
+const { public: cfg } = useRuntimeConfig()
+
 // Ürün yanıtında kategori İSİMLERİ yok, sadece category_ids — isimler için
-// tüm kategori listesi çekiliyor (~16 kayıt, tek çağrı).
-const { data: categories } = await useCategoryList()
+// tüm kategori listesi çekiliyor (~16 kayıt, tek çağrı). Yönlendirmede atlanır.
+const { data: categories } = yonlendiriliyor
+  ? { data: ref<Category[]>([]) }
+  : await useCategoryList()
 
 const productCategories = computed(() =>
   (categories.value ?? []).filter(c => product.value?.category_ids?.includes(c.id)))
 
-const { public: cfg } = useRuntimeConfig()
+// Meta description: açıklama varsa ~160 karaktere kırp, yoksa isimle birebir
+// aynı olmayan kısa bir genel metin üret (aksi halde başlık = açıklama).
+const metaDescription = computed(() => {
+  const p = product.value
+  if (!p)
+    return ''
+
+  const aciklama = p.description?.trim()
+  if (aciklama)
+    return aciklama.length > 160 ? `${aciklama.slice(0, 157).trimEnd()}…` : aciklama
+
+  return `${p.name} — taze çiçek ve buket. WhatsApp'tan sipariş verin.`
+})
 
 // WhatsApp önizlemesinin çalıştığı yer — og:image SSR'da gelmek zorunda (spec §5.1)
-useSeoMeta({
-  title: () => `${product.value?.name} | Çiçekçi`,
-  description: () => product.value?.description || product.value?.name,
-  ogTitle: () => product.value?.name,
-  ogDescription: () => product.value?.description || product.value?.name,
-  ogImage: () => product.value?.images?.[0]?.url_1200,
-  ogUrl: () => `${cfg.siteUrl}/urun/${product.value?.slug}`,
-  ogType: 'website',
-})
+if (!yonlendiriliyor) {
+  useSeoMeta({
+    title: () => `${product.value?.name} | Çiçekçi`,
+    // Açıklama uzun olabilir; meta description ~160 karakterle sınırlanıyor.
+    // Boşsa isim değil kısa bir genel metin — başlıkla birebir aynı olmasın.
+    description: () => metaDescription.value,
+    ogTitle: () => product.value?.name,
+    ogDescription: () => metaDescription.value,
+    ogImage: () => product.value?.images?.[0]?.url_1200,
+    ogUrl: () => `${cfg.siteUrl}/urun/${product.value?.slug}`,
+    ogType: 'website',
+  })
+}
 </script>
 
 <template>

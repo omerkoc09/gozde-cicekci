@@ -17,9 +17,14 @@
  */
 export default defineEventHandler(async event => {
   const cfg = useRuntimeConfig()
-  const path = getRouterParam(event, 'path') || ''
+  const rawPath = getRouterParam(event, 'path') || ''
 
-  if (path.startsWith('admin'))
+  // Güvenlik: yalnızca public uçlar. admin kontrolü büyük/küçük harfe
+  // duyarsız ve baştaki eğik çizgi/segment normalize edilerek yapılıyor —
+  // "Admin/me" veya "/admin/..." gibi varyantlar da bloke olsun.
+  const path = rawPath.replace(/^\/+/, '')
+
+  if (/^admin(\/|$)/i.test(path))
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
   const query = getQuery(event)
