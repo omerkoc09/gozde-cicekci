@@ -1,6 +1,7 @@
 import { deepMerge } from '@antfu/utils'
 import type { App } from 'vue'
 import { createVuetify } from 'vuetify'
+import { tr } from 'vuetify/locale'
 import { VBtn } from 'vuetify/components/VBtn'
 import defaults from './defaults'
 import { icons } from './icons'
@@ -41,6 +42,11 @@ export default function (app: App) {
     icons,
     theme: optionTheme,
 
+    // Arayüz dili Türkçe — tablo sayfalama, seçim vb. hazır metinler.
+    locale: {
+      locale: 'tr',
+      messages: { tr },
+    },
   })
 
   app.use(vuetify)

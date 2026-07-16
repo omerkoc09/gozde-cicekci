@@ -108,6 +108,11 @@ onMounted(async () => {
   await loadProduct()
 })
 
+// Oluşturduktan sonra router.replace ile /urunler/yeni → /urunler/:id oluyor.
+// Bileşen yeniden kurulmadığı için onMounted tekrar çalışmaz; ürünü burada
+// yüklemezsek görsel bölümü kullanıcı sayfayı yenileyene kadar boş kalır.
+watch(rawId, loadProduct)
+
 const save = async () => {
   const { valid } = await formRef.value!.validate()
   if (!valid)

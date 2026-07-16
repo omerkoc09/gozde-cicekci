@@ -127,39 +127,40 @@ const remove = async (img: ProductImage) => {
       <VCol
         v-for="(img, i) in ordered"
         :key="img.id"
-        cols="6"
-        sm="4"
-        md="3"
+        cols="12"
+        sm="6"
       >
-        <VCard>
+        <VCard variant="outlined">
           <VImg
             :src="img.url_400"
             aspect-ratio="1"
             cover
           >
+            <!-- Kapak = ilk görsel (spec §4.4) -->
             <VChip
               v-if="i === 0"
               size="x-small"
               color="primary"
+              variant="elevated"
               class="ma-2"
             >
               Kapak
             </VChip>
           </VImg>
 
-          <VCardActions class="justify-space-between px-2">
-            <div>
+          <div class="d-flex align-center justify-space-between pa-1">
+            <div class="d-flex">
               <VBtn
                 icon="tabler-arrow-left"
                 variant="text"
-                size="small"
+                size="x-small"
                 :disabled="i === 0 || busy"
                 @click="move(i, -1)"
               />
               <VBtn
                 icon="tabler-arrow-right"
                 variant="text"
-                size="small"
+                size="x-small"
                 :disabled="i === ordered.length - 1 || busy"
                 @click="move(i, 1)"
               />
@@ -168,12 +169,12 @@ const remove = async (img: ProductImage) => {
             <VBtn
               icon="tabler-trash"
               variant="text"
-              size="small"
+              size="x-small"
               color="error"
               :disabled="busy"
               @click="remove(img)"
             />
-          </VCardActions>
+          </div>
         </VCard>
       </VCol>
     </VRow>

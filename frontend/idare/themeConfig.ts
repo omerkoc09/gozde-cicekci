@@ -10,7 +10,10 @@ import { AppContentLayoutNav, ContentWidth, FooterType, NavbarType } from '@layo
 
 export const { themeConfig, layoutConfig } = defineThemeConfig({
   app: {
-    title: 'go-template2',
+    // Küçük harf zorunlu: tip Lowercase<string> ve localStorage anahtar
+    // öneki olarak kullanılıyor (namespaceConfig). Arayüzde text-capitalize
+    // ile büyük harfle gösteriliyor.
+    title: 'çiçekçi',
     logo: h('div', { innerHTML: logo, style: 'line-height:0; color: rgb(var(--v-global-theme-primary))' }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
