@@ -24,7 +24,6 @@
     "@nuxt/test-utils": "^4.0.3",
     "@nuxtjs/sitemap": "^8.2.2",
     "@tailwindcss/vite": "^4.3.3",
-    "playwright-core": "^1.61.1",
     "tailwindcss": "^4.3.3",
     "vitest": "^4.1.10"
   }
