@@ -22,23 +22,23 @@ withDefaults(defineProps<{
 <template>
   <NuxtLink
     to="/"
-    class="group flex flex-shrink-0 items-center gap-3 md:gap-5"
+    class="group flex min-w-0 items-center gap-2.5 md:gap-5"
     aria-label="Gözde Tasarım Çiçekçilik — ana sayfa"
   >
     <img
       src="~/assets/img/gozde-icon.svg"
       alt=""
       aria-hidden="true"
-      class="h-11 w-auto md:h-14"
+      class="h-10 w-auto shrink-0 md:h-14"
       width="48"
       height="70"
     >
 
-    <span class="flex flex-col border-l border-outline-variant/40 pl-3 md:pl-5">
-      <span class="font-serif text-base leading-tight tracking-tight text-primary md:text-xl">
+    <span class="flex min-w-0 flex-col border-l border-outline-variant/40 pl-2.5 md:pl-5">
+      <span class="truncate font-serif text-sm leading-tight tracking-tight text-primary sm:text-base md:text-xl">
         Gözde Tasarım
       </span>
-      <span class="-mt-0.5 font-serif text-sm italic leading-none text-primary/80 md:text-lg">
+      <span class="-mt-0.5 truncate font-serif text-xs italic leading-none text-primary/80 sm:text-sm md:text-lg">
         Çiçekçilik
       </span>
 

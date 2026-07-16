@@ -2,13 +2,18 @@
 import type { Axis, Category } from '~/types/api'
 import { AXIS_LABELS } from '~/types/api'
 
+/**
+ * Kategori filtresi — DESIGN.md §Components: pill şeklinde chip'ler,
+ * seçili olan dolu koyu, pasif olan outline.
+ *
+ * Filtre state'i URL'de (spec §5.6) — Vue state'inde değil. Böylece liste
+ * paylaşılabiliyor ve tarayıcı geri tuşu çalışıyor.
+ */
 const { data: categories } = await useCategoryList()
 
 const route = useRoute()
 const router = useRouter()
 
-// Filtre state'i URL'de (spec §5.6) — Vue state'inde değil.
-// Böylece liste paylaşılabiliyor ve tarayıcı geri tuşu çalışıyor.
 const amac = computed(() => route.query.amac as string | undefined)
 const tip = computed(() => route.query.tip as string | undefined)
 
@@ -44,35 +49,39 @@ const acik = ref(false)
 </script>
 
 <template>
-  <div class="filtre">
+  <div>
+    <!-- Mobil aç/kapa -->
     <button
-      class="filtre-ac"
+      type="button"
+      class="text-label-caps inline-flex items-center gap-2 rounded border border-outline-variant/60 px-4 py-2.5 text-on-surface md:hidden"
       :aria-expanded="acik"
       @click="acik = !acik"
     >
+      <Icon name="material-symbols:tune" size="16" />
       Filtrele
-      <span v-if="filtreVar" class="rozet" />
+      <span v-if="filtreVar" class="size-1.5 rounded-full bg-accent-gold" />
     </button>
 
-    <div
-      class="filtre-govde"
-      :class="{ 'filtre-govde-acik': acik }"
-    >
+    <div :class="acik ? 'mt-5 block' : 'hidden md:block'">
       <div
         v-for="axis in (['occasion', 'type'] as Axis[])"
         :key="axis"
-        class="grup"
+        class="mb-5 last:mb-0"
       >
-        <h3 class="grup-baslik">
+        <h3 class="text-label-caps mb-3 text-on-surface-variant/70">
           {{ AXIS_LABELS[axis] }}
         </h3>
 
-        <div class="cipler">
+        <div class="flex flex-wrap gap-2">
           <button
             v-for="kategori in (axis === 'occasion' ? occasionCategories : typeCategories)"
             :key="kategori.id"
-            class="cip"
-            :class="{ 'cip-secili': seciliDeger(axis) === kategori.slug }"
+            type="button"
+            class="rounded-full border px-4 py-2 text-sm transition-colors"
+            :class="seciliDeger(axis) === kategori.slug
+              ? 'border-primary bg-primary text-on-primary'
+              : 'border-outline-variant/60 text-on-surface-variant hover:border-primary hover:text-primary'"
+            :aria-pressed="seciliDeger(axis) === kategori.slug"
             @click="sec(axis, kategori)"
           >
             {{ kategori.name }}
@@ -80,7 +89,7 @@ const acik = ref(false)
 
           <p
             v-if="(axis === 'occasion' ? occasionCategories : typeCategories).length === 0"
-            class="soluk"
+            class="text-sm text-on-surface-variant/60"
           >
             —
           </p>
@@ -89,97 +98,12 @@ const acik = ref(false)
 
       <button
         v-if="filtreVar"
-        class="temizle"
+        type="button"
+        class="text-label-caps mt-2 text-secondary hover:text-secondary-hover"
         @click="temizle"
       >
-        Filtreyi temizle
+        Filtreyi Temizle
       </button>
     </div>
   </div>
 </template>
-
-<style scoped>
-.filtre-ac {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.1rem;
-  border: 1px solid var(--renk-cizgi);
-  border-radius: var(--yuvarlak);
-  background: var(--renk-zemin);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.rozet {
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: 50%;
-  background: var(--renk-vurgu);
-}
-
-.filtre-govde {
-  display: none;
-  margin-block-start: 1rem;
-}
-
-.filtre-govde-acik {
-  display: block;
-}
-
-.grup {
-  margin-block-end: 1.25rem;
-}
-
-.grup-baslik {
-  margin: 0 0 0.6rem;
-  font-size: 0.95rem;
-}
-
-.cipler {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.cip {
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--renk-cizgi);
-  border-radius: 999px;
-  background: var(--renk-zemin);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.cip:hover {
-  border-color: var(--renk-vurgu);
-}
-
-.cip-secili {
-  border-color: var(--renk-vurgu);
-  background: var(--renk-vurgu);
-  color: #fff;
-}
-
-.temizle {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--renk-vurgu);
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-/* Masaüstünde filtre hep açık, buton gizli */
-@media (min-width: 768px) {
-  .filtre-ac { display: none; }
-
-  .filtre-govde {
-    display: block;
-    margin-block-start: 0;
-  }
-}
-</style>

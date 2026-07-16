@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const sepetAcik = ref(false)
+
+// Sayfalar da sepeti açabilsin (ürün detaydaki inert "Sepete Ekle" butonu).
+provide('sepetAcik', sepetAcik)
 </script>
 
 <template>

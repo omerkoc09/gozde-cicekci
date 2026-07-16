@@ -40,13 +40,15 @@ export default defineNuxtConfig({
       // Hem SSR hem client çağrıları buraya gider, CORS'a takılmaz.
       apiBase: '/api/go',
 
-      whatsappNumber: process.env.NUXT_PUBLIC_WHATSAPP_NUMBER || '905551234567',
+      whatsappNumber: process.env.NUXT_PUBLIC_WHATSAPP_NUMBER || '905536143686',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
 
-      // İletişim bilgileri (spec §5.3 — settings tablosu ertelendi, .env'den okunuyor)
-      contactPhone: process.env.NUXT_PUBLIC_CONTACT_PHONE || '',
-      contactAddress: process.env.NUXT_PUBLIC_CONTACT_ADDRESS || '',
-      contactHours: process.env.NUXT_PUBLIC_CONTACT_HOURS || '',
+      // İletişim bilgileri (spec §5.3 — settings tablosu ertelendi, .env'den
+      // okunuyor). Varsayılanlar Gözde Tasarım'ın gerçek bilgileri; prod'da
+      // env var ile override edilir.
+      contactPhone: process.env.NUXT_PUBLIC_CONTACT_PHONE || '0553 614 36 86',
+      contactAddress: process.env.NUXT_PUBLIC_CONTACT_ADDRESS || 'Teşvikiye Cd., Nişantaşı, İstanbul',
+      contactHours: process.env.NUXT_PUBLIC_CONTACT_HOURS || 'Her gün 09:00 - 20:00',
     },
   },
 

@@ -177,6 +177,11 @@
     font-family: var(--font-sans);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+
+    /* Yatay kaydırma asla olmamalı: tek bir taşan eleman tüm mobil düzeni
+       bozuyor ve fark edilmesi zor. Geniş içerik (tablo, galeri) kendi
+       içinde kayar. */
+    overflow-x: hidden;
   }
 
   h1, h2, h3 {

@@ -104,7 +104,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
       </nav>
 
       <!-- Aksiyonlar -->
-      <div class="flex items-center gap-1 text-primary md:gap-2">
+      <div class="flex shrink-0 items-center gap-0.5 text-primary md:gap-2">
         <NuxtLink
           to="/hesabim/favoriler"
           class="rounded p-2 transition-colors hover:text-secondary"

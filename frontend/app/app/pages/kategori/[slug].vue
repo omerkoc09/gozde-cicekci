@@ -13,7 +13,7 @@ if (error.value || !category.value) {
 }
 
 // Kategori hangi eksende ise ürünler o parametreyle çekilir
-const { data: products } = await useProductList({
+const { data: products, status } = await useProductList({
   amac: category.value.axis === 'occasion' ? slug : undefined,
   tip: category.value.axis === 'type' ? slug : undefined,
   limit: 100,
@@ -22,8 +22,8 @@ const { data: products } = await useProductList({
 // Bu sayfa indexlenir (filtre kombinasyonlarının aksine) — SEO'nun asıl hedefi.
 // "geçmiş olsun çiçeği" arayan müşteri buraya düşer.
 useSeoMeta({
-  title: () => `${category.value?.name} | Çiçekçi`,
-  description: () => `${category.value?.name} kategorisindeki taze çiçek ve buketler. WhatsApp'tan sipariş verin.`,
+  title: () => `${category.value?.name} | Gözde Tasarım Çiçekçilik`,
+  description: () => `${category.value?.name} kategorisindeki özenle hazırlanmış taze çiçek tasarımları. Sipariş WhatsApp üzerinden.`,
   ogTitle: () => category.value?.name,
   ogType: 'website',
   robots: 'index, follow',
@@ -31,26 +31,24 @@ useSeoMeta({
 </script>
 
 <template>
-  <div
-    v-if="category"
-    class="kapsayici bolum"
-  >
-    <nav class="izler soluk">
-      <NuxtLink to="/">
-        Ana Sayfa
-      </NuxtLink>
-      <span>/</span>
-      <NuxtLink to="/urunler">
-        Ürünler
-      </NuxtLink>
-    </nav>
+  <div v-if="category" class="site-container py-14 md:py-20">
+    <BreadCrumb
+      :items="[
+        { label: 'Anasayfa', to: '/' },
+        { label: 'Çiçekler', to: '/urunler' },
+        { label: category.name },
+      ]"
+    />
 
-    <h1>{{ category.name }}</h1>
+    <h1 class="mt-6 font-serif text-4xl text-primary md:text-5xl">
+      {{ category.name }}
+    </h1>
 
-    <div
-      v-if="products?.length"
-      class="urun-izgara liste"
-    >
+    <div v-if="status === 'pending'" class="mt-12 grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
+      <ProductCardSkeleton v-for="i in 8" :key="i" />
+    </div>
+
+    <div v-else-if="products?.length" class="mt-12 grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
       <ProductCard
         v-for="product in products"
         :key="product.id"
@@ -58,32 +56,14 @@ useSeoMeta({
       />
     </div>
 
-    <p
+    <EmptyState
       v-else
-      class="soluk bos"
+      title="Bu kategoride şu an ürün yok"
+      description="Diğer koleksiyonlarımıza göz atabilirsiniz."
     >
-      Bu kategoride şu an ürün yok.
-    </p>
+      <NuxtLink to="/urunler" class="btn-secondary text-label-caps mt-7">
+        Tüm Koleksiyon
+      </NuxtLink>
+    </EmptyState>
   </div>
 </template>
-
-<style scoped>
-.izler {
-  display: flex;
-  gap: 0.5rem;
-  margin-block-end: 1rem;
-  font-size: 0.9rem;
-}
-
-.izler a:hover {
-  color: var(--renk-vurgu);
-}
-
-.liste {
-  margin-block-start: 1.5rem;
-}
-
-.bos {
-  margin-block-start: 2rem;
-}
-</style>
