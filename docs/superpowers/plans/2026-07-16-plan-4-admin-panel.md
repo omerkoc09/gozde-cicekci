@@ -1,6 +1,6 @@
 # Plan 4 — Admin Panel Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Çiçekçi esnafının ürün, kategori ve görsel yönettiği panel. Mevcut Vuetify template'i temel alınıyor.
 
@@ -177,7 +177,7 @@ frontend/idare/src/
 - Delete: `src/pages/users.vue`, `src/pages/second-page.vue`, `src/pages/version.vue`, `src/pages/profile.vue`
 - Modify: `package.json`
 
-- [ ] **Step 1: Kullanılmayan sayfaları ve bileşenleri sil**
+- [x] **Step 1: Kullanılmayan sayfaları ve bileşenleri sil**
 
 ```bash
 cd frontend/idare
@@ -185,14 +185,14 @@ rm -f src/pages/users.vue src/pages/second-page.vue src/pages/version.vue src/pa
 rm -f src/components/extable.vue src/services/JwtService.ts src/model/api.ts
 ```
 
-- [ ] **Step 2: Bu dosyalara referans veren yerleri bul**
+- [x] **Step 2: Bu dosyalara referans veren yerleri bul**
 
 ```bash
 grep -rn "extable\|JwtService\|model/api\|second-page\|'users'\|version.vue" src/ --include="*.vue" --include="*.ts" | grep -v node_modules
 ```
 Çıkan her referans düzeltilecek (sonraki task'larda ele alınıyor: `ApiService`, `store/user.ts`, `navigation`).
 
-- [ ] **Step 3: Kullanılmayan bağımlılıkları kaldır**
+- [x] **Step 3: Kullanılmayan bağımlılıkları kaldır**
 
 ```bash
 pnpm remove @casl/ability @casl/vue apexcharts chart.js vue-chartjs vue3-apexcharts \
@@ -202,19 +202,19 @@ pnpm remove @casl/ability @casl/vue apexcharts chart.js vue-chartjs vue3-apexcha
   @formkit/drag-and-drop
 ```
 
-- [ ] **Step 4: Kırılan importları temizle**
+- [x] **Step 4: Kırılan importları temizle**
 
 ```bash
 grep -rn "casl\|apexchart\|chart.js\|mapbox\|tiptap\|swiper\|prism\|shepherd\|moment\|jwt-decode\|drag-and-drop" src/ --include="*.ts" --include="*.vue" | grep -v node_modules
 ```
 Bulunan her importu ve kullanan kodu sil. `src/plugins/` altında kayıt dosyaları olabilir.
 
-- [ ] **Step 5: Build hâlâ çalışıyor mu**
+- [x] **Step 5: Build hâlâ çalışıyor mu**
 
 Run: `pnpm build`
 Expected: `✓ built in ...` — hata yok. Bundle boyutu öncekinden küçük olmalı.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A frontend/idare
@@ -241,7 +241,7 @@ swiper, prism, shepherd, moment, jwt-decode, drag-and-drop."
 **Interfaces:**
 - Produces: `ApiService.get/post/patch/delete<T>(url, data?) → Promise<[error, response]>`
 
-- [ ] **Step 1: .env dosyalarını backend'e göre ayarla**
+- [x] **Step 1: .env dosyalarını backend'e göre ayarla**
 
 `.env.development`:
 ```
@@ -257,7 +257,7 @@ Not: Backend'in CORS'u `AllowOrigins: cfg.SiteURL` + `AllowCredentials: true`
 kullanıyor. Geliştirmede `SITE_URL=http://localhost:5173` (Vite'ın portu)
 olmalı, yoksa tarayıcı cookie'yi göndermez.
 
-- [ ] **Step 2: ApiService'i yeniden yaz**
+- [x] **Step 2: ApiService'i yeniden yaz**
 
 `src/services/ApiService.ts`:
 ```ts
@@ -344,12 +344,12 @@ class ApiService {
 export default ApiService
 ```
 
-- [ ] **Step 3: Build kontrolü**
+- [x] **Step 3: Build kontrolü**
 
 Run: `pnpm build`
 Expected: ApiService'i kullanan yerler kırılmış olabilir (login.vue, store/user.ts) — sonraki task'larda düzeltiliyor. Şimdilik hata varsa not al.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/services/ApiService.ts .env.development .env.production
@@ -373,7 +373,7 @@ Bizim backend HttpOnly cookie veriyor ve refresh token yok — 199 satır
 **Interfaces:**
 - Produces: `useUserStore()` → `{ username, isAuthenticated, login(), logout(), checkSession() }`
 
-- [ ] **Step 1: store/user.ts'i yeniden yaz**
+- [x] **Step 1: store/user.ts'i yeniden yaz**
 
 `src/store/user.ts`:
 ```ts
@@ -425,7 +425,7 @@ export const useUserStore = defineStore('UserStore', {
 })
 ```
 
-- [ ] **Step 2: forgot-password sayfasını sil**
+- [x] **Step 2: forgot-password sayfasını sil**
 
 ```bash
 rm -f src/pages/auth/forgot-password.vue
@@ -433,7 +433,7 @@ grep -rn "forgot-password" src/ --include="*.vue" --include="*.ts" | grep -v nod
 ```
 Bulunan linkleri kaldır (login.vue'da olabilir).
 
-- [ ] **Step 3: login.vue'nun script kısmını değiştir**
+- [x] **Step 3: login.vue'nun script kısmını değiştir**
 
 Mevcut `onSubmit` şuna benzer:
 ```ts
@@ -465,7 +465,7 @@ Formun alan adları backend'e uymalı: `username` ve `password`. Template'te
 
 `console.log(import.meta.env.VITE_API_BASE_URL)` satırını sil.
 
-- [ ] **Step 4: Router guard'ını sadeleştir**
+- [x] **Step 4: Router guard'ını sadeleştir**
 
 `src/plugins/1.router/index.ts` içindeki guard rol kontrolü yapıyorsa kaldır.
 Sadece şu kalsın: giriş yapılmamışsa ve sayfa korumalıysa `/auth/login`'e gönder.
@@ -473,7 +473,7 @@ Sadece şu kalsın: giriş yapılmamışsa ve sayfa korumalıysa `/auth/login`'e
 Oturum kontrolü `isAuthenticated` state'ine bakmalı; uygulama açılışında
 bir kez `checkSession()` çağrılmalı (`main.ts` veya guard'da).
 
-- [ ] **Step 5: Backend'i başlat ve login'i ELLE test et**
+- [x] **Step 5: Backend'i başlat ve login'i ELLE test et**
 
 ```bash
 # Terminal 1 — backend
@@ -505,7 +505,7 @@ Tarayıcıda `http://localhost:5173/auth/login`:
 - Sayfayı yenile → oturum korunmalı (checkSession çalışıyor)
 - Çıkış yap → cookie silinmeli
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A src/store src/pages/auth src/plugins/1.router
@@ -528,7 +528,7 @@ okunamaz."
 **Interfaces:**
 - Produces: `Product`, `ProductImage`, `Category`, `Axis` tipleri ve API fonksiyonları
 
-- [ ] **Step 1: model/category.ts**
+- [x] **Step 1: model/category.ts**
 
 ```ts
 export type Axis = 'occasion' | 'type'
@@ -566,7 +566,7 @@ export const AXIS_LABELS: Record<Axis, string> = {
 }
 ```
 
-- [ ] **Step 2: model/product.ts**
+- [x] **Step 2: model/product.ts**
 
 ```ts
 export interface ProductImage {
@@ -606,7 +606,7 @@ export interface ProductUpdate {
 }
 ```
 
-- [ ] **Step 3: composables/useCategories.ts**
+- [x] **Step 3: composables/useCategories.ts**
 
 ```ts
 import ApiService from '@/services/ApiService'
@@ -632,7 +632,7 @@ export function useCategories() {
 }
 ```
 
-- [ ] **Step 4: composables/useProducts.ts**
+- [x] **Step 4: composables/useProducts.ts**
 
 ```ts
 import ApiService from '@/services/ApiService'
@@ -656,7 +656,7 @@ export function useProducts() {
 }
 ```
 
-- [ ] **Step 5: composables/useImages.ts**
+- [x] **Step 5: composables/useImages.ts**
 
 ```ts
 import ApiService from '@/services/ApiService'
@@ -693,7 +693,7 @@ export function useImages() {
 }
 ```
 
-- [ ] **Step 6: Build kontrolü ve commit**
+- [x] **Step 6: Build kontrolü ve commit**
 
 ```bash
 pnpm build
@@ -709,7 +709,7 @@ git commit -m "feat: ürün/kategori/görsel tipleri ve API composable'ları"
 - Create: `src/pages/kategoriler.vue`
 - Modify: `src/navigation/vertical/index.ts`
 
-- [ ] **Step 1: Menüyü çiçekçiye göre değiştir**
+- [x] **Step 1: Menüyü çiçekçiye göre değiştir**
 
 `src/navigation/vertical/index.ts`:
 ```ts
@@ -735,7 +735,7 @@ export default [
 `src/navigation/horizontal/index.ts` varsa aynı içeriği koy veya dosyayı sil
 (dikey nav kullanılıyorsa).
 
-- [ ] **Step 2: kategoriler.vue yaz**
+- [x] **Step 2: kategoriler.vue yaz**
 
 İki eksen ayrı tablolarda gösterilmeli (spec §5.6: "Gönderim Amacına Göre" ve
 "Ürün Tipine Göre" iki ayrı grup).
@@ -759,7 +759,7 @@ Gereksinimler:
   Yanına ipucu: "Pasif kategori ana sayfada görünmez."
 - Slug salt okunur ve değişmez — kategori URL'leri sabit (spec §4.2).
 
-- [ ] **Step 3: ELLE test**
+- [x] **Step 3: ELLE test**
 
 Backend ve frontend çalışırken:
 - İki eksende kategori oluştur: "Doğum Günü" (occasion), "Buket" (type)
@@ -769,7 +769,7 @@ Backend ve frontend çalışırken:
 - Ürün bağlı bir kategoriyi sil → doğru sayı görünmeli, silince ürün
   silinmemeli (ürünler ekranından doğrula)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/pages/kategoriler.vue src/navigation
@@ -783,7 +783,7 @@ git commit -m "feat: kategori yönetimi ekranı — iki eksen, silme uyarısı"
 **Files:**
 - Modify: `src/pages/index.vue`
 
-- [ ] **Step 1: index.vue'yu ürün listesine çevir**
+- [x] **Step 1: index.vue'yu ürün listesine çevir**
 
 Gereksinimler:
 - `VDataTable` — kolonlar: kapak görseli (küçük thumbnail, `url_400`), ad,
@@ -800,7 +800,7 @@ Gereksinimler:
 40-100 ürünü olacak, tek sayfada gösterilebilir). Basit tut: `limit=100`
 ile tek sayfa, sayfalama YAPMA. Ürün sayısı büyürse Faz 2'de eklenir.
 
-- [ ] **Step 2: ELLE test**
+- [x] **Step 2: ELLE test**
 
 - Ürün listesi yükleniyor mu
 - Kapak görseli görünüyor mu (görsel yüklenmiş bir üründe)
@@ -808,7 +808,7 @@ ile tek sayfa, sayfalama YAPMA. Ürün sayısı büyürse Faz 2'de eklenir.
 - Pasif ürün soluk mu
 - Silme onayı çıkıyor mu, silince liste güncelleniyor mu
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/pages/index.vue
@@ -825,7 +825,7 @@ git commit -m "feat: ürün listesi ekranı"
 
 Bu planın en büyük parçası — görsel yönetimi burada.
 
-- [ ] **Step 1: ProductImageManager.vue yaz**
+- [x] **Step 1: ProductImageManager.vue yaz**
 
 Props: `productId: number`, `images: ProductImage[]`
 Emits: `update` (görseller değişince liste yenilensin)
@@ -849,7 +849,7 @@ kontrol ediyor, yoksa 404). Yeni ürün formunda görsel bölümü ürün
 kaydedilene kadar devre dışı olsun ve bunu kullanıcıya söyle:
 "Görsel eklemek için önce ürünü kaydedin."
 
-- [ ] **Step 2: urunler/[id].vue yaz**
+- [x] **Step 2: urunler/[id].vue yaz**
 
 Route: `/urunler/yeni` (oluşturma) ve `/urunler/:id` (düzenleme).
 `id === 'yeni'` ise oluşturma modu.
@@ -872,7 +872,7 @@ Gereksinimler:
 - Oluşturma başarılıysa `/urunler/:yeniId`'ye yönlen (görsel eklenebilsin)
 - `ProductImageManager` sadece düzenleme modunda aktif
 
-- [ ] **Step 3: ELLE test — tam akış**
+- [x] **Step 3: ELLE test — tam akış**
 
 Esnafın yaşayacağı akış:
 1. "Yeni Ürün" → ad "51 Gül Buket", fiyat 1850, kategori seç → Kaydet
@@ -886,7 +886,7 @@ Esnafın yaşayacağı akış:
 9. PDF yüklemeyi dene → net hata mesajı çıkmalı
 10. Ürünü sil → liste ekranına dön, ürün gitmiş olmalı
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/pages/urunler src/components/ProductImageManager.vue
@@ -901,7 +901,7 @@ git commit -m "feat: ürün formu ve görsel yönetimi"
 - Create: `src/pages/siparisler.vue`
 - Modify: `src/pages/[...error].vue` veya `[...all].vue` (gerekiyorsa)
 
-- [ ] **Step 1: siparisler.vue — Faz 2 placeholder**
+- [x] **Step 1: siparisler.vue — Faz 2 placeholder**
 
 Spec §5.2: *"admin routing'i, ileride sipariş yönetimi sayfası eklenecekmiş
 gibi genişletilebilir tut"*.
@@ -924,7 +924,7 @@ Basit bir sayfa:
 </template>
 ```
 
-- [ ] **Step 2: Kalan demo izlerini temizle**
+- [x] **Step 2: Kalan demo izlerini temizle**
 
 ```bash
 grep -rn "second-page\|users\|version\|profile\|teacher\|parent\|casl" src/ \
@@ -932,13 +932,13 @@ grep -rn "second-page\|users\|version\|profile\|teacher\|parent\|casl" src/ \
 ```
 Kalan referansları temizle.
 
-- [ ] **Step 3: Build + bundle boyutu**
+- [x] **Step 3: Build + bundle boyutu**
 
 Run: `pnpm build`
 Expected: hatasız. Bundle, Task 1 öncesine göre belirgin küçük olmalı
 (apexcharts, mapbox, tiptap gittikten sonra).
 
-- [ ] **Step 4: Tam akış ELLE testi**
+- [x] **Step 4: Tam akış ELLE testi**
 
 Temiz bir veritabanıyla baştan sona:
 ```bash
@@ -956,7 +956,7 @@ docker compose exec -T postgres psql -U cicekci -d cicekci \
    `curl localhost:8080/api/products` → boş dizi
 7. Çıkış yap → login'e dönmeli
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add -A frontend/idare
@@ -967,18 +967,69 @@ git commit -m "feat: sipariş placeholder (Faz 2) ve son temizlik"
 
 ## Plan 4 Bitiş Kriterleri
 
-- [ ] `pnpm build` hatasız
-- [ ] Giriş HttpOnly cookie ile çalışıyor; localStorage'da token YOK
-- [ ] Sayfa yenilenince oturum korunuyor
-- [ ] Kategori: iki eksen ayrı, silme uyarısı ürün sayısını gösteriyor
-- [ ] Pasif kategoride `is_featured` kilitli
-- [ ] Ürün CRUD çalışıyor, fiyat string olarak gidiyor
-- [ ] Kategori seçimi iki grupta
-- [ ] Görsel yükleme çalışıyor, JPEG/PNG dışı reddediliyor
-- [ ] Görsel sıralama çalışıyor, kapak değişiyor
-- [ ] Ürün silinince görselleri de gidiyor
-- [ ] `/siparisler` placeholder'ı var
-- [ ] Kullanılmayan bağımlılıklar kaldırıldı
+- [x] `pnpm build` hatasız
+- [x] Giriş HttpOnly cookie ile çalışıyor; localStorage'da token YOK
+- [x] Sayfa yenilenince oturum korunuyor
+- [x] Kategori: iki eksen ayrı, silme uyarısı ürün sayısını gösteriyor
+- [x] Pasif kategoride `is_featured` kilitli
+- [x] Ürün CRUD çalışıyor, fiyat string olarak gidiyor
+- [x] Kategori seçimi iki grupta
+- [x] Görsel yükleme çalışıyor, JPEG/PNG dışı reddediliyor
+- [x] Görsel sıralama çalışıyor, kapak değişiyor
+- [x] Ürün silinince görselleri de gidiyor
+- [x] `/siparisler` placeholder'ı var
+- [x] Kullanılmayan bağımlılıklar kaldırıldı
 
 **Sonraki:** Plan 3 — Nuxt public site. Admin panel bittikten sonra yazılacak;
 o zaman API'nin frontend'den nasıl tüketildiği de görülmüş olur.
+
+---
+
+## Uygulama Notu (2026-07-16)
+
+Tüm kriterler gerçek sunucu + gerçek tarayıcıya (Playwright/Chromium)
+karşı doğrulandı. Backend testleri: 179 geçti, 0 başarısız.
+
+**Plandan sapmalar ve nedenleri:**
+
+1. **Task 1-3 tek commit.** Plan üçüne ayrı commit istiyordu ama
+   `JwtService` silinince `ApiService`, `store/user` ve router guard'ın
+   üçü birden kırılıyor — build ancak hepsi yazılınca yeşile dönüyor.
+   Yeşil olmayan ara commit atmak yerine birleştirildi.
+
+2. **`ErrorPopup({ message })` → `ErrorPopup(message)`.** Plandaki
+   çağrı yanlıştı: `Popup.ts`'de imza `ErrorPopup(text: string)`.
+   Nesne geçilse kullanıcı `[object Object]` görecekti.
+
+3. **`make seed` kullanılamadı.** `term.ReadPassword` gerçek TTY istiyor,
+   script'ten beslenemiyor. Aynı `auth.CreateAdmin` fonksiyonunu çağıran
+   geçici bir program yazıldı, sonra silindi. (Kalıcı bir
+   `--username/--password` bayrağı cmd/seed'e eklenebilir — Faz 2.)
+
+4. **`casl.ts` silinmedi, stub'a indirildi.** `@layouts`'taki beş
+   navigasyon bileşeni `can`/`canViewNavMenuGroup` import ediyor. Plan
+   `@layouts`'a dokunmamayı söylüyordu; dosyayı her şeye izin veren
+   stub'a çevirmek hem paketi kaldırdı hem o beş dosyaya dokunmadı.
+
+5. **Plan dışı ek temizlik:** 16 demo dialog + AppPricing +
+   AppSearchHeader (kapalı ada, dışarıdan referans yok), `model/table.ts`
+   ve `utils/ExDate.ts` (öksüz), chartjs/tiptap/apex bileşenleri ve
+   orphan SCSS'ler. Ana bundle 406.66 kB → 334.46 kB (gzip 139.78 →
+   120.37), dört ekran eklenmesine rağmen ~%18 küçüldü.
+
+6. **Plan dışı düzeltmeler:** Vuetify `locale: 'tr'` (tablo altbilgisi
+   İngilizceydi), uygulama başlığı `go-template2` → `çiçekçi`.
+
+**Yakalanan gerçek hata:** Ürün oluşturulduktan sonra `router.replace`
+ile düzenleme moduna geçilirken bileşen yeniden kurulmadığı için
+`onMounted` tekrar çalışmıyor, `product` null kalıyor ve görsel bölümü
+boş görünüyordu — esnaf ürünü kaydedip fotoğraf ekleyemiyor, sayfayı
+yenilemek zorunda kalıyordu. `watch(rawId, loadProduct)` ile çözüldü.
+Bu, planın "en önemli akış" dediği adımdı ve ancak tarayıcıda ortaya
+çıktı; curl ile görünmezdi.
+
+**Elle (gözle) bakılmadı, otomasyonla doğrulandı:** cookie `HttpOnly`
+bayrağı Set-Cookie başlığından ve `document.cookie === ''` ile;
+localStorage'ın token içermediği `Object.entries(localStorage)` ile.
+Ekran görüntüleri alındı ve incelendi (kapak rozeti, pasif satır,
+iki eksenli tablolar).

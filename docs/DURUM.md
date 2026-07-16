@@ -10,8 +10,8 @@ Son güncelleme: 2026-07-16
 | Plan 1 — Backend temeli | ✅ **Uygulandı** — 13/13 task, 100 test |
 | Plan 2 — Görsel hattı | ✅ **Uygulandı** — 8/8 iş, 179 test toplam |
 | Template — admin panel iskeleti | ✅ Eklendi ve Node 22'ye uyarlandı |
-| Plan 4 — Admin panel | 📋 **Plan hazır, uygulanmadı** ← SIRADA |
-| Plan 3 — Nuxt public site | ⬜ Plan yazılmadı |
+| Plan 4 — Admin panel | ✅ **Uygulandı** — 8/8 task, tarayıcıda doğrulandı |
+| Plan 3 — Nuxt public site | ⬜ Plan yazılmadı ← SIRADA |
 | Final whole-branch review | ⬜ Ertelendi (Plan 1+2 birlikte yapılacak) |
 
 Branch: `feat/backend-temeli` (her şey burada)
@@ -28,15 +28,26 @@ Tam bir Go backend'i. Gerçek sunucuda uçtan uca doğrulandı:
 
 **Ölçülen kazanç:** 446KB/2000x1500 fotoğraf → 21KB/400px + 108KB/1200px (20x)
 
-## Sırada: Plan 4 — Admin Panel
+Çalışan bir admin paneli (`frontend/idare/`). Gerçek tarayıcıda uçtan uca
+doğrulandı (Playwright/Chromium):
+- Giriş — HttpOnly cookie, localStorage'da token yok (`document.cookie` boş)
+- Ürün listesi — kapak görseli, kategori chip'leri, pasif satır soluk
+- Ürün formu — iki eksenli kategori seçimi, fiyat string olarak gidiyor
+- Görsel yönetimi — çoklu yükleme, sola/sağa sıralama, kapak rozeti taşınıyor
+- Kategori yönetimi — iki eksen ayrı tablo, silme öncesi ürün sayısı uyarısı
+- `/siparisler` — Faz 2 placeholder'ı
 
-Plan: `docs/superpowers/plans/2026-07-16-plan-4-admin-panel.md`
+**Ana bundle:** 406.66 kB → 334.46 kB (gzip 139.78 → 120.37) — dört ekran
+eklenmesine rağmen ~%18 küçüldü (casl, apexcharts, tiptap, mapbox, swiper,
+moment vb. + 16 kullanılmayan demo dialog silindi).
 
-Planın başındaki "Başlangıç Durumu" bölümünü oku — ortam bilgileri,
-backend'i ayağa kaldırma komutları ve template'te zaten yapılanlar orada.
+## Sırada: Plan 3 — Nuxt Public Site
 
-8 task: temizlik → ApiService → auth → tipler/composable'lar → kategori
-ekranı → ürün listesi → ürün formu + görseller → placeholder + test.
+Plan henüz yazılmadı. Admin panel bittiğine göre API'nin frontend'den nasıl
+tüketildiği görüldü: `frontend/idare/src/services/ApiService.ts` (cookie auth,
+düz JSON, `[error, data]` deseni) ve `src/composables/use*.ts` örnek olarak
+kullanılabilir. Public site'ta auth yok, SSR var — ApiService'in cookie
+kısmı gerekmeyecek.
 
 ## Uygulama sırasında verilen önemli kararlar
 
@@ -69,6 +80,29 @@ sanılıyordu. Gerçek sebep: tüm test paketleri aynı DB'yi paylaşıyor ve
 **Şeffaf PNG bug'ı.** `imaging.Paste` alfa kanalını yok sayıp kopyalıyordu,
 şeffaf alanlar JPEG'de siyah çıkıyordu. `Overlay` ile harmanlanıyor.
 
+**Görsel bölümü kaydettikten sonra açılmıyordu (Plan 4, plan dışı düzeltme).**
+Ürün oluşturulunca `router.replace` ile `/urunler/yeni` → `/urunler/:id`
+oluyor ama bileşen yeniden kurulmadığı için `onMounted` tekrar çalışmıyor,
+`product` null kalıyor ve görsel bölümü boş görünüyordu. Esnaf ürünü
+kaydedip fotoğraf ekleyemiyordu — sayfayı yenilemesi gerekiyordu. Planın
+"esnafın yaşayacağı akış" dediği adımın tam ortası. `watch(rawId, loadProduct)`
+ile çözüldü. **Sadece tarayıcıda göründü; curl ile görünmezdi.**
+
+**`casl.ts` silinmedi, stub'a indirildi (Plan 4).** Plan `@casl` paketini
+kaldırmayı ve `@core`/`@layouts`'a dokunmamayı birlikte söylüyordu ama
+`@layouts`'taki beş navigasyon bileşeni `can`/`canViewNavMenuGroup`'u bu
+dosyadan alıyor. Dosya her şeye izin veren stub'a çevrildi: paket gitti,
+o beş dosyaya dokunulmadı. Rol sistemi gelirse burası tek değişecek yer.
+
+**`make seed` script'ten çalıştırılamıyor.** `term.ReadPassword` gerçek TTY
+istiyor. Plan 4'te admin oluşturmak için aynı `auth.CreateAdmin`'i çağıran
+geçici program yazıldı, sonra silindi. Otomasyon gerekiyorsa cmd/seed'e
+`--username`/`--password` bayrakları eklenebilir (Faz 2).
+
+**Vuetify locale `tr` (Plan 4, plan dışı).** Tablo altbilgisi "Items per
+page" diyordu. Arayüz dili Türkçe kararı (spec) hazır bileşen metinlerini
+de kapsıyor.
+
 ## Reddedilen review bulguları (gerekçesiyle)
 
 - **"`go mod tidy` çalıştırılmalı" (Task 1):** REDDEDİLDİ. O aşamada henüz
@@ -96,10 +130,18 @@ Final review'da triyaj edilecek — `.superpowers/sdd/plan1/progress.md` ve
 - Goroutine içindeki `f.Listen` hatası `log.Fatalf` çağırıyor →
   `defer pool.Close()` atlanıyor. Başlangıç hatalarında olur, pratik etkisi yok.
 - Template'te 17 tip hatası (`@core`/`@layouts`) — kullanıcı kararıyla bırakıldı.
+  Plan 4'ten sonra da 17; yazılan panel kodunun tamamı tipli.
+- 9 lint hatası `@core/utils/validators.ts`'te (regexp capturing group) —
+  `@core`'a dokunulmadığı için duruyor. Panel kodunda lint temiz.
+- Ürün listesinde sayfalama yok: `limit=100` ile tek sayfa. Backend toplam
+  sayı dönmüyor, esnafın 40-100 ürünü olacak. 100'ü geçerse eklenecek.
+- `uploads/products/` altında yetim klasör kalabiliyor (görsel kaydı silinip
+  dosya kalması). Test sırasında bir örnek görüldü; spec §8'de zaten
+  "yetim R2 dosyası temizliği" ertelenmiş kararlar arasında.
 
 ## Frontend yapısı
 
-- `frontend/idare/` — Vuetify 3 + Vite SPA, admin paneli (template eklendi)
+- `frontend/idare/` — Vuetify 3 + Vite SPA, admin paneli (Plan 4 ile çalışır durumda)
 - `frontend/app/` — Nuxt 3 public site (henüz boş, Plan 3'te)
 
 **Neden ayrı:** Public site SSR olmak ZORUNDA — WhatsApp'ın önizleme botu
