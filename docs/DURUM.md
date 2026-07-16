@@ -12,7 +12,9 @@ Son güncelleme: 2026-07-16
 | Template — admin panel iskeleti | ✅ Eklendi ve Node 22'ye uyarlandı |
 | Plan 4 — Admin panel | ✅ **Uygulandı** — 8/8 task, tarayıcıda doğrulandı |
 | Plan 3 — Nuxt public site | ✅ **Uygulandı** — 8/8 task, production SSR doğrulandı |
-| Final whole-branch review | ⬜ Ertelendi (Plan 1+2+3+4 birlikte) ← SIRADA |
+| Deployment altyapısı (Faz A) | ✅ **Hazır** — Docker Compose + Caddy, lokalde prod moduyla test edildi |
+| Final whole-branch review | ⬜ Ertelendi (Plan 1+2+3+4 birlikte) |
+| Deployment (Faz B — VPS) | ⬜ Sen çalıştıracaksın — `DEPLOYMENT.md` ← SIRADA |
 
 Branch: `feat/backend-temeli` (her şey burada)
 
@@ -52,11 +54,20 @@ moment vb. + 16 kullanılmayan demo dialog silindi).
 - Kategori sayfaları (index), hakkımızda/iletişim, sitemap.xml
 - Pasif ürün public'te yok (liste yok, detay 404); görselsiz ürün patlamıyor
 
-## Sırada: Final whole-branch review
+Hazır deployment altyapısı (`DEPLOYMENT.md`, `docker-compose.prod.yml`,
+`Dockerfile`'lar, `deploy/Caddyfile`). Tek VPS, tek domain path'e göre
+dağıtım (Caddy: `/` → Nuxt SSR, `/idare` → admin statik, `/api` → backend).
+Lokalde prod moduyla (self-signed TLS, APP_ENV=production) uçtan uca test
+edildi: HTTPS routing, migration akışı, SSR→backend iç ağ, Secure cookie,
+etkileşimsiz admin oluşturma, günlük yedek — hepsi çalışıyor.
+
+## Sırada: Final whole-branch review + Deployment (Faz B)
 
 Dört planın (1+2+3+4) tamamı `feat/backend-temeli`'nde. Whole-branch review
 ertelenmişti — artık backend + admin panel + public site birlikte
-gözden geçirilebilir. Sonra deployment.
+gözden geçirilebilir. Deployment altyapısı hazır (Faz A); Faz B (gerçek VPS,
+DNS, prod secret'lar, ilk deploy) kullanıcının sunucuda çalıştıracağı
+adımlar — `DEPLOYMENT.md`.
 
 ## Uygulama sırasında verilen önemli kararlar
 
@@ -85,6 +96,26 @@ sonlandırdığı için production'da `Secure` bayrağı olmayan auth cookie
 sanılıyordu. Gerçek sebep: tüm test paketleri aynı DB'yi paylaşıyor ve
 `NewTestDB` TRUNCATE çalıştırıyor — paralel paketler birbirini siliyordu.
 `make test` artık `-p 1` kullanıyor. **`go test ./...` KULLANMA.**
+
+**Deployment: tek domain + path, VPS (kullanıcı kararı).** Subdomain yerine
+`cicekci.com/idare` çünkü backend CORS'u tek origin alıyor — tek origin =
+CORS derdi yok. Admin panel Vite `base=/idare/` ile derleniyor (router
+`import.meta.env.BASE_URL`'i takip ediyor, dev'de '/' kalıyor). Public site
+zaten kendi Nitro proxy'siyle same-origin. Caddy otomatik TLS.
+
+**Prod compose'un dev postgres'i sildiği bug (yakalandı, düzeltildi).** İlk
+`docker-compose.prod.yml` dev compose ile aynı proje adını (`cicekci`) ve
+volume adını (`pgdata`) paylaşıyordu. Lokal prod testinin `down -v`'si dev'in
+`cicekci_pgdata` volume'unu sildi — dev DB verisi gitti (şema + admin migrate
++ seed ile geri geldi). Düzeltme: prod compose `name: cicekci-prod`, volume'lar
+ayrı isimli (`cicekci-prod_pgdata`). Artık tam izole; ikinci testte dev
+postgres'e dokunulmadığı doğrulandı.
+
+**cmd/seed etkileşimsiz mod (plan dışı, prod zorunluluğu).** `term.ReadPassword`
+TTY istiyor; prod'da container içinde ilk admin oluşturmak için `-username`/
+`-password` bayrakları eklendi. Bayraksız çağrı eski etkileşimli akışı koruyor.
+Plan 4 ve public site testlerinde geçici Go programı yazmak zorunda kalmıştım —
+bu artık kalıcı çözüm.
 
 **Şeffaf PNG bug'ı.** `imaging.Paste` alfa kanalını yok sayıp kopyalıyordu,
 şeffaf alanlar JPEG'de siyah çıkıyordu. `Overlay` ile harmanlanıyor.
