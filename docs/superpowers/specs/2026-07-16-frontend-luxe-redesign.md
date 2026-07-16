@@ -115,15 +115,46 @@ Mevcut Türkçe class isimleri (`.kapsayici`, `.buton`, `.urun-izgara`) kaldır�
 **İletişim:** Telefon `0553 614 36 86`, adres Nişantaşı/Teşvikiye — env var'dan
 okunmaya devam eder, yalnızca default değerler güncellenir.
 
-**Logo:** Kullanıcı gerçek asset'i (SVG/PNG) verecek. Gelene kadar geçici
-placeholder: Libre Caslon serif marka adı + oval "G" ikonu (SVG). Header logo'yu
-tek bir `TheLogo.vue` bileşeninden alır — asset gelince tek dosya değişir.
+### 4.1 Logo
 
-> **Not:** Logo asset'i kalın condensed sans kullanıyor, header mockup'ları ise
-> Libre Caslon serif. İki farklı marka dili. Asset geldiğinde hangisinin
-> kazanacağı kullanıcıya sorulacak.
+Kullanıcı 3 SVG verdi (`referans_tasarım/logo/`). İncelendi:
 
-## 4.1 Görseller — açık konu
+| Dosya | İçerik | Durum |
+|---|---|---|
+| `g_zde_tasar_m_centered_logo (1).svg` | Yalnızca oval "G" ikonu | Şeffaf, `<rect>` yok — **kullanılabilir** |
+| `g_zde_tasar_m_horizontal_logo.svg` | Yatay tam logo | Krem `<rect>` arka planlı |
+| `g_zde_tasar_m_centered_logo (2).svg` | Dikey tam logo | Krem `<rect>` arka planlı |
+
+**Teknik tespit:** Bu SVG'ler gerçek vektör değil — raster görselden otomatik
+trace edilmiş. Kanıt: 78–445 path ve `#fff9f1`, `#fbf9f4`, `#f7f1e4` gibi
+birbirinden zar zor ayrılan onlarca krem tonu (JPEG sıkıştırma artefaktları).
+Gerçek bir logo 3–4 renk kullanır.
+
+**Sonuç:** Tam logolarda arka plan yalnızca dış `<rect>` değil — krem tonlar
+harflerin *içine* de path olarak işlemiş. `<rect>` silinince koyu zeminde logo
+delik deşik çıkıyor (test edildi). Krem zeminde ise sorun yok. Site zaten baştan
+sona krem (`#fbf9f5`) ve dark mode reddedildiği için bu pratikte engel değil.
+
+**Karar (kullanıcı onayı ile):** Header'da **oval "G" ikonu + Libre Caslon serif
+marka adı** (canlı metin) — referans mockup'ların yaptığı şey.
+
+- Oval "G" ikonu: `app/assets/img/gozde-icon.svg` — viewBox içeriğe oturtuldu,
+  svgo ile optimize edildi (192KB → 88KB). Bu bir **placeholder değil**, gerçek
+  asset.
+- Marka adı canlı metin: her ekranda net, SEO'da okunur, ekran okuyucu görür,
+  0KB.
+- Yatay logo footer ve favicon için yedek (oralar da krem zemin).
+
+> **Bilinen sınır:** Logo raster kaynaklı olduğu için rengi değiştirilemez ve
+> koyu zemine konamaz. Tasarımcıdan orijinal vektör (AI/EPS) gelirse
+> `gozde-icon.svg` değiştirilir; `TheLogo.vue` tek kaynak olduğu için başka
+> dosya etkilenmez.
+>
+> **Marka dili sapması:** Logo asset'indeki yazı kalın condensed sans, header'da
+> kullanılacak Libre Caslon ise serif. Bilinçli sapma — serif tasarım
+> sistemiyle tutarlı ve daha premium (kullanıcı onayladı).
+
+### 4.2 Görseller — açık konu
 
 Referans mockup'lardaki **30 görselin tamamı** Google'ın AI CDN'inden hotlink
 (`lh3.googleusercontent.com/aida-public/...`). Bunlar AI üretimi mockup
@@ -241,7 +272,7 @@ etmeyeceği kadar kırık. Pano'daki "Siparişler" kartı da kaldırılır, kala
 
 ### 7.2 Yeni
 
-- `TheLogo.vue` — tek kaynak, asset gelince burası değişir
+- `TheLogo.vue` — oval "G" ikonu + serif marka adı; logo'nun tek kaynağı
 - `TheCartDrawer.vue` — boş durum
 - `components/icons/*` — inline SVG ikonlar
 - `components/account/AccountSidebar.vue`, `AccountHero.vue`
@@ -279,10 +310,12 @@ Tipografi mobilde küçülür (`headline-lg` 48px → `headline-lg-mobile` 32px)
 
 Uygulamayı bloke etmez ama karara bağlanmalı:
 
-1. **Dekoratif görsellerin kaynağı** (§4.1) — hero, kategori kartları, hesap
+1. **Dekoratif görsellerin kaynağı** (§4.2) — hero, kategori kartları, hesap
    banner'ı. Gerçek fotoğraf gelene kadar geçici asset ile ilerlenir.
-2. **Logo asset'i** (§4) — kullanıcı verecek. Gelene kadar serif + oval "G"
-   placeholder. Asset gelince serif mi condensed sans mı kazanacağı sorulacak.
+   **Bloke etmez** ama sitenin premium hissi doğrudan buna bağlı.
+
+**Çözülen:** Logo (§4.1) — oval "G" asset'i alındı, optimize edildi, yerine kondu.
+Orijinal vektör ileride gelirse tek dosya değişir.
 
 ## 10. Kapsam dışı
 
