@@ -1,24 +1,18 @@
-<template>
-  <div class="duzen">
-    <TheHeader />
+<script setup lang="ts">
+const sepetAcik = ref(false)
+</script>
 
-    <main>
+<template>
+  <div class="flex min-h-dvh flex-col bg-background">
+    <TheHeader @open-cart="sepetAcik = true" />
+
+    <main class="flex-1">
       <slot />
     </main>
 
     <TheFooter />
+
+    <TheCartDrawer v-model="sepetAcik" />
+    <WhatsAppFab />
   </div>
 </template>
-
-<style scoped>
-/* Footer içerik kısa olsa da altta kalsın */
-.duzen {
-  display: flex;
-  flex-direction: column;
-  min-block-size: 100vh;
-}
-
-main {
-  flex: 1;
-}
-</style>

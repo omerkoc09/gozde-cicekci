@@ -1,72 +1,121 @@
 <script setup lang="ts">
+import heroGorsel from '~/assets/img/hero.webp'
+import { kategoriGorseli } from '~/composables/useKategoriGorsel'
+
 const { data: featuredCategories } = await useFeaturedCategories()
 
-// Ana sayfanın işi vitrin, katalog değil — 8 ürün yeter (spec §5.2)
+// Ana sayfanın işi vitrin, katalog değil — 8 ürün yeter (spec §5.2).
+// Referans 4 gösteriyor ama grid 4'lü olduğu için 8 = iki tam sıra.
 const { data: products } = await useProductList({ limit: 8 })
 
 useSeoMeta({
-  title: 'Çiçekçi — Taze Çiçek ve Buket',
-  description: 'Doğum günü, kutlama ve özel günler için taze çiçek ve buketler. Sipariş WhatsApp üzerinden.',
-  ogTitle: 'Çiçekçi — Taze Çiçek ve Buket',
-  ogDescription: 'Doğum günü, kutlama ve özel günler için taze çiçek ve buketler.',
+  title: 'Gözde Tasarım Çiçekçilik — Taze Çiçek ve Buket',
+  description: 'Doğum günü, kutlama ve özel günler için özenle tasarlanmış taze çiçek aranjmanları. Sipariş WhatsApp üzerinden.',
+  ogTitle: 'Gözde Tasarım Çiçekçilik — Taze Çiçek ve Buket',
+  ogDescription: 'Duygularınızı çiçeklerle anlatın. Özenle tasarlanmış taze çiçek aranjmanları.',
   ogType: 'website',
 })
 </script>
 
 <template>
   <div>
-    <section class="hero">
-      <div class="kapsayici">
-        <h1>Taze çiçekler, aynı gün elinizde</h1>
-        <p class="hero-metin">
-          Doğum günü, kutlama ya da "sadece aklımdasın" demek için.
-          Beğendiğiniz ürünü seçin, WhatsApp'tan tek mesajla sipariş verin.
-        </p>
-        <NuxtLink
-          to="/urunler"
-          class="buton"
-        >
-          Ürünleri Gör
-        </NuxtLink>
+    <!-- Hero -->
+    <section class="relative isolate flex min-h-[520px] items-center overflow-hidden md:min-h-[620px]">
+      <!-- Yerel asset, zaten webp'e optimize edilmiş (spec §4.2) — IPX'ten
+           geçirmeye gerek yok, düz <img> yeterli ve daha hızlı. -->
+      <img
+        :src="heroGorsel"
+        alt=""
+        aria-hidden="true"
+        fetchpriority="high"
+        width="1408"
+        height="768"
+        class="absolute inset-0 -z-10 size-full object-cover"
+      >
+      <!-- Metin okunurluğu için: DESIGN.md gölge sevmiyor ama fotoğraf üstünde
+           kontrast erişilebilirlik gereği (spec §9). -->
+      <div
+        class="absolute inset-0 -z-10 bg-gradient-to-r from-surface/85 via-surface/50 to-transparent"
+        aria-hidden="true"
+      />
+
+      <div class="site-container">
+        <div class="max-w-xl">
+          <h1 class="font-serif text-4xl leading-tight tracking-tight text-primary md:text-5xl lg:text-6xl lg:leading-[1.1]">
+            Duygularınızı<br>Çiçeklerle Anlatın
+          </h1>
+          <p class="mt-5 max-w-md text-body-md text-on-surface-variant md:text-body-lg">
+            En özel anlarınızı taçlandıracak, özenle tasarlanmış taze çiçek
+            aranjmanları. Sevdiklerinize zarafet hediye edin.
+          </p>
+          <NuxtLink to="/urunler" class="btn-primary text-label-caps mt-8">
+            Hemen Keşfet
+          </NuxtLink>
+        </div>
       </div>
     </section>
 
-    <!-- Esnaf hangi kategorilerin öne çıkacağını admin panelden seçiyor -->
-    <section
-      v-if="featuredCategories?.length"
-      class="bolum"
-    >
-      <div class="kapsayici">
-        <h2>Ne için arıyorsunuz?</h2>
-        <div class="kategori-izgara">
+    <!-- Gönderim türüne göre -->
+    <section v-if="featuredCategories?.length" class="section-gap">
+      <div class="site-container">
+        <h2 class="text-center font-serif text-3xl text-primary md:text-4xl">
+          Gönderim Türüne Göre
+        </h2>
+
+        <div class="mt-12 grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
           <NuxtLink
-            v-for="kategori in featuredCategories"
+            v-for="(kategori, i) in featuredCategories"
             :key="kategori.id"
             :to="`/kategori/${kategori.slug}`"
-            class="kategori-kart"
+            class="group relative block overflow-hidden rounded-lg"
+            style="aspect-ratio: 3 / 4"
           >
-            {{ kategori.name }}
+            <img
+              :src="kategoriGorseli(kategori.slug, kategori.name, i)"
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="900"
+              height="1200"
+              class="size-full object-cover transition-transform duration-700 group-hover:scale-105"
+            >
+            <span
+              class="absolute inset-0 bg-gradient-to-t from-primary/70 via-primary/10 to-transparent"
+              aria-hidden="true"
+            />
+            <h3 class="absolute inset-x-0 bottom-0 p-4 font-serif text-lg text-white md:p-5 md:text-xl">
+              {{ kategori.name }}
+            </h3>
           </NuxtLink>
         </div>
       </div>
     </section>
 
-    <section class="bolum">
-      <div class="kapsayici">
-        <div class="baslik-satiri">
-          <h2>Öne Çıkanlar</h2>
+    <div class="site-container">
+      <GoldDivider />
+    </div>
+
+    <!-- En çok tercih edilenler -->
+    <section class="section-gap">
+      <div class="site-container">
+        <div class="flex items-baseline justify-between gap-4">
+          <h2 class="font-serif text-3xl text-primary md:text-4xl">
+            En Çok Tercih Edilenler
+          </h2>
           <NuxtLink
             to="/urunler"
-            class="tumu"
+            class="text-label-caps group flex shrink-0 items-center gap-1.5 text-secondary hover:text-secondary-hover"
           >
-            Tümünü gör →
+            Tümünü Gör
+            <Icon
+              name="material-symbols:arrow-forward"
+              size="14"
+              class="transition-transform group-hover:translate-x-0.5"
+            />
           </NuxtLink>
         </div>
 
-        <div
-          v-if="products?.length"
-          class="urun-izgara"
-        >
+        <div v-if="products?.length" class="mt-10 grid grid-cols-2 gap-3 md:gap-6 lg:grid-cols-4">
           <ProductCard
             v-for="product in products"
             :key="product.id"
@@ -74,71 +123,27 @@ useSeoMeta({
           />
         </div>
 
-        <p
+        <EmptyState
           v-else
-          class="soluk"
-        >
-          Ürünler yakında eklenecek.
+          icon="material-symbols:local-florist-outline"
+          title="Ürünler yakında"
+          description="Koleksiyonumuz hazırlanıyor. Çok yakında burada olacak."
+        />
+      </div>
+    </section>
+
+    <!-- Teslimat şeridi -->
+    <section class="bg-surface-container-low">
+      <div class="site-container py-14 text-center md:py-16">
+        <Icon name="material-symbols:local-shipping-outline" size="30" class="text-secondary" />
+        <h2 class="mt-3 font-serif text-xl text-primary md:text-2xl">
+          Aynı Gün Teslimat
+        </h2>
+        <p class="mx-auto mt-3 max-w-md text-body-md text-on-surface-variant">
+          İstanbul içi siparişlerinizde aynı gün, özenli ve güvenli teslimat
+          hizmeti sunuyoruz. Sevdikleriniz beklemeye gelmez.
         </p>
       </div>
     </section>
   </div>
 </template>
-
-<style scoped>
-.hero {
-  padding-block: 2.5rem;
-  background: var(--renk-zemin-alt);
-  border-block-end: 1px solid var(--renk-cizgi);
-}
-
-.hero-metin {
-  max-inline-size: 46ch;
-  margin-block-end: 1.5rem;
-  color: var(--renk-soluk);
-}
-
-.kategori-izgara {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--bosluk);
-}
-
-.kategori-kart {
-  display: grid;
-  place-items: center;
-  min-block-size: 88px;
-  padding: 1rem;
-  border: 1px solid var(--renk-cizgi);
-  border-radius: var(--yuvarlak);
-  background: var(--renk-zemin-alt);
-  font-weight: 600;
-  text-align: center;
-}
-
-.kategori-kart:hover {
-  border-color: var(--renk-vurgu);
-  color: var(--renk-vurgu);
-}
-
-.baslik-satiri {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.tumu {
-  color: var(--renk-vurgu);
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-@media (min-width: 640px) {
-  .kategori-izgara { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (min-width: 768px) {
-  .hero { padding-block: 4rem; }
-}
-</style>

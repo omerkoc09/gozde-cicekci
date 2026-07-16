@@ -1,118 +1,200 @@
 <script setup lang="ts">
-const acik = ref(false)
-const route = useRoute()
+import type { Category } from '~/types/api'
 
-// Sayfa değişince mobil menü kapansın
+/**
+ * Sticky header — DESIGN.md §Elevation: backdrop blur, gölge yok, ince alt çizgi.
+ *
+ * Nav referanstaki 5'li yapıyı korur ama Türkçeleştirildi (spec §6.1) ve
+ * "Özel Günler"/"Koleksiyonlar" gerçek kategori eksenlerine bağlandı (spec §5):
+ * occasion → Özel Günler, type → Koleksiyonlar.
+ *
+ * Sepet/favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
+ * Sepet rozeti bilinçli olarak yok: var olmayan sepet içeriğini iddia etmez.
+ */
+const emit = defineEmits<{ openCart: [] }>()
+
+const { data: categories } = await useCategoryList()
+
+const ozelGunler = computed(() =>
+  (categories.value ?? []).filter((c: Category) => c.axis === 'occasion'),
+)
+const koleksiyonlar = computed(() =>
+  (categories.value ?? []).filter((c: Category) => c.axis === 'type'),
+)
+
+const mobilAcik = ref(false)
+const acikMenu = ref<'ozel' | 'koleksiyon' | null>(null)
+
+const route = useRoute()
 watch(() => route.fullPath, () => {
-  acik.value = false
+  mobilAcik.value = false
+  acikMenu.value = null
 })
+
+// Mobil menü açıkken arka plan kaymasın
+watch(mobilAcik, (acik) => {
+  if (import.meta.client)
+    document.body.style.overflow = acik ? 'hidden' : ''
+})
+
+onBeforeUnmount(() => {
+  if (import.meta.client)
+    document.body.style.overflow = ''
+})
+
+function menuAc(menu: 'ozel' | 'koleksiyon') {
+  acikMenu.value = acikMenu.value === menu ? null : menu
+}
 </script>
 
 <template>
-  <header class="ust">
-    <div class="kapsayici ust-ic">
-      <NuxtLink to="/" class="logo">
-        Çiçekçi
-      </NuxtLink>
+  <header
+    class="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-md"
+    @keydown.escape="acikMenu = null"
+  >
+    <div class="site-container flex items-center justify-between gap-4 py-3 md:py-4">
+      <TheLogo />
 
-      <button
-        class="hamburger"
-        :aria-expanded="acik"
-        aria-label="Menü"
-        @click="acik = !acik"
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
+      <!-- Masaüstü nav -->
       <nav
-        class="nav"
-        :class="{ 'nav-acik': acik }"
+        class="hidden items-center gap-8 lg:flex"
+        aria-label="Ana menü"
       >
-        <NuxtLink to="/urunler">
-          Ürünler
+        <NuxtLink
+          to="/urunler"
+          class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
+          active-class="border-b border-accent-gold font-semibold !text-primary"
+        >
+          Çiçekler
         </NuxtLink>
-        <NuxtLink to="/hakkimizda">
+
+        <HeaderNavDropdown
+          v-if="ozelGunler.length"
+          label="Özel Günler"
+          :items="ozelGunler"
+          :open="acikMenu === 'ozel'"
+          @toggle="menuAc('ozel')"
+          @close="acikMenu = null"
+        />
+
+        <HeaderNavDropdown
+          v-if="koleksiyonlar.length"
+          label="Koleksiyonlar"
+          :items="koleksiyonlar"
+          :open="acikMenu === 'koleksiyon'"
+          @toggle="menuAc('koleksiyon')"
+          @close="acikMenu = null"
+        />
+
+        <NuxtLink
+          to="/hakkimizda"
+          class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
+          active-class="border-b border-accent-gold font-semibold !text-primary"
+        >
           Hakkımızda
         </NuxtLink>
-        <NuxtLink to="/iletisim">
+
+        <NuxtLink
+          to="/iletisim"
+          class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
+          active-class="border-b border-accent-gold font-semibold !text-primary"
+        >
           İletişim
         </NuxtLink>
       </nav>
+
+      <!-- Aksiyonlar -->
+      <div class="flex items-center gap-1 text-primary md:gap-2">
+        <NuxtLink
+          to="/hesabim/favoriler"
+          class="rounded p-2 transition-colors hover:text-secondary"
+          aria-label="Favoriler"
+        >
+          <Icon name="material-symbols:favorite-outline" size="22" />
+        </NuxtLink>
+
+        <button
+          type="button"
+          class="rounded p-2 transition-colors hover:text-secondary"
+          aria-label="Sepet"
+          @click="emit('openCart')"
+        >
+          <Icon name="material-symbols:shopping-cart-outline" size="22" />
+        </button>
+
+        <NuxtLink
+          to="/hesabim"
+          class="hidden rounded p-2 transition-colors hover:text-secondary sm:block"
+          aria-label="Hesabım"
+        >
+          <Icon name="material-symbols:person-outline" size="22" />
+        </NuxtLink>
+
+        <button
+          type="button"
+          class="rounded p-2 transition-colors hover:text-secondary lg:hidden"
+          :aria-expanded="mobilAcik"
+          aria-label="Menü"
+          @click="mobilAcik = !mobilAcik"
+        >
+          <Icon :name="mobilAcik ? 'material-symbols:close' : 'material-symbols:menu'" size="24" />
+        </button>
+      </div>
     </div>
+
+    <!-- Mobil menü -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <nav
+        v-if="mobilAcik"
+        class="border-t border-outline-variant/30 bg-surface lg:hidden"
+        aria-label="Mobil menü"
+      >
+        <div class="site-container max-h-[calc(100dvh-5rem)] overflow-y-auto py-4">
+          <NuxtLink to="/urunler" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
+            Çiçekler
+          </NuxtLink>
+
+          <div v-if="ozelGunler.length" class="border-b border-outline-variant/20 py-3">
+            <p class="text-label-caps mb-2 text-secondary">
+              Özel Günler
+            </p>
+            <NuxtLink
+              v-for="k in ozelGunler"
+              :key="k.id"
+              :to="`/kategori/${k.slug}`"
+              class="block py-1.5 text-body-md text-on-surface-variant"
+            >
+              {{ k.name }}
+            </NuxtLink>
+          </div>
+
+          <div v-if="koleksiyonlar.length" class="border-b border-outline-variant/20 py-3">
+            <p class="text-label-caps mb-2 text-secondary">
+              Koleksiyonlar
+            </p>
+            <NuxtLink
+              v-for="k in koleksiyonlar"
+              :key="k.id"
+              :to="`/kategori/${k.slug}`"
+              class="block py-1.5 text-body-md text-on-surface-variant"
+            >
+              {{ k.name }}
+            </NuxtLink>
+          </div>
+
+          <NuxtLink to="/hakkimizda" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
+            Hakkımızda
+          </NuxtLink>
+          <NuxtLink to="/iletisim" class="block py-3 font-serif text-lg">
+            İletişim
+          </NuxtLink>
+        </div>
+      </nav>
+    </Transition>
   </header>
 </template>
-
-<style scoped>
-.ust {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--renk-zemin);
-  border-block-end: 1px solid var(--renk-cizgi);
-}
-
-.ust-ic {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  min-block-size: 60px;
-}
-
-.logo {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--renk-vurgu);
-}
-
-.hamburger {
-  display: grid;
-  gap: 5px;
-  padding: 8px;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.hamburger span {
-  inline-size: 22px;
-  block-size: 2px;
-  background: var(--renk-metin);
-}
-
-/* Mobilde menü kapalı; hamburger açınca alta yayılıyor */
-.nav {
-  display: none;
-  inline-size: 100%;
-  flex-direction: column;
-  padding-block-end: 0.75rem;
-}
-
-.nav-acik {
-  display: flex;
-}
-
-.nav a {
-  padding-block: 0.6rem;
-  font-weight: 500;
-}
-
-.nav a:hover,
-.nav a.router-link-active {
-  color: var(--renk-vurgu);
-}
-
-@media (min-width: 768px) {
-  .hamburger { display: none; }
-
-  .nav {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5rem;
-    inline-size: auto;
-    padding-block-end: 0;
-  }
-}
-</style>

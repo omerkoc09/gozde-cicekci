@@ -1,117 +1,279 @@
-/* Mobile-first: temel stiller dar ekran için; genişletmeler min-width ile. */
+@import "tailwindcss";
 
-:root {
-  --renk-metin: #2d2a32;
-  --renk-soluk: #6b6673;
-  --renk-vurgu: #c2185b;
-  --renk-vurgu-koyu: #8c0032;
-  --renk-zemin: #fff;
-  --renk-zemin-alt: #faf7f8;
-  --renk-cizgi: #ebe6e9;
-  --renk-whatsapp: #25d366;
-  --renk-whatsapp-koyu: #128c7e;
+/* ---------------------------------------------------------------------------
+   Luxe Floral Heritage — tasarım sistemi
+   Kaynak: referans_tasarım/luxe_floral_heritage/DESIGN.md
 
-  --bosluk: 1rem;
-  --yuvarlak: 10px;
-  --genislik: 1120px;
+   Token'lar DESIGN.md frontmatter'ından alındı. Frontmatter kazanır: prose'daki
+   değerler (#FDFBF7 background, #2D2926 primary) frontmatter ile çelişiyor
+   (#fbf9f5, #181512) ve referans HTML'ler frontmatter değerlerini derliyor.
+
+   Dark mode YOK — DESIGN.md açıkça reddediyor ("botanical sun-drenched brand
+   essence" ile çelişir).
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* --- Yüzeyler --- */
+  --color-surface: #fbf9f5;
+  --color-surface-dim: #dbdad6;
+  --color-surface-bright: #fbf9f5;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f5f3ef;
+  --color-surface-container: #efeeea;
+  --color-surface-container-high: #eae8e4;
+  --color-surface-container-highest: #e4e2de;
+  --color-surface-variant: #e4e2de;
+  --color-surface-tint: #635d5a;
+
+  /* --- Metin --- */
+  --color-on-surface: #1b1c1a;
+  --color-on-surface-variant: #4d4540;
+  --color-inverse-surface: #30312e;
+  --color-inverse-on-surface: #f2f0ed;
+
+  /* --- Çizgiler --- */
+  --color-outline: #7e756f;
+  --color-outline-variant: #cfc4bd;
+
+  /* --- Primary (koyu kömür) --- */
+  --color-primary: #181512;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #2d2926;
+  --color-on-primary-container: #96908b;
+  --color-inverse-primary: #cdc5c0;
+  --color-primary-fixed: #e9e1dc;
+  --color-primary-fixed-dim: #cdc5c0;
+  --color-on-primary-fixed: #1e1b18;
+  --color-on-primary-fixed-variant: #4b4642;
+
+  /* --- Secondary (bronz — dolu CTA butonları) --- */
+  --color-secondary: #775a19;
+  --color-on-secondary: #ffffff;
+  --color-secondary-hover: #8f6d21;
+  --color-secondary-container: #fed488;
+  --color-on-secondary-container: #785a1a;
+  --color-secondary-fixed: #ffdea5;
+  --color-secondary-fixed-dim: #e9c176;
+  --color-on-secondary-fixed: #261900;
+  --color-on-secondary-fixed-variant: #5d4201;
+
+  /* --- Accent gold ---
+     DESIGN.md prose'unda "Accent Gold #C5A059" olarak geçiyor ama frontmatter
+     token'larında YOK. Referans HTML'lerde 17 kez hardcoded arbitrary value
+     olarak yazılmış (text-[#C5A059] ×12, bg-[#C5A059] ×5). Token'landı ki tek
+     yerden yönetilsin (spec §3.1). */
+  --color-accent-gold: #c5a059;
+  --color-accent-gold-dim: #b08e4f;
+
+  /* --- Tertiary (zeytin/botanik) --- */
+  --color-tertiary: #13160f;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #272b22;
+  --color-on-tertiary-container: #8f9286;
+  --color-tertiary-fixed: #e1e4d6;
+  --color-tertiary-fixed-dim: #c5c8bb;
+  --color-on-tertiary-fixed: #191d15;
+  --color-on-tertiary-fixed-variant: #44483e;
+
+  /* --- Hata --- */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* --- Arka plan --- */
+  --color-background: #fbf9f5;
+  --color-on-background: #1b1c1a;
+
+  /* --- WhatsApp (marka rengi — tasarım sistemi dışı, sabit) --- */
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #128c7e;
+
+  /* --- Tipografi --- */
+  --font-serif: "Libre Caslon Text", ui-serif, Georgia, serif;
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* --- Radius (DESIGN.md §Shapes: soft & architectural) --- */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* --- Container --- */
+  --container-site: 1280px;
 }
 
-* {
-  box-sizing: border-box;
+/* ---------------------------------------------------------------------------
+   Tipografi ölçeği — DESIGN.md §typography
+   Utility olarak tanımlandı ki bileşenlerde tek isimle çağrılsın.
+--------------------------------------------------------------------------- */
+
+@utility text-display-lg {
+  font-family: var(--font-serif);
+  font-size: 64px;
+  font-weight: 400;
+  line-height: 72px;
+  letter-spacing: -0.02em;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+@utility text-headline-lg {
+  font-family: var(--font-serif);
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 56px;
 }
 
-body {
-  margin: 0;
-  color: var(--renk-metin);
-  background: var(--renk-zemin);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  line-height: 1.6;
+@utility text-headline-md {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 40px;
 }
 
-h1, h2, h3 {
-  line-height: 1.25;
-  margin: 0 0 0.5em;
+@utility text-body-lg {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 28px;
 }
 
-h1 { font-size: 1.6rem; }
-h2 { font-size: 1.3rem; }
-
-@media (min-width: 768px) {
-  h1 { font-size: 2.1rem; }
-  h2 { font-size: 1.6rem; }
+@utility text-body-md {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
 }
 
-img {
-  max-width: 100%;
-  display: block;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.kapsayici {
-  max-width: var(--genislik);
-  margin-inline: auto;
-  padding-inline: var(--bosluk);
-}
-
-.bolum {
-  padding-block: 2rem;
-}
-
-@media (min-width: 768px) {
-  .bolum { padding-block: 3rem; }
-}
-
-/* Ürün ızgarası — dar ekranda iki sütun, çiçek fotoğrafı küçükken de seçilebiliyor.
-   minmax(0, 1fr): görselin intrinsic width'i (400px) sütunu şişirmesin. */
-.urun-izgara {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--bosluk);
-}
-
-@media (min-width: 640px) {
-  .urun-izgara { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (min-width: 960px) {
-  .urun-izgara { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-.buton {
-  display: inline-block;
-  padding: 0.7rem 1.4rem;
-  border: 0;
-  border-radius: var(--yuvarlak);
-  background: var(--renk-vurgu);
-  color: #fff;
-  font: inherit;
+/* Küçük etiketler ve butonlar — DESIGN.md: uppercase + geniş letter-spacing */
+@utility text-label-caps {
+  font-family: var(--font-sans);
+  font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
-  text-align: center;
+  line-height: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.buton:hover {
-  background: var(--renk-vurgu-koyu);
+@utility text-nav-link {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: 0.05em;
 }
 
-.soluk {
-  color: var(--renk-soluk);
+/* ---------------------------------------------------------------------------
+   Base
+--------------------------------------------------------------------------- */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-on-background);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* İkon butonları çok — klavye gezinmesi her yerde görünür olmalı (spec §9). */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-gold);
+    outline-offset: 2px;
+  }
 }
 
-/* Görsel yer tutucu — çiçekçi henüz fotoğraf yüklememiş olabilir */
-.gorsel-yok {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  background: var(--renk-zemin-alt);
-  color: var(--renk-soluk);
-  font-size: 2rem;
+/* ---------------------------------------------------------------------------
+   Bileşen sınıfları — DESIGN.md §Components
+--------------------------------------------------------------------------- */
+
+@layer components {
+  /* Sayfa kabı: sabit maks genişlik, akışkan kenar boşlukları (DESIGN.md §Layout) */
+  .site-container {
+    width: 100%;
+    max-width: var(--container-site);
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .site-container { padding-inline: 32px; }
+  }
+
+  @media (min-width: 1280px) {
+    .site-container { padding-inline: 64px; }
+  }
+
+  /* Bölüm aralığı — DESIGN.md 120px ister ama bu desktop ölçüsü;
+     mobilde orantılı küçülür (spec §8). */
+  .section-gap {
+    padding-block: 56px;
+  }
+
+  @media (min-width: 768px) {
+    .section-gap { padding-block: 80px; }
+  }
+
+  @media (min-width: 1280px) {
+    .section-gap { padding-block: 120px; }
+  }
+
+  /* Birincil buton: dolu bronz, 48px yükseklik (DESIGN.md §Components) */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding-inline: 2rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    background: var(--color-secondary);
+    color: var(--color-on-secondary);
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-secondary-hover);
+  }
+
+  /* İkincil buton: outline, dolgusuz */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding-inline: 2rem;
+    border: 1px solid var(--color-outline-variant);
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--color-on-surface);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--color-on-surface);
+    background: var(--color-surface-container-low);
+  }
 }

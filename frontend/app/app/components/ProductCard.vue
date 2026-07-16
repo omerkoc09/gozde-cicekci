@@ -2,6 +2,10 @@
 import type { Product } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 
+/**
+ * Ürün kartı — DESIGN.md §Components: gölge YOK, hover'da ince border,
+ * ürün adı serif, fiyat sans.
+ */
 const props = defineProps<{ product: Product }>()
 
 /** Kapak = ilk görsel; backend sort_order'a göre sıralı döndürüyor (spec §4.4). */
@@ -11,84 +15,38 @@ const kapak = computed(() => props.product.images?.[0])
 <template>
   <NuxtLink
     :to="`/urun/${product.slug}`"
-    class="kart"
+    class="group block rounded-lg border border-transparent p-2 transition-colors hover:border-outline-variant/30"
   >
     <!-- Sabit aspect-ratio: fotoğraf inerken kart yüksekliği değişmesin,
-         sayfa zıplamasın (spec §5.4). -->
-    <div class="kart-gorsel">
-      <NuxtImg
+         sayfa zıplamasın (spec §5.4). Referans 4:5 kullanıyor. -->
+    <div class="relative mb-5 w-full overflow-hidden rounded-md bg-surface-container-low" style="aspect-ratio: 4 / 5">
+      <!-- Backend hazır iki boyut veriyor (url_400 / url_1200) — IPX'ten
+           tekrar geçirmeye gerek yok; kart için 400px kapak yeterli. -->
+      <img
         v-if="kapak"
         :src="kapak.url_400"
         :alt="product.name"
         loading="lazy"
         width="400"
-        height="400"
-        sizes="50vw sm:33vw md:25vw"
-      />
+        height="500"
+        class="size-full object-cover transition-transform duration-700 group-hover:scale-105"
+      >
       <div
         v-else
-        class="gorsel-yok"
+        class="flex size-full items-center justify-center text-outline-variant"
       >
-        🌸
+        <Icon name="material-symbols:local-florist-outline" size="40" />
       </div>
     </div>
 
-    <div class="kart-alt">
-      <h3 class="kart-ad">
+    <div class="px-1 pb-2 text-center">
+      <h3 class="line-clamp-2 font-serif text-base leading-snug text-primary">
         {{ product.name }}
       </h3>
-      <p class="kart-fiyat">
+      <p class="mt-2 text-body-md text-on-surface-variant">
         {{ formatPrice(product.price) }}
+        <span class="text-xs text-on-surface-variant/70">(KDV dahil)</span>
       </p>
     </div>
   </NuxtLink>
 </template>
-
-<style scoped>
-.kart {
-  display: block;
-  border: 1px solid var(--renk-cizgi);
-  border-radius: var(--yuvarlak);
-  overflow: hidden;
-  background: var(--renk-zemin);
-  transition: box-shadow 0.15s;
-}
-
-.kart:hover {
-  box-shadow: 0 4px 16px rgb(0 0 0 / 8%);
-}
-
-.kart-gorsel {
-  aspect-ratio: 1;
-  inline-size: 100%;
-  background: var(--renk-zemin-alt);
-}
-
-.kart-gorsel :deep(img) {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
-}
-
-.kart-alt {
-  padding: 0.7rem;
-}
-
-.kart-ad {
-  margin: 0 0 0.25rem;
-  font-size: 0.95rem;
-  font-weight: 500;
-
-  /* Uzun ürün adı kartı bozmasın */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.kart-fiyat {
-  margin: 0;
-  font-weight: 700;
-  color: var(--renk-vurgu);
-}
-</style>
