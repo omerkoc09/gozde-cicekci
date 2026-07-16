@@ -12,6 +12,49 @@
 
 **Önkoşul:** Plan 1 ve 2 tamamlandı. Backend çalışıyor: 179 test, admin API'nin tamamı hazır.
 
+---
+
+## Başlangıç Durumu — bu planı yeni bir oturumda uygulayacaksan ÖNCE OKU
+
+**Repo:** `/Users/omerkoc/GolandProjects/cicekci`, branch `feat/backend-temeli`
+(Plan 1, 2 ve template hepsi bu branch'te — ayrı branch açma).
+
+**Ortam (doğrulandı):** Go 1.25.4, Node 22.22.3, pnpm 10.24, Docker çalışıyor,
+golang-migrate kurulu.
+
+**Backend'i ayağa kaldırmak:**
+```bash
+cd /Users/omerkoc/GolandProjects/cicekci
+export DATABASE_URL="postgres://cicekci:cicekci@localhost:5433/cicekci?sslmode=disable"
+export JWT_SECRET="local-development-secret-32-chars!"
+export WHATSAPP_NUMBER="905551234567"
+export SITE_URL="http://localhost:5173"   # Vite portu — CORS için KRİTİK
+export APP_ENV=development STORAGE_DRIVER=local
+make db-up && make migrate-up && make run
+```
+Admin kullanıcısı yoksa: `make seed` (interaktif TTY ister; script'ten
+çalıştırmak için `expect` gerekir).
+
+**Testler:** `make test` kullan, `go test ./...` DEĞİL. Tüm test paketleri aynı
+test veritabanını paylaşıyor ve `NewTestDB` TRUNCATE çalıştırıyor — paralel
+çalışırlarsa birbirlerinin verisini siler. Makefile'da `-p 1` var.
+
+**Template'te zaten yapılanlar (commit 6885c6b) — tekrarlama:**
+- `build-icons.ts` Node 22 uyumu: `createRequire` + `fileURLToPath` eklendi
+  (`package.json`'da `"type": "module"` var, CommonJS globalleri tanımsızdı)
+- `NavSearchBar.vue` silindi — ölü kod (mock veri katmanı `@db` yok, bileşen
+  hiçbir yerde kullanılmıyordu)
+- `Popup.ts`'de 4 `querySelector` `HTMLElement`'e tiplendi, router'da
+  `'index'` → `'root'` düzeltildi
+- `yarn.lock` silindi — pnpm-lock ile ikisi bir aradaydı
+
+**Bilinen durum:** `pnpm typecheck` 17 hata veriyor, hepsi `@core`/`@layouts`
+çekirdeğinde (Vue/TS sürüm katılaşması). **Bu beklenen** — kullanıcı kararıyla
+bırakıldı. `pnpm build` sorunsuz çalışıyor (12sn). Bu dosyalara dokunma;
+kendi yazacağın kod tipli olsun.
+
+**Paket yöneticisi: pnpm.** npm veya yarn kullanma.
+
 ## Global Constraints
 
 - **Auth: HttpOnly cookie.** `Authorization` header YOK, `localStorage`'da token YOK. Bu spec §4.5'in bilinçli kararı — localStorage'daki token XSS ile çalınabilir. Axios'ta `withCredentials: true` zorunlu.
