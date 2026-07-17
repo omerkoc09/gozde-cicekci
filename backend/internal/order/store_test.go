@@ -165,6 +165,58 @@ func TestStore_List_StatusFiltresi(t *testing.T) {
 	list, err = store.List(ctx, "", 50, 0)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
+	require.Len(t, list[0].Items, 1)
+	assert.Equal(t, "Test", list[0].Items[0].ProductName)
+}
+
+// List her siparişin kendi kalemlerini döndürmeli — batch sorgu (itemsOfMany)
+// siparişleri birbirine karıştırmamalı.
+func TestStore_List_HerSiparisKendiKalemleriniAlir(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productA, productB int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Ürün A', 'test', 100.00, true) RETURNING id`).Scan(&productA))
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Ürün B', 'test', 50.00, true) RETURNING id`).Scan(&productB))
+
+	store := NewStore(pool)
+
+	in1 := testNewOrder()
+	in1.Items = []NewOrderItem{{
+		ProductID: productA, ProductName: "Ürün A",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o1, err := store.Create(ctx, in1)
+	require.NoError(t, err)
+
+	in2 := testNewOrder()
+	in2.Items = []NewOrderItem{{
+		ProductID: productB, ProductName: "Ürün B",
+		PriceAtOrder: decimal.RequireFromString("50.00"), Quantity: 2,
+	}}
+	o2, err := store.Create(ctx, in2)
+	require.NoError(t, err)
+
+	list, err := store.List(ctx, "", 50, 0)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+
+	byID := map[int64]Order{}
+	for _, o := range list {
+		byID[o.ID] = o
+	}
+
+	require.Len(t, byID[o1.ID].Items, 1)
+	assert.Equal(t, "Ürün A", byID[o1.ID].Items[0].ProductName)
+
+	require.Len(t, byID[o2.ID].Items, 1)
+	assert.Equal(t, "Ürün B", byID[o2.ID].Items[0].ProductName)
 }
 
 func TestStore_GetByID_Yok(t *testing.T) {

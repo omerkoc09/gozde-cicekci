@@ -202,16 +202,45 @@ func (s *Store) List(ctx context.Context, status string, limit, offset int) ([]O
 		return nil, err
 	}
 
-	// Liste ekranı kalemleri de gösteriyor (ürün adları)
-	for i := range orders {
-		items, err := s.itemsOf(ctx, orders[i].ID)
+	// Liste ekranı kalemleri de gösteriyor (ürün adları) — tek sorguda topluca
+	if len(orders) > 0 {
+		ids := make([]int64, len(orders))
+		for i, o := range orders {
+			ids[i] = o.ID
+		}
+
+		itemsByOrder, err := s.itemsOfMany(ctx, ids)
 		if err != nil {
 			return nil, err
 		}
-		orders[i].Items = items
+		for i := range orders {
+			orders[i].Items = itemsByOrder[orders[i].ID]
+		}
 	}
 
 	return orders, nil
+}
+
+func (s *Store) itemsOfMany(ctx context.Context, orderIDs []int64) (map[int64][]OrderItem, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, order_id, product_id, product_name, price_at_order, quantity
+		FROM order_items WHERE order_id = ANY($1) ORDER BY id`, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	itemsByOrder := make(map[int64][]OrderItem, len(orderIDs))
+	for rows.Next() {
+		var it OrderItem
+		var orderID int64
+		if err := rows.Scan(&it.ID, &orderID, &it.ProductID, &it.ProductName, &it.PriceAtOrder, &it.Quantity); err != nil {
+			return nil, err
+		}
+		itemsByOrder[orderID] = append(itemsByOrder[orderID], it)
+	}
+
+	return itemsByOrder, rows.Err()
 }
 
 // Update status ve/veya note günceller. nil olan alan değişmez (PATCH semantiği).

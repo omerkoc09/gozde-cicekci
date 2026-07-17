@@ -13,6 +13,9 @@ type orderHandler struct {
 func (h *orderHandler) list(c *fiber.Ctx) error {
 	status := c.Query("status")
 	limit := c.QueryInt("limit", 50)
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
 	page := c.QueryInt("page", 1)
 	if page < 1 {
 		page = 1
