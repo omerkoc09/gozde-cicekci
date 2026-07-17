@@ -5,6 +5,7 @@ services:
       POSTGRES_USER: cicekci
       POSTGRES_PASSWORD: cicekci
       POSTGRES_DB: cicekci
+      TZ: Europe/Istanbul
     ports:
       - "5433:5432"
     healthcheck:
@@ -19,6 +20,7 @@ services:
       POSTGRES_USER: cicekci
       POSTGRES_PASSWORD: cicekci
       POSTGRES_DB: cicekci_test
+      TZ: Europe/Istanbul
     ports:
       - "5434:5432"
     healthcheck:
