@@ -60,48 +60,48 @@ onBeforeUnmount(() => ro?.disconnect())
 <template>
   <section class="section-gap">
     <div class="site-container">
-      <div class="flex items-baseline justify-between gap-4">
-        <h2 class="font-serif text-3xl text-primary md:text-4xl">
-          {{ baslik }}
-        </h2>
+      <h2 class="text-center font-serif text-3xl text-primary md:text-4xl">
+        {{ baslik }}
+      </h2>
 
-        <!-- Sağdaki alan çağırana ait: "Tümünü Gör" gibi bağlantılar.
-             Oklarla aynı satırda durur. -->
-        <div class="flex items-center gap-4">
-          <slot name="aksiyon" />
+      <!-- Aksiyon satırı başlığın altında, sağa yaslı: "Tümünü Gör" gibi
+           bağlantılar ve kaydırma okları burada. Başlık vitrin hissi versin
+           diye ortalandı, fonksiyonel elemanlar yine kolay erişilir kalsın
+           diye ayrı satırda tutuldu. -->
+      <div v-if="$slots.aksiyon || solaGidebilir || sagaGidebilir" class="mt-4 flex items-center justify-end gap-4">
+        <slot name="aksiyon" />
 
-          <!-- Oklar yalnızca masaüstünde: mobilde parmakla kaydırmak zaten
-               doğal, ok koymak yeri boşuna daraltır. Kaydırma gerekmiyorsa
-               (kart azsa) ikisi de pasif olur. -->
-          <div
-            v-if="solaGidebilir || sagaGidebilir"
-            class="hidden shrink-0 items-center gap-2 md:flex"
+        <!-- Oklar yalnızca masaüstünde: mobilde parmakla kaydırmak zaten
+             doğal, ok koymak yeri boşuna daraltır. Kaydırma gerekmiyorsa
+             (kart azsa) ikisi de pasif olur. -->
+        <div
+          v-if="solaGidebilir || sagaGidebilir"
+          class="hidden shrink-0 items-center gap-2 md:flex"
+        >
+          <button
+            type="button"
+            class="serit-ok"
+            :disabled="!solaGidebilir"
+            aria-label="Öncekiler"
+            @click="kaydir(-1)"
           >
-            <button
-              type="button"
-              class="serit-ok"
-              :disabled="!solaGidebilir"
-              aria-label="Öncekiler"
-              @click="kaydir(-1)"
-            >
-              <Icon
-                name="material-symbols:chevron-left"
-                size="20"
-              />
-            </button>
-            <button
-              type="button"
-              class="serit-ok"
-              :disabled="!sagaGidebilir"
-              aria-label="Sonrakiler"
-              @click="kaydir(1)"
-            >
-              <Icon
-                name="material-symbols:chevron-right"
-                size="20"
-              />
-            </button>
-          </div>
+            <Icon
+              name="material-symbols:chevron-left"
+              size="20"
+            />
+          </button>
+          <button
+            type="button"
+            class="serit-ok"
+            :disabled="!sagaGidebilir"
+            aria-label="Sonrakiler"
+            @click="kaydir(1)"
+          >
+            <Icon
+              name="material-symbols:chevron-right"
+              size="20"
+            />
+          </button>
         </div>
       </div>
     </div>
