@@ -74,6 +74,32 @@ function takvimAc() {
   takvimInput.value?.showPicker?.()
 }
 
+// Bugün seçiliyse bitiş saati geçmiş aralıklar hiç gösterilmez —
+// esnaf zaten yetiştiremeyeceği bir aralığı seçtirmenin anlamı yok.
+const musaitSlotlar = computed(() => {
+  const slots = cfg.value?.slots ?? []
+  if (form.date !== bugunISO)
+    return slots
+
+  const simdi = new Date()
+  const simdiDk = simdi.getHours() * 60 + simdi.getMinutes()
+
+  return slots.filter((s) => {
+    const bitis = s.split('-')[1] ?? ''
+    const [saat, dakika] = bitis.split(':').map(Number)
+    if (Number.isNaN(saat) || Number.isNaN(dakika))
+      return true
+
+    return saat * 60 + dakika > simdiDk
+  })
+})
+
+// Tarih değişince artık listede olmayan bir slot seçili kalmasın
+watch(musaitSlotlar, (slots) => {
+  if (form.slot && !slots.includes(form.slot))
+    form.slot = ''
+})
+
 const toplam = computed(() => {
   const ara = Number.parseFloat(itemsTotal.value)
   const ucret = Number.parseFloat(cfg.value?.fee ?? '0')
@@ -233,7 +259,7 @@ useSeoMeta({
 
           <div class="mt-4 flex flex-wrap gap-3">
             <button
-              v-for="s in cfg?.slots ?? []"
+              v-for="s in musaitSlotlar"
               :key="s"
               type="button"
               class="rounded-lg border px-4 py-2.5 text-body-md transition-colors"
@@ -244,6 +270,10 @@ useSeoMeta({
             >
               {{ s }}
             </button>
+
+            <p v-if="form.date === bugunISO && !musaitSlotlar.length" class="text-body-md text-on-surface-variant">
+              Bugün için uygun teslimat saati kalmadı. Lütfen başka bir gün seçin.
+            </p>
           </div>
 
           <div class="mt-6">
