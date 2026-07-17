@@ -64,6 +64,8 @@ const headers = [
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 150 },
 ]
 
+const arama = ref('')
+
 const load = async () => {
   loading.value = true
 
@@ -221,6 +223,17 @@ const remove = async (c: Category) => {
       Kategori linki (slug) oluşturulduktan sonra değişmez.
     </VAlert>
 
+    <VTextField
+      v-model="arama"
+      prepend-inner-icon="tabler-search"
+      placeholder="Kategori ara..."
+      density="compact"
+      class="mb-6"
+      style="max-width: 360px;"
+      hide-details
+      clearable
+    />
+
     <VCard
       v-for="axis in (['occasion', 'type'] as Axis[])"
       :key="axis"
@@ -233,9 +246,10 @@ const remove = async (c: Category) => {
       <VDataTable
         :headers="headers"
         :items="axis === 'occasion' ? occasionCategories : typeCategories"
+        :search="arama"
         :loading="loading"
         items-per-page="-1"
-        no-data-text="Bu eksende henüz kategori yok"
+        no-data-text="Bu eksende bu aramaya uyan kategori yok"
         loading-text="Yükleniyor..."
       >
         <template #item.image="{ item }">
@@ -248,8 +262,10 @@ const remove = async (c: Category) => {
             cover
             class="rounded my-2"
           />
-          <!-- Görsel yoksa site yedek görsel gösteriyor; panelde bunu
-               açıkça belirt ki "yüklendi mi?" diye tereddüt olmasın. -->
+          <!--
+            Görsel yoksa site yedek görsel gösteriyor; panelde bunu
+            açıkça belirt ki "yüklendi mi?" diye tereddüt olmasın.
+          -->
           <VTooltip
             v-else
             text="Görsel yok — site varsayılan görseli gösterir"
