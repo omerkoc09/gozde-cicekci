@@ -42,3 +42,37 @@ export const AXIS_LABELS: Record<Axis, string> = {
   occasion: 'Gönderim Amacına Göre',
   type: 'Ürün Tipine Göre',
 }
+
+/** Sepet kalemi — localStorage'da yaşar. Fiyat GÖSTERİM için; sipariş
+ *  anında sunucu DB'den okur, buradaki fiyata güvenilmez (spec §2.2). */
+export interface CartItem {
+  product_id: number
+  name: string
+  slug: string
+  price: string
+  image: string
+  quantity: number
+}
+
+export interface DeliveryConfig {
+  fee: string
+  slots: string[]
+  same_day_cutoff: string
+  max_days: number
+  districts: string[]
+  /** İlçeye özel ücret — olmayan ilçe fee'ye (genel ücret) düşer. */
+  district_fees: Record<string, string>
+}
+
+export interface CreateOrderInput {
+  items: { product_id: number, quantity: number }[]
+  buyer: { name: string, phone: string }
+  recipient: { name: string, phone: string }
+  delivery: { address: string, district: string, date: string, slot: string }
+  card_message?: string
+}
+
+export interface CreateOrderResult {
+  order_no: string
+  total: string
+}

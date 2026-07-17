@@ -223,3 +223,72 @@ func TestLoad_RejectsUnknownStorageDriver(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "STORAGE_DRIVER")
 }
+
+func TestLoad_DeliveryDefaults(t *testing.T) {
+	setBaseEnv(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, "0", cfg.DeliveryFee)
+	assert.Equal(t, []string{"09:00-12:00", "12:00-15:00", "15:00-18:00"}, cfg.DeliverySlots)
+	assert.Equal(t, "16:00", cfg.SameDayCutoff)
+	assert.Equal(t, 30, cfg.MaxDeliveryDays)
+	assert.Equal(t, []string{"Ödemiş", "Tire", "Bayındır", "Kiraz", "Beydağ"}, cfg.DeliveryDistricts)
+	assert.Empty(t, cfg.DeliveryFees)
+}
+
+func TestLoad_DeliveryFromEnv(t *testing.T) {
+	setBaseEnv(t)
+	t.Setenv("DELIVERY_FEE", "50")
+	t.Setenv("DELIVERY_SLOTS", "10:00-14:00,14:00-18:00")
+	t.Setenv("SAME_DAY_CUTOFF", "15:30")
+	t.Setenv("MAX_DELIVERY_DAYS", "14")
+	t.Setenv("DELIVERY_DISTRICTS", "Ödemiş,Tire")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, "50", cfg.DeliveryFee)
+	assert.Equal(t, []string{"10:00-14:00", "14:00-18:00"}, cfg.DeliverySlots)
+	assert.Equal(t, "15:30", cfg.SameDayCutoff)
+	assert.Equal(t, 14, cfg.MaxDeliveryDays)
+	assert.Equal(t, []string{"Ödemiş", "Tire"}, cfg.DeliveryDistricts)
+}
+
+func TestLoad_DeliveryFeesFromEnv(t *testing.T) {
+	setBaseEnv(t)
+	t.Setenv("DELIVERY_FEES", "Ödemiş:50,Tire:80,Bayındır:60")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{
+		"Ödemiş":   "50",
+		"Tire":     "80",
+		"Bayındır": "60",
+	}, cfg.DeliveryFees)
+}
+
+func TestLoad_DeliveryFeesEmptyWhenUnset(t *testing.T) {
+	setBaseEnv(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Empty(t, cfg.DeliveryFees)
+}
+
+// Bozuk giriş (iki nokta üst üste yok) sessizce atlanır — esnaf yanlış
+// yazarsa tüm siparişleri kilitlemek yerine genel ücrete düşülür.
+func TestLoad_DeliveryFeesIgnoresMalformedEntries(t *testing.T) {
+	setBaseEnv(t)
+	t.Setenv("DELIVERY_FEES", "Ödemiş:50,BozukGiriş,Tire:80")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{
+		"Ödemiş": "50",
+		"Tire":   "80",
+	}, cfg.DeliveryFees)
+}

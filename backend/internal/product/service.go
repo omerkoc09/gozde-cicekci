@@ -121,6 +121,14 @@ func (s *Service) ListPublic(ctx context.Context, f Filter) ([]Product, error) {
 	if f.Offset < 0 {
 		f.Offset = 0
 	}
+	if f.Query != nil {
+		trimmed := strings.TrimSpace(*f.Query)
+		if trimmed == "" {
+			f.Query = nil
+		} else {
+			f.Query = &trimmed
+		}
+	}
 	return s.store.ListPublic(ctx, f)
 }
 

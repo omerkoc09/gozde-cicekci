@@ -13,6 +13,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
+	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -33,13 +34,22 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 	require.NoError(t, err)
 	imgSvc := image.NewService(imgStore, image.NewDB(pool))
 
+	prodSvc := product.NewService(product.NewStore(pool))
+	deliveryCfg := order.DeliveryConfig{
+		Fee: "50", Slots: []string{"09:00-12:00", "12:00-15:00", "15:00-18:00"},
+		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş", "Tire"},
+	}
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
+
 	app := fiber.New()
 	Register(app.Group("/api/admin"), Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       category.NewService(category.NewStore(pool), imgSvc),
-		ProdSvc:      product.NewService(product.NewStore(pool)),
+		ProdSvc:      prodSvc,
 		ImgSvc:       imgSvc,
 		SliderSvc:    slider.NewService(slider.NewStore(pool), imgSvc),
+		OrderSvc:     orderSvc,
 		JWTSecret:    testSecret,
 		SecureCookie: false,
 	})

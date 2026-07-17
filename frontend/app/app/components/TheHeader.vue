@@ -5,13 +5,16 @@ import type { Category } from '~/types/api'
  * Sticky header — DESIGN.md §Elevation: backdrop blur, gölge yok, ince alt çizgi.
  *
  * Nav referanstaki 5'li yapıyı korur ama Türkçeleştirildi (spec §6.1) ve
- * "Özel Günler"/"Koleksiyonlar" gerçek kategori eksenlerine bağlandı (spec §5):
- * occasion → Özel Günler, type → Koleksiyonlar.
+ * "Özel Günler"/"Çiçekler" gerçek kategori eksenlerine bağlandı (spec §5):
+ * occasion → Özel Günler, type → Çiçekler. İlk link ("Koleksiyonlar")
+ * filtresiz /urunler'e gider, ayrı bir kategori ekseni değildir.
  *
- * Sepet/favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
- * Sepet rozeti bilinçli olarak yok: var olmayan sepet içeriğini iddia etmez.
+ * Favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
+ * Sepet Faz 2'de gerçek oldu: rozet artık gerçek sayıyı gösterir.
  */
 const emit = defineEmits<{ openCart: [] }>()
+
+const { count: cartCount } = useCart()
 
 const { data: categories } = await useCategoryList()
 
@@ -52,12 +55,30 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
     class="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-md"
     @keydown.escape="acikMenu = null"
   >
-    <div class="site-container flex items-center justify-between gap-4 py-3 md:py-4">
-      <TheLogo />
+    <div class="flex w-full items-center gap-4 px-5 py-3 md:px-8 md:py-4 xl:px-16">
+      <!-- Mobilde hamburger solda — logo'yu ortalamak için aksiyon grubuyla
+           simetrik denge sağlıyor (bkz. aşağıdaki mobil hamburger butonu,
+           burada da bir kopyası var ki logo gerçekten ortalansın). -->
+      <button
+        type="button"
+        class="rounded p-2 text-primary transition-colors hover:text-secondary lg:hidden"
+        :aria-expanded="mobilAcik"
+        aria-label="Menü"
+        @click="mobilAcik = !mobilAcik"
+      >
+        <Icon :name="mobilAcik ? 'material-symbols:close' : 'material-symbols:menu'" size="24" />
+      </button>
+
+      <!-- Marka bloğu: masaüstünde solda logo + arama yan yana; mobilde
+           logo ortalanmış tek başına (arama hamburger menüsünde). -->
+      <div class="flex flex-1 items-center justify-center gap-4 md:gap-6 lg:flex-none lg:justify-start">
+        <TheLogo />
+        <SearchBar class="hidden w-56 lg:flex xl:w-72" />
+      </div>
 
       <!-- Masaüstü nav -->
       <nav
-        class="hidden items-center gap-8 lg:flex"
+        class="ml-auto hidden items-center gap-8 lg:flex"
         aria-label="Ana menü"
       >
         <NuxtLink
@@ -65,7 +86,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
           class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
           active-class="border-b border-accent-gold font-semibold !text-primary"
         >
-          Çiçekler
+          Koleksiyonlar
         </NuxtLink>
 
         <HeaderNavDropdown
@@ -79,7 +100,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
         <HeaderNavDropdown
           v-if="koleksiyonlar.length"
-          label="Koleksiyonlar"
+          label="Çiçekler"
           :items="koleksiyonlar"
           :open="acikMenu === 'koleksiyon'"
           @toggle="menuAc('koleksiyon')"
@@ -103,11 +124,12 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         </NuxtLink>
       </nav>
 
-      <!-- Aksiyonlar -->
-      <div class="flex shrink-0 items-center gap-0.5 text-primary md:gap-2">
+      <!-- Aksiyonlar — favoriler mobilde bottom nav'da zaten var, burada
+           sadece masaüstünde görünür. -->
+      <div class="ml-auto flex shrink-0 items-center gap-0.5 text-primary md:gap-2 lg:ml-0">
         <NuxtLink
           to="/hesabim/favoriler"
-          class="rounded p-2 transition-colors hover:text-secondary"
+          class="hidden rounded p-2 transition-colors hover:text-secondary lg:block"
           aria-label="Favoriler"
         >
           <Icon name="material-symbols:favorite-outline" size="22" />
@@ -115,11 +137,20 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
         <button
           type="button"
-          class="rounded p-2 transition-colors hover:text-secondary"
+          class="relative rounded p-2 transition-colors hover:text-secondary"
           aria-label="Sepet"
           @click="emit('openCart')"
         >
           <Icon name="material-symbols:shopping-cart-outline" size="22" />
+          <!-- Rozet artık gerçek: sepette ürün var. Redesign spec'i §2.1 rozeti
+               "var olmayan içeriği iddia etmesin" diye kaldırmıştı — sepet gerçek
+               olduğu için rozet artık yalan değil, bilgi. -->
+          <span
+            v-if="cartCount > 0"
+            class="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-secondary text-[10px] font-medium text-white"
+          >
+            {{ cartCount > 9 ? '9+' : cartCount }}
+          </span>
         </button>
 
         <NuxtLink
@@ -129,16 +160,6 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         >
           <Icon name="material-symbols:person-outline" size="22" />
         </NuxtLink>
-
-        <button
-          type="button"
-          class="rounded p-2 transition-colors hover:text-secondary lg:hidden"
-          :aria-expanded="mobilAcik"
-          aria-label="Menü"
-          @click="mobilAcik = !mobilAcik"
-        >
-          <Icon :name="mobilAcik ? 'material-symbols:close' : 'material-symbols:menu'" size="24" />
-        </button>
       </div>
     </div>
 
@@ -155,8 +176,10 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         aria-label="Mobil menü"
       >
         <div class="site-container max-h-[calc(100dvh-5rem)] overflow-y-auto py-4">
+          <SearchBar class="mb-2 w-full border-b border-outline-variant/20 pb-4" />
+
           <NuxtLink to="/urunler" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
-            Çiçekler
+            Koleksiyonlar
           </NuxtLink>
 
           <div v-if="ozelGunler.length" class="border-b border-outline-variant/20 py-3">
@@ -175,7 +198,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
           <div v-if="koleksiyonlar.length" class="border-b border-outline-variant/20 py-3">
             <p class="text-label-caps mb-2 text-secondary">
-              Koleksiyonlar
+              Çiçekler
             </p>
             <NuxtLink
               v-for="k in koleksiyonlar"

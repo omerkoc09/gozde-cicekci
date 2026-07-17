@@ -44,8 +44,29 @@ function temizle() {
   router.push({ query: {} })
 }
 
-// Mobilde filtreler açılır panelde — yer kaplamasın
-const acik = ref(false)
+// Ana sayfadan "Tümünü Gör" ile gelindiğinde ?eksen=occasion|type ile
+// ilgili eksen grubuna scroll edilir — hiçbir spesifik kategori seçilmez,
+// sadece kullanıcı doğru gruba yönlendirilir (spesifik axis filtresi
+// backend'de yok, bkz. 2026-07-18 sipariş formu iyileştirmeleri kararı).
+const hedefEksen = computed(() => route.query.eksen as Axis | undefined)
+
+// Mobilde filtreler açılır panelde — yer kaplamasın. Hedef eksen varsa
+// panel otomatik açılır, yoksa kapalı başlar.
+const acik = ref(!!hedefEksen.value)
+
+const eksenRefs: Partial<Record<Axis, HTMLElement>> = {}
+function eksenRef(axis: Axis, el: Element | null) {
+  if (el instanceof HTMLElement)
+    eksenRefs[axis] = el
+}
+
+onMounted(() => {
+  if (!hedefEksen.value)
+    return
+
+  eksenRefs[hedefEksen.value]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
+
 </script>
 
 <template>
@@ -66,7 +87,8 @@ const acik = ref(false)
       <div
         v-for="axis in (['occasion', 'type'] as Axis[])"
         :key="axis"
-        class="mb-5 last:mb-0"
+        :ref="el => eksenRef(axis, el as Element | null)"
+        class="mb-5 scroll-mt-24 last:mb-0"
       >
         <h3 class="text-label-caps mb-3 text-on-surface-variant/70">
           {{ AXIS_LABELS[axis] }}

@@ -25,6 +25,8 @@ function apiBase(): string {
 export function useProductList(query: {
   amac?: MaybeRefOrGetter<string | undefined>
   tip?: MaybeRefOrGetter<string | undefined>
+  /** Arama terimi — ürün adı veya kategori adında arar (backend AND uygular). */
+  q?: MaybeRefOrGetter<string | undefined>
   /** true → yalnızca panelden öne çıkarılmış ürünler (ana sayfa vitrini). */
   oneCikan?: boolean
   limit?: number
@@ -33,12 +35,16 @@ export function useProductList(query: {
     const params = new URLSearchParams()
     const amac = toValue(query.amac)
     const tip = toValue(query.tip)
+    const q = toValue(query.q)
 
     if (amac)
       params.set('amac', amac)
 
     if (tip)
       params.set('tip', tip)
+
+    if (q)
+      params.set('q', q)
 
     if (query.oneCikan)
       params.set('one_cikan', 'true')

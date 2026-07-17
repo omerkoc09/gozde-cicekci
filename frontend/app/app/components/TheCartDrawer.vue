@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * Sepet drawer — INERT (spec §2.1).
- *
- * Backend'de sepet yok. Bu drawer her zaman boş durumu gösterir ve müşteriyi
- * gerçek dönüşüm yoluna (WhatsApp / ürünler) yönlendirir. Sahte ürün listesi
- * göstermez — site sahip olmadığı bir durumu iddia etmemeli.
+ * Sepet drawer. Faz 2'de gerçek hale geldi — luxe redesign spec'i §2.1
+ * "bu ekranlar atılacak değil, backend'e bağlanacak" demişti.
  *
  * DESIGN.md §Elevation: yalnızca drawer/modal gölge kullanabilir (%2 opacity).
  */
+import { formatPrice } from '~/utils/price'
+
 const acik = defineModel<boolean>({ required: true })
+
+const { items, itemsTotal, remove, setQuantity } = useCart()
 
 watch(acik, (a) => {
   if (import.meta.client)
@@ -66,7 +67,7 @@ onBeforeUnmount(() => {
           </button>
         </header>
 
-        <div class="flex flex-1 flex-col items-center justify-center px-8 text-center">
+        <div v-if="!items.length" class="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <Icon
             name="material-symbols:shopping-cart-outline"
             size="44"
@@ -82,6 +83,93 @@ onBeforeUnmount(() => {
           <NuxtLink to="/urunler" class="btn-primary text-label-caps mt-7" @click="acik = false">
             Koleksiyonu Keşfet
           </NuxtLink>
+        </div>
+
+        <!-- Dolu sepet -->
+        <div v-else class="flex flex-1 flex-col overflow-hidden">
+          <ul class="flex-1 overflow-y-auto px-6 py-4">
+            <li
+              v-for="item in items"
+              :key="item.product_id"
+              class="flex gap-4 border-b border-outline-variant/30 py-4"
+            >
+              <img
+                v-if="item.image"
+                :src="item.image"
+                :alt="item.name"
+                width="80"
+                height="80"
+                class="size-20 shrink-0 rounded-md object-cover"
+              >
+              <div
+                v-else
+                class="flex size-20 shrink-0 items-center justify-center rounded-md bg-surface-container-low"
+              >
+                <Icon name="material-symbols:local-florist-outline" size="24" class="text-outline-variant" />
+              </div>
+
+              <div class="min-w-0 flex-1">
+                <NuxtLink
+                  :to="`/urun/${item.slug}`"
+                  class="line-clamp-2 text-body-md text-primary hover:underline"
+                  @click="acik = false"
+                >
+                  {{ item.name }}
+                </NuxtLink>
+                <p class="mt-1 text-body-md font-medium text-primary">
+                  {{ formatPrice(item.price) }}
+                </p>
+
+                <div class="mt-2 flex items-center gap-3">
+                  <div class="flex items-center rounded border border-outline-variant/50">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 text-on-surface-variant hover:text-primary"
+                      :aria-label="`${item.name} adedini azalt`"
+                      @click="setQuantity(item.product_id, item.quantity - 1)"
+                    >
+                      −
+                    </button>
+                    <span class="min-w-8 text-center text-body-md">{{ item.quantity }}</span>
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 text-on-surface-variant hover:text-primary"
+                      :aria-label="`${item.name} adedini artır`"
+                      @click="setQuantity(item.product_id, item.quantity + 1)"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="text-xs text-on-surface-variant underline-offset-4 hover:text-primary hover:underline"
+                    @click="remove(item.product_id)"
+                  >
+                    Kaldır
+                  </button>
+                </div>
+              </div>
+            </li>
+          </ul>
+
+          <div class="border-t border-outline-variant/30 px-6 py-5">
+            <div class="flex items-center justify-between">
+              <span class="text-body-md text-on-surface-variant">Ara Toplam</span>
+              <span class="font-serif text-xl text-primary">{{ formatPrice(itemsTotal) }}</span>
+            </div>
+            <p class="mt-1 text-xs text-on-surface-variant">
+              Teslimat ücreti sipariş adımında eklenir.
+            </p>
+
+            <NuxtLink
+              to="/siparis"
+              class="btn-primary text-label-caps mt-5 flex w-full items-center justify-center"
+              @click="acik = false"
+            >
+              Siparişi Tamamla
+            </NuxtLink>
+          </div>
         </div>
       </aside>
     </Transition>

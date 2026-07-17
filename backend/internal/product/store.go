@@ -293,6 +293,21 @@ func (s *Store) ListPublic(ctx context.Context, f Filter) ([]Product, error) {
 		argN++
 	}
 
+	if f.Query != nil {
+		query += fmt.Sprintf(`
+			AND (
+				p.name ILIKE $%d
+				OR EXISTS (
+					SELECT 1 FROM product_categories pc
+					JOIN categories c ON c.id = pc.category_id
+					WHERE pc.product_id = p.id
+					  AND c.is_active AND c.name ILIKE $%d
+				)
+			)`, argN, argN)
+		args = append(args, "%"+*f.Query+"%")
+		argN++
+	}
+
 	query += fmt.Sprintf(` ORDER BY p.created_at DESC, p.id DESC LIMIT $%d OFFSET $%d`,
 		argN, argN+1)
 	args = append(args, f.Limit, f.Offset)

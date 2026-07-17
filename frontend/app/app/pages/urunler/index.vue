@@ -5,14 +5,16 @@ const route = useRoute()
 // reactive aldığı için query değişince liste kendiliğinden yenileniyor.
 const amac = computed(() => route.query.amac as string | undefined)
 const tip = computed(() => route.query.tip as string | undefined)
+const q = computed(() => route.query.q as string | undefined)
 
 const { data: products, status } = await useProductList({
   amac,
   tip,
+  q,
   limit: 100,
 })
 
-const filtreVar = computed(() => !!amac.value || !!tip.value)
+const filtreVar = computed(() => !!amac.value || !!tip.value || !!q.value)
 
 // Referanstaki "Daha Fazla Göster" — backend sayfalama vermiyor, liste zaten
 // tek seferde geliyor (limit 100). Sunucuyu değiştirmeden aynı deneyimi
@@ -20,7 +22,7 @@ const filtreVar = computed(() => !!amac.value || !!tip.value)
 const ADIM = 12
 const gosterilen = ref(ADIM)
 
-watch([amac, tip], () => { gosterilen.value = ADIM })
+watch([amac, tip, q], () => { gosterilen.value = ADIM })
 
 const gorunenUrunler = computed(() => (products.value ?? []).slice(0, gosterilen.value))
 const dahaVar = computed(() => (products.value?.length ?? 0) > gosterilen.value)
@@ -40,7 +42,10 @@ useSeoMeta({
     <!-- Başlık + filtre yan yana (referans düzeni) -->
     <div class="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
       <div class="max-w-lg">
-        <h1 class="font-serif text-4xl text-primary md:text-5xl">
+        <h1 v-if="q" class="font-serif text-4xl text-primary md:text-5xl">
+          "{{ q }}" için sonuçlar
+        </h1>
+        <h1 v-else class="font-serif text-4xl text-primary md:text-5xl">
           Çiçek Koleksiyonumuz
         </h1>
         <p class="mt-4 text-body-md text-on-surface-variant">
@@ -78,8 +83,8 @@ useSeoMeta({
     <EmptyState
       v-else
       icon="material-symbols:search-off"
-      title="Bu filtreye uyan ürün yok"
-      description="Farklı bir kategori deneyebilir ya da tüm koleksiyonu görüntüleyebilirsiniz."
+      :title="q ? `“${q}” için sonuç bulunamadı` : 'Bu filtreye uyan ürün yok'"
+      description="Farklı bir kategori ya da arama terimi deneyebilir, veya tüm koleksiyonu görüntüleyebilirsiniz."
     >
       <NuxtLink v-if="filtreVar" to="/urunler" class="btn-secondary text-label-caps mt-7">
         Filtreyi Temizle

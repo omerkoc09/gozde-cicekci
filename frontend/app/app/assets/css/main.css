@@ -241,7 +241,9 @@
     .section-gap { padding-block: 120px; }
   }
 
-  /* Birincil buton: dolu bronz, 48px yükseklik (DESIGN.md §Components) */
+  /* Birincil buton: dolu bronz, 48px yükseklik (DESIGN.md §Components).
+     Normal hal açık bronz, hover'da koyulaşır — koyu/siyah ton normal
+     halde çok sert duruyordu. */
   .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -251,14 +253,14 @@
     padding-inline: 2rem;
     border: 1px solid transparent;
     border-radius: 0.25rem;
-    background: var(--color-secondary);
+    background: var(--color-secondary-hover);
     color: var(--color-on-secondary);
     cursor: pointer;
     transition: background 0.2s ease;
   }
 
   .btn-primary:hover {
-    background: var(--color-secondary-hover);
+    background: var(--color-secondary);
   }
 
   /* İkincil buton: outline, dolgusuz */

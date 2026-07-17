@@ -21,6 +21,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
+	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/config"
@@ -52,6 +53,16 @@ func main() {
 
 	catSvc := category.NewService(category.NewStore(pool), imgSvc)
 	sliderSvc := slider.NewService(slider.NewStore(pool), imgSvc)
+
+	deliveryCfg := order.DeliveryConfig{
+		Fee:           cfg.DeliveryFee,
+		Slots:         cfg.DeliverySlots,
+		SameDayCutoff: cfg.SameDayCutoff,
+		MaxDays:       cfg.MaxDeliveryDays,
+		Districts:     cfg.DeliveryDistricts,
+		DistrictFees:  cfg.DeliveryFees,
+	}
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
 
 	isProduction := cfg.IsProduction()
 
@@ -86,13 +97,14 @@ func main() {
 
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
-	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc)
+	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
 		ProdSvc:      prodSvc,
 		ImgSvc:       imgSvc,
 		SliderSvc:    sliderSvc,
+		OrderSvc:     orderSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})

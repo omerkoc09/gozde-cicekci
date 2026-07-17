@@ -21,6 +21,26 @@ const categoryNames = computed(() => {
   return map
 })
 
+// Satır başına en fazla bu kadar kategori çipi gösterilir — fazlası "+N"
+// olarak özetlenir, yoksa çok kategorili ürünlerde satır şişer.
+const MAX_KATEGORI_CIP = 2
+
+// Filtreler client-side: liste zaten tek seferde çekiliyor (limit 100),
+// esnafın 40-100 ürünü backend'e ek istek atmadan filtrelenebilir.
+const arama = ref('')
+const kategoriFiltresi = ref<number | null>(null)
+const durumFiltresi = ref<'' | 'active' | 'passive'>('')
+
+const kategoriSecenekleri = computed(() =>
+  categories.value.map(c => ({ title: c.name, value: c.id })))
+
+const filtrelenmisUrunler = computed(() => products.value.filter(p => {
+  const kategoriUyuyor = kategoriFiltresi.value === null || !!p.category_ids?.includes(kategoriFiltresi.value)
+  const durumUyuyor = durumFiltresi.value === '' || (durumFiltresi.value === 'active') === p.is_active
+
+  return kategoriUyuyor && durumUyuyor
+}))
+
 const headers = [
   { title: '', key: 'cover', sortable: false, width: 72 },
   { title: 'Ürün', key: 'name' },
@@ -117,12 +137,64 @@ const remove = async (p: Product) => {
     </div>
 
     <VCard>
+      <VCardText>
+        <VRow>
+          <VCol
+            cols="12"
+            md="5"
+          >
+            <VTextField
+              v-model="arama"
+              prepend-inner-icon="tabler-search"
+              placeholder="Ürün ara..."
+              hide-details
+              clearable
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            md="4"
+          >
+            <VSelect
+              v-model="kategoriFiltresi"
+              :items="kategoriSecenekleri"
+              placeholder="Kategori"
+              hide-details
+              clearable
+            />
+          </VCol>
+          <VCol
+            cols="12"
+            sm="6"
+            md="3"
+          >
+            <VBtnToggle
+              v-model="durumFiltresi"
+              density="compact"
+              divided
+            >
+              <VBtn value="">
+                Hepsi
+              </VBtn>
+              <VBtn value="active">
+                Aktif
+              </VBtn>
+              <VBtn value="passive">
+                Pasif
+              </VBtn>
+            </VBtnToggle>
+          </VCol>
+        </VRow>
+      </VCardText>
+
       <VDataTable
         :headers="headers"
-        :items="products"
+        :items="filtrelenmisUrunler"
+        :search="arama"
         :loading="loading"
         :items-per-page="-1"
-        no-data-text="Henüz ürün yok"
+        no-data-text="Bu filtreye uyan ürün yok"
         loading-text="Yükleniyor..."
       >
         <template #item.cover="{ item }">
@@ -169,13 +241,33 @@ const remove = async (p: Product) => {
 
           <template v-else>
             <VChip
-              v-for="id in item.category_ids"
+              v-for="id in item.category_ids.slice(0, MAX_KATEGORI_CIP)"
               :key="id"
               size="x-small"
               class="me-1 my-1"
             >
               {{ categoryNames.get(id) ?? `#${id}` }}
             </VChip>
+
+            <VTooltip
+              v-if="item.category_ids.length > MAX_KATEGORI_CIP"
+              :text="item.category_ids
+                .slice(MAX_KATEGORI_CIP)
+                .map(id => categoryNames.get(id) ?? `#${id}`)
+                .join(', ')"
+              location="top"
+            >
+              <template #activator="{ props }">
+                <VChip
+                  v-bind="props"
+                  size="x-small"
+                  variant="tonal"
+                  class="my-1"
+                >
+                  +{{ item.category_ids.length - MAX_KATEGORI_CIP }}
+                </VChip>
+              </template>
+            </VTooltip>
           </template>
         </template>
 
