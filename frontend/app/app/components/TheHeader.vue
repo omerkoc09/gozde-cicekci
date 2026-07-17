@@ -8,10 +8,12 @@ import type { Category } from '~/types/api'
  * "Özel Günler"/"Koleksiyonlar" gerçek kategori eksenlerine bağlandı (spec §5):
  * occasion → Özel Günler, type → Koleksiyonlar.
  *
- * Sepet/favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
- * Sepet rozeti bilinçli olarak yok: var olmayan sepet içeriğini iddia etmez.
+ * Favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
+ * Sepet Faz 2'de gerçek oldu: rozet artık gerçek sayıyı gösterir.
  */
 const emit = defineEmits<{ openCart: [] }>()
+
+const { count: cartCount } = useCart()
 
 const { data: categories } = await useCategoryList()
 
@@ -115,11 +117,20 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
         <button
           type="button"
-          class="rounded p-2 transition-colors hover:text-secondary"
+          class="relative rounded p-2 transition-colors hover:text-secondary"
           aria-label="Sepet"
           @click="emit('openCart')"
         >
           <Icon name="material-symbols:shopping-cart-outline" size="22" />
+          <!-- Rozet artık gerçek: sepette ürün var. Redesign spec'i §2.1 rozeti
+               "var olmayan içeriği iddia etmesin" diye kaldırmıştı — sepet gerçek
+               olduğu için rozet artık yalan değil, bilgi. -->
+          <span
+            v-if="cartCount > 0"
+            class="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-secondary text-[10px] font-medium text-white"
+          >
+            {{ cartCount > 9 ? '9+' : cartCount }}
+          </span>
         </button>
 
         <NuxtLink

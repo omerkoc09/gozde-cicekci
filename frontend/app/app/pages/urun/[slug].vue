@@ -76,13 +76,22 @@ if (!yonlendiriliyor) {
   })
 }
 
-/**
- * Sepete Ekle — INERT (spec §2.1). Backend'de sepet yok; drawer'ı açar,
- * drawer boş durumu gösterir. Sahte "eklendi" bildirimi vermez.
- */
+const { add } = useCart()
 const sepetAcik = inject<Ref<boolean> | null>('sepetAcik', null)
 
 function sepeteEkle() {
+  if (!product.value)
+    return
+
+  add({
+    product_id: product.value.id,
+    name: product.value.name,
+    slug: product.value.slug,
+    price: product.value.price,
+    image: product.value.images?.[0]?.url_400 ?? '',
+    quantity: 1,
+  })
+
   if (sepetAcik)
     sepetAcik.value = true
 }
@@ -121,8 +130,8 @@ function sepeteEkle() {
             {{ product.description }}
           </p>
 
-          <!-- CTA'lar. "Sepete Ekle" inert (spec §2.1); WhatsApp sitenin tek
-               gerçek dönüşüm yolu, o yüzden hemen altında (spec §2.3). -->
+          <!-- CTA'lar. "Sepete Ekle" gerçek (Faz 2); WhatsApp da hâlâ sitenin
+               bir dönüşüm yolu, o yüzden hemen altında (spec §2.3). -->
           <div class="mt-8 space-y-3">
             <button type="button" class="btn-primary text-label-caps w-full" @click="sepeteEkle">
               <Icon name="material-symbols:shopping-cart-outline" size="18" />
