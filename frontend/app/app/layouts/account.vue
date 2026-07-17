@@ -12,7 +12,7 @@ useSeoMeta({ robots: 'noindex, nofollow' })
   <div class="flex min-h-dvh flex-col bg-background">
     <TheHeader @open-cart="sepetAcik = true" />
 
-    <main class="flex-1">
+    <main class="flex-1 pb-16 lg:pb-0">
       <div class="site-container py-10 md:py-14">
         <div class="grid gap-8 md:grid-cols-[220px_minmax(0,1fr)] md:gap-12 lg:grid-cols-[240px_minmax(0,1fr)]">
           <!-- min-w-0: grid hücresi varsayılan olarak içeriğine göre büyür;
@@ -42,5 +42,6 @@ useSeoMeta({ robots: 'noindex, nofollow' })
 
     <TheCartDrawer v-model="sepetAcik" />
     <WhatsAppFab />
+    <TheBottomNav @open-cart="sepetAcik = true" />
   </div>
 </template>
