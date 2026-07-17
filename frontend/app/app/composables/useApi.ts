@@ -11,7 +11,7 @@ import type { Axis, Category, Product, Slide } from '~/types/api'
  * useFetch kullanılıyor, $fetch değil: useFetch SSR'da çektiği veriyi
  * hydration'a taşır, aynı veri tarayıcıda ikinci kez çekilmez.
  */
-function apiBase(): string {
+export function apiBase(): string {
   return useRuntimeConfig().public.apiBase
 }
 

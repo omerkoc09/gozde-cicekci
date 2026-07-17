@@ -3,6 +3,7 @@ import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
 import type { Product } from '@/model/product'
 import type { Category } from '@/model/category'
+import { formatTutar as priceText } from '@/utils/Currency'
 import { ConfirmPopup, ErrorPopup, SuccessToast } from '@/utils/Popup'
 
 const productApi = useProducts()
@@ -55,13 +56,6 @@ const headers = [
 const coverOf = (p: Product) =>
   [...(p.images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]
 
-const priceText = (price: string) => {
-  const n = Number.parseFloat(price)
-
-  return Number.isNaN(n)
-    ? price
-    : `${n.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
-}
 
 const goToProduct = (id: number | string) =>
   router.push({ name: 'urunler-id', params: { id: String(id) } })
