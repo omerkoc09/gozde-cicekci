@@ -63,6 +63,10 @@ services:
       UPLOAD_DIR: /app/uploads
       UPLOAD_BASE_URL: ${SITE_URL}/uploads
       PORT: "8080"
+      DELIVERY_FEE: ${DELIVERY_FEE}
+      DELIVERY_SLOTS: ${DELIVERY_SLOTS}
+      SAME_DAY_CUTOFF: ${SAME_DAY_CUTOFF}
+      MAX_DELIVERY_DAYS: ${MAX_DELIVERY_DAYS}
     volumes:
       - uploads:/app/uploads
     depends_on:

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -27,6 +28,14 @@ type Config struct {
 	R2SecretKey   string
 	R2Bucket      string
 	R2PublicURL   string
+
+	// Teslimat ayarları (spec §4). settings tablosu yerine config:
+	// yılda bir değişir, ayarlar ekranı YAGNI (MVP §5.3 ile aynı gerekçe).
+	// DEĞERLER ESNAFTAN ÖĞRENİLECEK — spec §7.
+	DeliveryFee     string   // "50" — NUMERIC'e yazılacak, string tutuluyor (float precision)
+	DeliverySlots   []string // ["09:00-12:00", ...]
+	SameDayCutoff   string   // "16:00" — bu saatten sonra aynı güne sipariş yok
+	MaxDeliveryDays int      // 30 — bugün + bu kadar güne kadar sipariş alınır
 }
 
 // envSearchDepth yukarı doğru kaç dizin taranacak. 4 fazlasıyla yeterli:
@@ -100,6 +109,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("APP_ENV=production ise SITE_URL https:// ile başlamalı (şu an: %q)", cfg.SiteURL)
 	}
 
+	loadDelivery(cfg)
+
 	if err := loadStorage(cfg); err != nil {
 		return nil, err
 	}
@@ -160,4 +171,34 @@ func loadStorage(cfg *Config) error {
 // Cookie'nin Secure bayrağı buna bağlı.
 func (c *Config) IsProduction() bool {
 	return c.AppEnv == "production"
+}
+
+// loadDelivery teslimat ayarlarını okur. Hepsinin makul varsayılanı var —
+// esnaftan gerçek değerler öğrenilene kadar sistem çalışır (spec §7).
+func loadDelivery(cfg *Config) {
+	cfg.DeliveryFee = os.Getenv("DELIVERY_FEE")
+	if cfg.DeliveryFee == "" {
+		cfg.DeliveryFee = "0"
+	}
+
+	slots := os.Getenv("DELIVERY_SLOTS")
+	if slots == "" {
+		slots = "09:00-12:00,12:00-15:00,15:00-18:00"
+	}
+	cfg.DeliverySlots = strings.Split(slots, ",")
+	for i := range cfg.DeliverySlots {
+		cfg.DeliverySlots[i] = strings.TrimSpace(cfg.DeliverySlots[i])
+	}
+
+	cfg.SameDayCutoff = os.Getenv("SAME_DAY_CUTOFF")
+	if cfg.SameDayCutoff == "" {
+		cfg.SameDayCutoff = "16:00"
+	}
+
+	cfg.MaxDeliveryDays = 30
+	if v := os.Getenv("MAX_DELIVERY_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.MaxDeliveryDays = n
+		}
+	}
 }
