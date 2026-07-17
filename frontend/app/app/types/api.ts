@@ -59,13 +59,14 @@ export interface DeliveryConfig {
   slots: string[]
   same_day_cutoff: string
   max_days: number
+  districts: string[]
 }
 
 export interface CreateOrderInput {
   items: { product_id: number, quantity: number }[]
-  buyer: { name: string, phone: string, email?: string }
+  buyer: { name: string, phone: string }
   recipient: { name: string, phone: string }
-  delivery: { address: string, date: string, slot: string }
+  delivery: { address: string, district: string, date: string, slot: string }
   card_message?: string
 }
 

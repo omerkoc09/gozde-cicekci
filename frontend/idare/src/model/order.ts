@@ -19,6 +19,7 @@ export interface Order {
   recipient_name: string
   recipient_phone: string
   delivery_address: string
+  delivery_district: string
   delivery_date: string
   delivery_slot: string
   card_message: string

@@ -115,7 +115,7 @@ const tutar = (v: string) =>
           </VCardItem>
           <VCardText>
             <p><strong>Alıcı:</strong> {{ order.recipient_name }} — {{ order.recipient_phone }}</p>
-            <p><strong>Adres:</strong> {{ order.delivery_address }}</p>
+            <p><strong>Adres:</strong> {{ order.delivery_address }} ({{ order.delivery_district }})</p>
             <p><strong>Tarih:</strong> {{ order.delivery_date }} · {{ order.delivery_slot }}</p>
             <VAlert
               v-if="order.card_message"
