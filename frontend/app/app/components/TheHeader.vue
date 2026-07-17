@@ -5,8 +5,9 @@ import type { Category } from '~/types/api'
  * Sticky header — DESIGN.md §Elevation: backdrop blur, gölge yok, ince alt çizgi.
  *
  * Nav referanstaki 5'li yapıyı korur ama Türkçeleştirildi (spec §6.1) ve
- * "Özel Günler"/"Koleksiyonlar" gerçek kategori eksenlerine bağlandı (spec §5):
- * occasion → Özel Günler, type → Koleksiyonlar.
+ * "Özel Günler"/"Çiçekler" gerçek kategori eksenlerine bağlandı (spec §5):
+ * occasion → Özel Günler, type → Çiçekler. İlk link ("Koleksiyonlar")
+ * filtresiz /urunler'e gider, ayrı bir kategori ekseni değildir.
  *
  * Favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
  * Sepet Faz 2'de gerçek oldu: rozet artık gerçek sayıyı gösterir.
@@ -67,7 +68,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
           class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
           active-class="border-b border-accent-gold font-semibold !text-primary"
         >
-          Çiçekler
+          Koleksiyonlar
         </NuxtLink>
 
         <HeaderNavDropdown
@@ -81,7 +82,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
         <HeaderNavDropdown
           v-if="koleksiyonlar.length"
-          label="Koleksiyonlar"
+          label="Çiçekler"
           :items="koleksiyonlar"
           :open="acikMenu === 'koleksiyon'"
           @toggle="menuAc('koleksiyon')"
@@ -167,7 +168,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
       >
         <div class="site-container max-h-[calc(100dvh-5rem)] overflow-y-auto py-4">
           <NuxtLink to="/urunler" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
-            Çiçekler
+            Koleksiyonlar
           </NuxtLink>
 
           <div v-if="ozelGunler.length" class="border-b border-outline-variant/20 py-3">
@@ -186,7 +187,7 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
 
           <div v-if="koleksiyonlar.length" class="border-b border-outline-variant/20 py-3">
             <p class="text-label-caps mb-2 text-secondary">
-              Koleksiyonlar
+              Çiçekler
             </p>
             <NuxtLink
               v-for="k in koleksiyonlar"
