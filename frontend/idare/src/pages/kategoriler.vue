@@ -57,7 +57,6 @@ const typeCategories = computed(() => byAxis('type'))
 const headers = [
   { title: 'Görsel', key: 'image', sortable: false, width: 90 },
   { title: 'Ad', key: 'name' },
-  { title: 'Link (slug)', key: 'slug', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Öne Çıkan', key: 'is_featured', sortable: false, width: 130 },
   { title: 'Sıra', key: 'sort_order', width: 90 },
@@ -283,10 +282,6 @@ const remove = async (c: Category) => {
 
         <template #item.name="{ item }">
           <span :class="{ 'text-disabled': !item.is_active }">{{ item.name }}</span>
-        </template>
-
-        <template #item.slug="{ item }">
-          <code class="text-caption text-medium-emphasis">{{ item.slug }}</code>
         </template>
 
         <template #item.is_active="{ item }">

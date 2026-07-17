@@ -21,6 +21,10 @@ const categoryNames = computed(() => {
   return map
 })
 
+// Satır başına en fazla bu kadar kategori çipi gösterilir — fazlası "+N"
+// olarak özetlenir, yoksa çok kategorili ürünlerde satır şişer.
+const MAX_KATEGORI_CIP = 2
+
 // Filtreler client-side: liste zaten tek seferde çekiliyor (limit 100),
 // esnafın 40-100 ürünü backend'e ek istek atmadan filtrelenebilir.
 const arama = ref('')
@@ -237,13 +241,33 @@ const remove = async (p: Product) => {
 
           <template v-else>
             <VChip
-              v-for="id in item.category_ids"
+              v-for="id in item.category_ids.slice(0, MAX_KATEGORI_CIP)"
               :key="id"
               size="x-small"
               class="me-1 my-1"
             >
               {{ categoryNames.get(id) ?? `#${id}` }}
             </VChip>
+
+            <VTooltip
+              v-if="item.category_ids.length > MAX_KATEGORI_CIP"
+              :text="item.category_ids
+                .slice(MAX_KATEGORI_CIP)
+                .map(id => categoryNames.get(id) ?? `#${id}`)
+                .join(', ')"
+              location="top"
+            >
+              <template #activator="{ props }">
+                <VChip
+                  v-bind="props"
+                  size="x-small"
+                  variant="tonal"
+                  class="my-1"
+                >
+                  +{{ item.category_ids.length - MAX_KATEGORI_CIP }}
+                </VChip>
+              </template>
+            </VTooltip>
           </template>
         </template>
 
