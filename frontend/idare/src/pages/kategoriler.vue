@@ -227,7 +227,6 @@ const remove = async (c: Category) => {
       v-model="arama"
       prepend-inner-icon="tabler-search"
       placeholder="Kategori ara..."
-      density="compact"
       class="mb-6"
       style="max-width: 360px;"
       hide-details

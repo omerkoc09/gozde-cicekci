@@ -143,7 +143,6 @@ const remove = async (p: Product) => {
               v-model="arama"
               prepend-inner-icon="tabler-search"
               placeholder="Ürün ara..."
-              density="compact"
               hide-details
               clearable
             />
@@ -157,7 +156,6 @@ const remove = async (p: Product) => {
               v-model="kategoriFiltresi"
               :items="kategoriSecenekleri"
               placeholder="Kategori"
-              density="compact"
               hide-details
               clearable
             />
