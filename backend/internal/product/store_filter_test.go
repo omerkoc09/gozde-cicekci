@@ -148,6 +148,107 @@ func TestStore_ListPublic_Pagination(t *testing.T) {
 	assert.Len(t, second, 1)
 }
 
+func TestStore_ListPublic_QueryMatchesName(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	_, err := store.Create(ctx, CreateInput{
+		Name: "Kırmızı Gül Buketi", Price: price(t, "500"), IsActive: true,
+	}, "kirmizi-gul-buketi")
+	require.NoError(t, err)
+	_, err = store.Create(ctx, CreateInput{
+		Name: "Orkide Saksısı", Price: price(t, "800"), IsActive: true,
+	}, "orkide-saksisi")
+	require.NoError(t, err)
+
+	q := "gül"
+	list, err := store.ListPublic(ctx, Filter{Query: &q, Limit: 20})
+
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "Kırmızı Gül Buketi", list[0].Name)
+}
+
+func TestStore_ListPublic_QueryMatchesCategoryName(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	orkide := insertCategory(t, pool, "Orkide", "orkide", "type")
+
+	match, err := store.Create(ctx, CreateInput{
+		Name: "Beyaz Saksı", Price: price(t, "600"), IsActive: true,
+		CategoryIDs: []int64{orkide},
+	}, "beyaz-saksi")
+	require.NoError(t, err)
+	_, err = store.Create(ctx, CreateInput{
+		Name: "Kırmızı Buket", Price: price(t, "500"), IsActive: true,
+	}, "kirmizi-buket")
+	require.NoError(t, err)
+
+	q := "orkide"
+	list, err := store.ListPublic(ctx, Filter{Query: &q, Limit: 20})
+
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, match.ID, list[0].ID)
+}
+
+func TestStore_ListPublic_QueryNoMatch(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+	_, err := store.Create(ctx, CreateInput{
+		Name: "Kırmızı Gül Buketi", Price: price(t, "500"), IsActive: true,
+	}, "kirmizi-gul-buketi")
+	require.NoError(t, err)
+
+	q := "orkide"
+	list, err := store.ListPublic(ctx, Filter{Query: &q, Limit: 20})
+
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}
+
+func TestStore_ListPublic_QueryCombinesWithAxisFilterAsAND(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	dogumGunu := insertCategory(t, pool, "Doğum Günü", "dogum-gunu", "occasion")
+
+	match, err := store.Create(ctx, CreateInput{
+		Name: "Kırmızı Gül Buketi", Price: price(t, "500"), IsActive: true,
+		CategoryIDs: []int64{dogumGunu},
+	}, "kirmizi-gul-buketi")
+	require.NoError(t, err)
+	// Aynı isim ama farklı eksen — eşleşmemeli.
+	_, err = store.Create(ctx, CreateInput{
+		Name: "Kırmızı Gül Aranjmanı", Price: price(t, "700"), IsActive: true,
+	}, "kirmizi-gul-aranjmani")
+	require.NoError(t, err)
+
+	q := "gül"
+	occasion := "dogum-gunu"
+	list, err := store.ListPublic(ctx, Filter{Query: &q, OccasionSlug: &occasion, Limit: 20})
+
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, match.ID, list[0].ID)
+}
+
+func TestStore_ListPublic_QueryIgnoresInactiveCategoryName(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+	var catID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO categories (name, slug, axis, is_active)
+		 VALUES ('Anneler Günü', 'anneler-gunu', 'occasion', false) RETURNING id`,
+	).Scan(&catID)
+	require.NoError(t, err)
+
+	_, err = store.Create(ctx, CreateInput{
+		Name: "Beyaz Buket", Price: price(t, "500"), IsActive: true,
+		CategoryIDs: []int64{catID},
+	}, "beyaz-buket")
+	require.NoError(t, err)
+
+	q := "anneler"
+	list, err := store.ListPublic(ctx, Filter{Query: &q, Limit: 20})
+
+	require.NoError(t, err)
+	assert.Empty(t, list, "pasif kategori adı arama eşleşmesi vermemeli")
+}
+
 func TestStore_ListAdmin_ShowsInactive(t *testing.T) {
 	store, _, ctx := newTestStore(t)
 	_, err := store.Create(ctx, CreateInput{

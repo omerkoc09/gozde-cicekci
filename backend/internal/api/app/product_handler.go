@@ -28,6 +28,9 @@ func (h *productHandler) list(c *fiber.Ctx) error {
 	if tip := c.Query("tip"); tip != "" {
 		f.TypeSlug = &tip
 	}
+	if q := c.Query("q"); q != "" {
+		f.Query = &q
+	}
 	// one_cikan=true → ana sayfa vitrini. Verilmezse tüm aktif ürünler döner;
 	// katalog sayfası öne çıkmaya göre filtrelemiyor.
 	f.FeaturedOnly = c.QueryBool("one_cikan", false)

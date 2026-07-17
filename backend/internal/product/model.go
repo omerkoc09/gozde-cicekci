@@ -45,6 +45,10 @@ type Filter struct {
 	OccasionSlug *string
 	TypeSlug     *string
 
+	// Query doluysa ürün adında veya bağlı kategori adında arama yapar
+	// (case-insensitive substring), diğer koşullarla AND birleşir.
+	Query *string
+
 	// FeaturedOnly true ise yalnızca öne çıkan ürünler döner — ana sayfa
 	// vitrini bunu kullanıyor. false ise öne çıkma durumu filtrelemez.
 	FeaturedOnly bool

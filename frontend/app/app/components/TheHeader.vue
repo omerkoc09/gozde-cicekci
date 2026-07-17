@@ -55,12 +55,30 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
     class="sticky top-0 z-50 border-b border-outline-variant/30 bg-surface/80 backdrop-blur-md"
     @keydown.escape="acikMenu = null"
   >
-    <div class="site-container flex items-center justify-between gap-4 py-3 md:py-4">
-      <TheLogo />
+    <div class="flex w-full items-center gap-4 px-5 py-3 md:px-8 md:py-4 xl:px-16">
+      <!-- Mobilde hamburger solda — logo'yu ortalamak için aksiyon grubuyla
+           simetrik denge sağlıyor (bkz. aşağıdaki mobil hamburger butonu,
+           burada da bir kopyası var ki logo gerçekten ortalansın). -->
+      <button
+        type="button"
+        class="rounded p-2 text-primary transition-colors hover:text-secondary lg:hidden"
+        :aria-expanded="mobilAcik"
+        aria-label="Menü"
+        @click="mobilAcik = !mobilAcik"
+      >
+        <Icon :name="mobilAcik ? 'material-symbols:close' : 'material-symbols:menu'" size="24" />
+      </button>
+
+      <!-- Marka bloğu: masaüstünde solda logo + arama yan yana; mobilde
+           logo ortalanmış tek başına (arama hamburger menüsünde). -->
+      <div class="flex flex-1 items-center justify-center gap-4 md:gap-6 lg:flex-none lg:justify-start">
+        <TheLogo />
+        <SearchBar class="hidden w-56 lg:flex xl:w-72" />
+      </div>
 
       <!-- Masaüstü nav -->
       <nav
-        class="hidden items-center gap-8 lg:flex"
+        class="ml-auto hidden items-center gap-8 lg:flex"
         aria-label="Ana menü"
       >
         <NuxtLink
@@ -106,11 +124,12 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         </NuxtLink>
       </nav>
 
-      <!-- Aksiyonlar -->
-      <div class="flex shrink-0 items-center gap-0.5 text-primary md:gap-2">
+      <!-- Aksiyonlar — favoriler mobilde bottom nav'da zaten var, burada
+           sadece masaüstünde görünür. -->
+      <div class="ml-auto flex shrink-0 items-center gap-0.5 text-primary md:gap-2 lg:ml-0">
         <NuxtLink
           to="/hesabim/favoriler"
-          class="rounded p-2 transition-colors hover:text-secondary"
+          class="hidden rounded p-2 transition-colors hover:text-secondary lg:block"
           aria-label="Favoriler"
         >
           <Icon name="material-symbols:favorite-outline" size="22" />
@@ -141,16 +160,6 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         >
           <Icon name="material-symbols:person-outline" size="22" />
         </NuxtLink>
-
-        <button
-          type="button"
-          class="rounded p-2 transition-colors hover:text-secondary lg:hidden"
-          :aria-expanded="mobilAcik"
-          aria-label="Menü"
-          @click="mobilAcik = !mobilAcik"
-        >
-          <Icon :name="mobilAcik ? 'material-symbols:close' : 'material-symbols:menu'" size="24" />
-        </button>
       </div>
     </div>
 
@@ -167,6 +176,8 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         aria-label="Mobil menü"
       >
         <div class="site-container max-h-[calc(100dvh-5rem)] overflow-y-auto py-4">
+          <SearchBar class="mb-2 w-full border-b border-outline-variant/20 pb-4" />
+
           <NuxtLink to="/urunler" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
             Koleksiyonlar
           </NuxtLink>

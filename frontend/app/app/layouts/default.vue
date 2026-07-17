@@ -9,7 +9,7 @@ provide('sepetAcik', sepetAcik)
   <div class="flex min-h-dvh flex-col bg-background">
     <TheHeader @open-cart="sepetAcik = true" />
 
-    <main class="flex-1">
+    <main class="flex-1 pb-16 lg:pb-0">
       <slot />
     </main>
 
@@ -17,5 +17,6 @@ provide('sepetAcik', sepetAcik)
 
     <TheCartDrawer v-model="sepetAcik" />
     <WhatsAppFab />
+    <TheBottomNav @open-cart="sepetAcik = true" />
   </div>
 </template>
