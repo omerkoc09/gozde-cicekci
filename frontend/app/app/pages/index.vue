@@ -13,10 +13,14 @@ const { data: cicekTurleri } = await useFeaturedCategories('type')
 // Tek şablon iki bölümü de basıyor — kart yapısı birebir aynı.
 // Boş bölümler burada eleniyor: şablonda v-for + v-show olsaydı boş section
 // DOM'da kalır ve section-gap boşluğu ortada asılı dururdu.
+//
+// eksen: "Tümünü Gör" /urunler?eksen=... ile gidiyor — CategoryFilter o
+// eksen grubuna scroll ediyor. Spesifik kategori seçilmiyor, backend'de
+// axis bazlı filtre yok (bkz. 2026-07-18 sipariş formu iyileştirmeleri kararı).
 const kategoriBolumleri = computed(() =>
   [
-    { baslik: 'Özel Günler', kategoriler: ozelGunler.value ?? [] },
-    { baslik: 'Çiçek Türleri', kategoriler: cicekTurleri.value ?? [] },
+    { baslik: 'Özel Günler', eksen: 'occasion' as const, kategoriler: ozelGunler.value ?? [] },
+    { baslik: 'Çiçek Türleri', eksen: 'type' as const, kategoriler: cicekTurleri.value ?? [] },
   ].filter(b => b.kategoriler.length > 0))
 
 // Ana sayfanın işi vitrin, katalog değil — panelden "öne çıkan" işaretlenen
@@ -93,6 +97,20 @@ useSeoMeta({
       </div>
 
       <CardCarousel :baslik="bolum.baslik">
+        <template #aksiyon>
+          <NuxtLink
+            :to="`/urunler?eksen=${bolum.eksen}`"
+            class="text-label-caps group flex shrink-0 items-center gap-1.5 text-secondary hover:text-secondary-hover"
+          >
+            Tümünü Gör
+            <Icon
+              name="material-symbols:arrow-forward"
+              size="14"
+              class="transition-transform group-hover:translate-x-0.5"
+            />
+          </NuxtLink>
+        </template>
+
         <NuxtLink
           v-for="(kategori, j) in bolum.kategoriler"
           :key="kategori.id"
