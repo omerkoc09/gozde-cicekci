@@ -224,8 +224,8 @@ useSeoMeta({
               type="button"
               class="rounded-lg border px-3 py-3 text-center transition-colors"
               :class="form.date === t.iso
-                ? 'border-primary bg-primary text-white'
-                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-primary/50'"
+                ? 'border-secondary-hover bg-secondary-hover text-on-secondary'
+                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-secondary-hover hover:bg-secondary-hover hover:text-on-secondary'"
               @click="form.date = t.iso"
             >
               <span class="block text-xs opacity-80">{{ t.altYazi }}</span>
@@ -236,8 +236,8 @@ useSeoMeta({
               type="button"
               class="rounded-lg border px-3 py-3 text-center transition-colors"
               :class="ozelTarihSecili
-                ? 'border-primary bg-primary text-white'
-                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-primary/50'"
+                ? 'border-secondary-hover bg-secondary-hover text-on-secondary'
+                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-secondary-hover hover:bg-secondary-hover hover:text-on-secondary'"
               @click="takvimAc"
             >
               <Icon name="material-symbols:calendar-month-outline" size="20" class="mx-auto block" />
@@ -264,8 +264,8 @@ useSeoMeta({
               type="button"
               class="rounded-lg border px-4 py-2.5 text-body-md transition-colors"
               :class="form.slot === s
-                ? 'border-primary bg-primary text-white'
-                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-primary/50'"
+                ? 'border-secondary-hover bg-secondary-hover text-on-secondary'
+                : 'border-outline-variant/50 bg-surface-container-low text-on-surface hover:border-secondary-hover hover:bg-secondary-hover hover:text-on-secondary'"
               @click="form.slot = s"
             >
               {{ s }}
