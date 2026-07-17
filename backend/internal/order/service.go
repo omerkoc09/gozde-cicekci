@@ -24,6 +24,9 @@ type DeliveryConfig struct {
 	Slots         []string
 	SameDayCutoff string
 	MaxDays       int
+	// Districts teslimat yapılan ilçeler — bilgi amaçlı, ücrete etkisi yok
+	// (2026-07-18 sipariş formu iyileştirmeleri spec'i).
+	Districts []string
 }
 
 type CreateItem struct {
@@ -39,12 +42,13 @@ type CreateInput struct {
 	BuyerPhone string
 	BuyerEmail string
 
-	RecipientName   string
-	RecipientPhone  string
-	DeliveryAddress string
-	DeliveryDate    time.Time
-	DeliverySlot    string
-	CardMessage     string
+	RecipientName    string
+	RecipientPhone   string
+	DeliveryAddress  string
+	DeliveryDistrict string
+	DeliveryDate     time.Time
+	DeliverySlot     string
+	CardMessage      string
 }
 
 type Service struct {
@@ -107,19 +111,20 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
 	}
 
 	return s.store.Create(ctx, NewOrder{
-		BuyerName:       in.BuyerName,
-		BuyerPhone:      in.BuyerPhone,
-		BuyerEmail:      in.BuyerEmail,
-		RecipientName:   in.RecipientName,
-		RecipientPhone:  in.RecipientPhone,
-		DeliveryAddress: in.DeliveryAddress,
-		DeliveryDate:    in.DeliveryDate,
-		DeliverySlot:    in.DeliverySlot,
-		CardMessage:     in.CardMessage,
-		ItemsTotal:      itemsTotal,
-		DeliveryFee:     fee,
-		Total:           itemsTotal.Add(fee),
-		Items:           items,
+		BuyerName:        in.BuyerName,
+		BuyerPhone:       in.BuyerPhone,
+		BuyerEmail:       in.BuyerEmail,
+		RecipientName:    in.RecipientName,
+		RecipientPhone:   in.RecipientPhone,
+		DeliveryAddress:  in.DeliveryAddress,
+		DeliveryDistrict: in.DeliveryDistrict,
+		DeliveryDate:     in.DeliveryDate,
+		DeliverySlot:     in.DeliverySlot,
+		CardMessage:      in.CardMessage,
+		ItemsTotal:       itemsTotal,
+		DeliveryFee:      fee,
+		Total:            itemsTotal.Add(fee),
+		Items:            items,
 	})
 }
 
@@ -130,6 +135,7 @@ func (s *Service) validateContact(in *CreateInput) error {
 	in.RecipientName = strings.TrimSpace(in.RecipientName)
 	in.RecipientPhone = strings.TrimSpace(in.RecipientPhone)
 	in.DeliveryAddress = strings.TrimSpace(in.DeliveryAddress)
+	in.DeliveryDistrict = strings.TrimSpace(in.DeliveryDistrict)
 	in.CardMessage = strings.TrimSpace(in.CardMessage)
 
 	switch {
@@ -144,6 +150,8 @@ func (s *Service) validateContact(in *CreateInput) error {
 		return fmt.Errorf("%w: alıcı telefonu gerekli", errorsx.ErrInvalidInput)
 	case in.DeliveryAddress == "":
 		return fmt.Errorf("%w: teslimat adresi gerekli", errorsx.ErrInvalidInput)
+	case in.DeliveryDistrict == "":
+		return fmt.Errorf("%w: teslimat ilçesi gerekli", errorsx.ErrInvalidInput)
 	}
 
 	return nil
@@ -163,6 +171,10 @@ func (s *Service) validateDelivery(in CreateInput) error {
 
 	if !slices.Contains(s.cfg.Slots, in.DeliverySlot) {
 		return fmt.Errorf("%w: geçersiz teslimat saati", errorsx.ErrInvalidInput)
+	}
+
+	if !slices.Contains(s.cfg.Districts, in.DeliveryDistrict) {
+		return fmt.Errorf("%w: geçersiz teslimat ilçesi", errorsx.ErrInvalidInput)
 	}
 
 	// Aynı gün + cutoff geçmiş → esnaf yetiştiremez

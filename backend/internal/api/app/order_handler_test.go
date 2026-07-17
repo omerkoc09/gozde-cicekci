@@ -30,6 +30,7 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 	cfg := order.DeliveryConfig{
 		Fee: "50", Slots: []string{"12:00-15:00"},
 		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş"},
 	}
 	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg)
 
@@ -42,7 +43,7 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 		"items": [{"product_id": %d, "quantity": 2, "price": "1.00"}],
 		"buyer": {"name": "Ahmet", "phone": "05551112233"},
 		"recipient": {"name": "Ayşe", "phone": "05554445566"},
-		"delivery": {"address": "Test Cad. 1", "date": "%s", "slot": "12:00-15:00"}
+		"delivery": {"address": "Test Cad. 1", "district": "Ödemiş", "date": "%s", "slot": "12:00-15:00"}
 	}`, productID, time.Now().AddDate(0, 0, 2).Format("2006-01-02"))
 
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
@@ -64,6 +65,7 @@ func TestDeliveryConfig(t *testing.T) {
 	cfg := order.DeliveryConfig{
 		Fee: "50", Slots: []string{"09:00-12:00", "12:00-15:00"},
 		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş", "Tire", "Bayındır"},
 	}
 
 	f := fiber.New()
@@ -80,4 +82,5 @@ func TestDeliveryConfig(t *testing.T) {
 	assert.Equal(t, "50", out.Fee)
 	assert.Len(t, out.Slots, 2)
 	assert.Equal(t, 30, out.MaxDays)
+	assert.Len(t, out.Districts, 3)
 }

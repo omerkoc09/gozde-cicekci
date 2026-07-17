@@ -29,7 +29,7 @@ const orderNoMaxRetry = 5
 const orderSelect = `
 	SELECT id, order_no, status,
 	       buyer_name, buyer_phone, COALESCE(buyer_email, ''),
-	       recipient_name, recipient_phone, delivery_address,
+	       recipient_name, recipient_phone, delivery_address, delivery_district,
 	       delivery_date, delivery_slot, COALESCE(card_message, ''),
 	       items_total, delivery_fee, total,
 	       COALESCE(note, ''), created_at, updated_at
@@ -40,7 +40,7 @@ func scanOrder(row pgx.Row) (*Order, error) {
 
 	err := row.Scan(&o.ID, &o.OrderNo, &o.Status,
 		&o.BuyerName, &o.BuyerPhone, &o.BuyerEmail,
-		&o.RecipientName, &o.RecipientPhone, &o.DeliveryAddress,
+		&o.RecipientName, &o.RecipientPhone, &o.DeliveryAddress, &o.DeliveryDistrict,
 		&o.DeliveryDate, &o.DeliverySlot, &o.CardMessage,
 		&o.ItemsTotal, &o.DeliveryFee, &o.Total,
 		&o.Note, &o.CreatedAt, &o.UpdatedAt)
@@ -96,13 +96,13 @@ func (s *Store) createOnce(ctx context.Context, in NewOrder) (*Order, error) {
 	err = tx.QueryRow(ctx, `
 		INSERT INTO orders (
 			order_no, buyer_name, buyer_phone, buyer_email,
-			recipient_name, recipient_phone, delivery_address,
+			recipient_name, recipient_phone, delivery_address, delivery_district,
 			delivery_date, delivery_slot, card_message,
 			items_total, delivery_fee, total
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 		RETURNING id`,
 		orderNo, in.BuyerName, in.BuyerPhone, nullIfEmpty(in.BuyerEmail),
-		in.RecipientName, in.RecipientPhone, in.DeliveryAddress,
+		in.RecipientName, in.RecipientPhone, in.DeliveryAddress, in.DeliveryDistrict,
 		in.DeliveryDate, in.DeliverySlot, nullIfEmpty(in.CardMessage),
 		in.ItemsTotal, in.DeliveryFee, in.Total,
 	).Scan(&id)

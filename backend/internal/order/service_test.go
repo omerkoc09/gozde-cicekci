@@ -19,19 +19,21 @@ func testDeliveryConfig() DeliveryConfig {
 		Slots:         []string{"09:00-12:00", "12:00-15:00", "15:00-18:00"},
 		SameDayCutoff: "16:00",
 		MaxDays:       30,
+		Districts:     []string{"Ödemiş", "Tire", "Bayındır"},
 	}
 }
 
 func testCreateInput(productID int64) CreateInput {
 	return CreateInput{
-		Items:           []CreateItem{{ProductID: productID, Quantity: 2}},
-		BuyerName:       "Ahmet Yılmaz",
-		BuyerPhone:      "05551112233",
-		RecipientName:   "Ayşe Yılmaz",
-		RecipientPhone:  "05554445566",
-		DeliveryAddress: "Teşvikiye Cad. No:1",
-		DeliveryDate:    time.Now().AddDate(0, 0, 2),
-		DeliverySlot:    "12:00-15:00",
+		Items:            []CreateItem{{ProductID: productID, Quantity: 2}},
+		BuyerName:        "Ahmet Yılmaz",
+		BuyerPhone:       "05551112233",
+		RecipientName:    "Ayşe Yılmaz",
+		RecipientPhone:   "05554445566",
+		DeliveryAddress:  "Teşvikiye Cad. No:1",
+		DeliveryDistrict: "Ödemiş",
+		DeliveryDate:     time.Now().AddDate(0, 0, 2),
+		DeliverySlot:     "12:00-15:00",
 	}
 }
 
@@ -104,6 +106,16 @@ func TestService_Create_GecersizSlotReddedilir(t *testing.T) {
 
 	in := testCreateInput(productID)
 	in.DeliverySlot = "03:00-04:00" // config'de yok
+
+	_, err := svc.Create(context.Background(), in)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
+}
+
+func TestService_Create_GecersizIlceReddedilir(t *testing.T) {
+	svc, _, productID := setupService(t)
+
+	in := testCreateInput(productID)
+	in.DeliveryDistrict = "İstanbul" // config'de yok (Ödemiş, Tire, Bayındır)
 
 	_, err := svc.Create(context.Background(), in)
 	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)

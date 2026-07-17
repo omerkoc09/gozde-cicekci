@@ -36,6 +36,10 @@ type Config struct {
 	DeliverySlots   []string // ["09:00-12:00", ...]
 	SameDayCutoff   string   // "16:00" — bu saatten sonra aynı güne sipariş yok
 	MaxDeliveryDays int      // 30 — bugün + bu kadar güne kadar sipariş alınır
+
+	// DeliveryDistricts teslimat yapılan ilçeler — bilgi amaçlı, ücrete
+	// etkisi yok (2026-07-18 sipariş formu iyileştirmeleri spec'i).
+	DeliveryDistricts []string
 }
 
 // envSearchDepth yukarı doğru kaç dizin taranacak. 4 fazlasıyla yeterli:
@@ -200,5 +204,14 @@ func loadDelivery(cfg *Config) {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			cfg.MaxDeliveryDays = n
 		}
+	}
+
+	districts := os.Getenv("DELIVERY_DISTRICTS")
+	if districts == "" {
+		districts = "Ödemiş,Tire,Bayındır,Kiraz,Beydağ"
+	}
+	cfg.DeliveryDistricts = strings.Split(districts, ",")
+	for i := range cfg.DeliveryDistricts {
+		cfg.DeliveryDistricts[i] = strings.TrimSpace(cfg.DeliveryDistricts[i])
 	}
 }

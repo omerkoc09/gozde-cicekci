@@ -21,9 +21,10 @@ type createOrderRequest struct {
 	} `json:"recipient"`
 
 	Delivery struct {
-		Address string `json:"address"`
-		Date    string `json:"date"` // "2026-07-20"
-		Slot    string `json:"slot"`
+		Address  string `json:"address"`
+		District string `json:"district"`
+		Date     string `json:"date"` // "2026-07-20"
+		Slot     string `json:"slot"`
 	} `json:"delivery"`
 
 	CardMessage string `json:"card_message"`
@@ -50,4 +51,5 @@ type deliveryConfigResponse struct {
 	Slots         []string `json:"slots"`
 	SameDayCutoff string   `json:"same_day_cutoff"`
 	MaxDays       int      `json:"max_days"`
+	Districts     []string `json:"districts"`
 }

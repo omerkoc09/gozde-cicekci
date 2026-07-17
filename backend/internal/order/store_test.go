@@ -14,18 +14,19 @@ import (
 
 func testNewOrder() NewOrder {
 	return NewOrder{
-		BuyerName:       "Ahmet Yılmaz",
-		BuyerPhone:      "05551112233",
-		BuyerEmail:      "ahmet@example.com",
-		RecipientName:   "Ayşe Yılmaz",
-		RecipientPhone:  "05554445566",
-		DeliveryAddress: "Teşvikiye Cad. No:1, Şişli/İstanbul",
-		DeliveryDate:    time.Now().AddDate(0, 0, 1),
-		DeliverySlot:    "12:00-15:00",
-		CardMessage:     "Doğum günün kutlu olsun",
-		ItemsTotal:      decimal.RequireFromString("1850.00"),
-		DeliveryFee:     decimal.RequireFromString("50.00"),
-		Total:           decimal.RequireFromString("1900.00"),
+		BuyerName:        "Ahmet Yılmaz",
+		BuyerPhone:       "05551112233",
+		BuyerEmail:       "ahmet@example.com",
+		RecipientName:    "Ayşe Yılmaz",
+		RecipientPhone:   "05554445566",
+		DeliveryAddress:  "Teşvikiye Cad. No:1, Şişli/İstanbul",
+		DeliveryDistrict: "Ödemiş",
+		DeliveryDate:     time.Now().AddDate(0, 0, 1),
+		DeliverySlot:     "12:00-15:00",
+		CardMessage:      "Doğum günün kutlu olsun",
+		ItemsTotal:       decimal.RequireFromString("1850.00"),
+		DeliveryFee:      decimal.RequireFromString("50.00"),
+		Total:            decimal.RequireFromString("1900.00"),
 	}
 }
 
@@ -58,6 +59,7 @@ func TestStore_Create(t *testing.T) {
 	assert.NotEmpty(t, o.OrderNo)
 	assert.Equal(t, StatusPending, o.Status)
 	assert.Equal(t, "Ahmet Yılmaz", o.BuyerName)
+	assert.Equal(t, "Ödemiş", o.DeliveryDistrict)
 	assert.True(t, o.Total.Equal(decimal.RequireFromString("1900.00")))
 	require.Len(t, o.Items, 1)
 	assert.Equal(t, "51 Gül Buket", o.Items[0].ProductName)

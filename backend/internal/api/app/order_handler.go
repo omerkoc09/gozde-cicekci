@@ -29,15 +29,16 @@ func (h *orderHandler) create(c *fiber.Ctx) error {
 	}
 
 	in := order.CreateInput{
-		BuyerName:       req.Buyer.Name,
-		BuyerPhone:      req.Buyer.Phone,
-		BuyerEmail:      req.Buyer.Email,
-		RecipientName:   req.Recipient.Name,
-		RecipientPhone:  req.Recipient.Phone,
-		DeliveryAddress: req.Delivery.Address,
-		DeliveryDate:    date,
-		DeliverySlot:    req.Delivery.Slot,
-		CardMessage:     req.CardMessage,
+		BuyerName:        req.Buyer.Name,
+		BuyerPhone:       req.Buyer.Phone,
+		BuyerEmail:       req.Buyer.Email,
+		RecipientName:    req.Recipient.Name,
+		RecipientPhone:   req.Recipient.Phone,
+		DeliveryAddress:  req.Delivery.Address,
+		DeliveryDistrict: req.Delivery.District,
+		DeliveryDate:     date,
+		DeliverySlot:     req.Delivery.Slot,
+		CardMessage:      req.CardMessage,
 	}
 	for _, it := range req.Items {
 		in.Items = append(in.Items, order.CreateItem{
@@ -60,5 +61,6 @@ func (h *orderHandler) deliveryConfig(c *fiber.Ctx) error {
 		Slots:         h.cfg.Slots,
 		SameDayCutoff: h.cfg.SameDayCutoff,
 		MaxDays:       h.cfg.MaxDays,
+		Districts:     h.cfg.Districts,
 	})
 }

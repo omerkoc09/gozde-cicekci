@@ -42,12 +42,13 @@ type Order struct {
 	BuyerPhone string `json:"buyer_phone"`
 	BuyerEmail string `json:"buyer_email"`
 
-	RecipientName   string    `json:"recipient_name"`
-	RecipientPhone  string    `json:"recipient_phone"`
-	DeliveryAddress string    `json:"delivery_address"`
-	DeliveryDate    time.Time `json:"delivery_date"`
-	DeliverySlot    string    `json:"delivery_slot"`
-	CardMessage     string    `json:"card_message"`
+	RecipientName    string    `json:"recipient_name"`
+	RecipientPhone   string    `json:"recipient_phone"`
+	DeliveryAddress  string    `json:"delivery_address"`
+	DeliveryDistrict string    `json:"delivery_district"`
+	DeliveryDate     time.Time `json:"delivery_date"`
+	DeliverySlot     string    `json:"delivery_slot"`
+	CardMessage      string    `json:"card_message"`
 
 	ItemsTotal  decimal.Decimal `json:"items_total"`
 	DeliveryFee decimal.Decimal `json:"delivery_fee"`
@@ -66,12 +67,13 @@ type NewOrder struct {
 	BuyerPhone string
 	BuyerEmail string
 
-	RecipientName   string
-	RecipientPhone  string
-	DeliveryAddress string
-	DeliveryDate    time.Time
-	DeliverySlot    string
-	CardMessage     string
+	RecipientName    string
+	RecipientPhone   string
+	DeliveryAddress  string
+	DeliveryDistrict string
+	DeliveryDate     time.Time
+	DeliverySlot     string
+	CardMessage      string
 
 	ItemsTotal  decimal.Decimal
 	DeliveryFee decimal.Decimal

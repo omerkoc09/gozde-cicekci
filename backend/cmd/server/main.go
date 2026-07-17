@@ -59,6 +59,7 @@ func main() {
 		Slots:         cfg.DeliverySlots,
 		SameDayCutoff: cfg.SameDayCutoff,
 		MaxDays:       cfg.MaxDeliveryDays,
+		Districts:     cfg.DeliveryDistricts,
 	}
 	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
 

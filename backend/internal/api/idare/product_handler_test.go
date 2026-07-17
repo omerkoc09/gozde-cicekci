@@ -38,6 +38,7 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 	deliveryCfg := order.DeliveryConfig{
 		Fee: "50", Slots: []string{"09:00-12:00", "12:00-15:00", "15:00-18:00"},
 		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş", "Tire"},
 	}
 	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
 

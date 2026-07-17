@@ -24,12 +24,13 @@ type orderView struct {
 	BuyerPhone string `json:"buyer_phone"`
 	BuyerEmail string `json:"buyer_email"`
 
-	RecipientName   string `json:"recipient_name"`
-	RecipientPhone  string `json:"recipient_phone"`
-	DeliveryAddress string `json:"delivery_address"`
-	DeliveryDate    string `json:"delivery_date"`
-	DeliverySlot    string `json:"delivery_slot"`
-	CardMessage     string `json:"card_message"`
+	RecipientName    string `json:"recipient_name"`
+	RecipientPhone   string `json:"recipient_phone"`
+	DeliveryAddress  string `json:"delivery_address"`
+	DeliveryDistrict string `json:"delivery_district"`
+	DeliveryDate     string `json:"delivery_date"`
+	DeliverySlot     string `json:"delivery_slot"`
+	CardMessage      string `json:"card_message"`
 
 	ItemsTotal  string `json:"items_total"`
 	DeliveryFee string `json:"delivery_fee"`
@@ -52,24 +53,25 @@ func toOrderView(o *order.Order) orderView {
 	}
 
 	return orderView{
-		ID:              o.ID,
-		OrderNo:         o.OrderNo,
-		Status:          string(o.Status),
-		BuyerName:       o.BuyerName,
-		BuyerPhone:      o.BuyerPhone,
-		BuyerEmail:      o.BuyerEmail,
-		RecipientName:   o.RecipientName,
-		RecipientPhone:  o.RecipientPhone,
-		DeliveryAddress: o.DeliveryAddress,
-		DeliveryDate:    o.DeliveryDate.Format("2006-01-02"),
-		DeliverySlot:    o.DeliverySlot,
-		CardMessage:     o.CardMessage,
-		ItemsTotal:      o.ItemsTotal.StringFixed(2),
-		DeliveryFee:     o.DeliveryFee.StringFixed(2),
-		Total:           o.Total.StringFixed(2),
-		Note:            o.Note,
-		Items:           items,
-		CreatedAt:       o.CreatedAt,
+		ID:               o.ID,
+		OrderNo:          o.OrderNo,
+		Status:           string(o.Status),
+		BuyerName:        o.BuyerName,
+		BuyerPhone:       o.BuyerPhone,
+		BuyerEmail:       o.BuyerEmail,
+		RecipientName:    o.RecipientName,
+		RecipientPhone:   o.RecipientPhone,
+		DeliveryAddress:  o.DeliveryAddress,
+		DeliveryDistrict: o.DeliveryDistrict,
+		DeliveryDate:     o.DeliveryDate.Format("2006-01-02"),
+		DeliverySlot:     o.DeliverySlot,
+		CardMessage:      o.CardMessage,
+		ItemsTotal:       o.ItemsTotal.StringFixed(2),
+		DeliveryFee:      o.DeliveryFee.StringFixed(2),
+		Total:            o.Total.StringFixed(2),
+		Note:             o.Note,
+		Items:            items,
+		CreatedAt:        o.CreatedAt,
 	}
 }
 
