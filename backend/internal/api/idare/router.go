@@ -5,6 +5,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
+	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 )
@@ -15,6 +16,7 @@ type Deps struct {
 	ProdSvc      *product.Service
 	ImgSvc       *image.Service
 	SliderSvc    *slider.Service
+	OrderSvc     *order.Service
 	JWTSecret    string
 	SecureCookie bool
 }
@@ -26,6 +28,7 @@ func Register(router fiber.Router, d Deps) {
 	ph := &productHandler{svc: d.ProdSvc, imgSvc: d.ImgSvc}
 	ih := &imageHandler{svc: d.ImgSvc, prodSvc: d.ProdSvc}
 	sh := &sliderHandler{svc: d.SliderSvc, imgSvc: d.ImgSvc}
+	oh := &orderHandler{svc: d.OrderSvc}
 
 	router.Post("/login", ah.login)
 
@@ -58,4 +61,8 @@ func Register(router fiber.Router, d Deps) {
 	protected.Patch("/slides/:id", sh.update)
 	protected.Put("/slides/:id/image", sh.replaceImage)
 	protected.Delete("/slides/:id", sh.delete)
+
+	protected.Get("/orders", oh.list)
+	protected.Get("/orders/:id", oh.get)
+	protected.Patch("/orders/:id", oh.update)
 }
