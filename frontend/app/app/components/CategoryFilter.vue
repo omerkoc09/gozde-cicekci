@@ -66,6 +66,7 @@ onMounted(() => {
 
   eksenRefs[hedefEksen.value]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
+
 </script>
 
 <template>
@@ -88,7 +89,6 @@ onMounted(() => {
         :key="axis"
         :ref="el => eksenRef(axis, el as Element | null)"
         class="mb-5 scroll-mt-24 last:mb-0"
-        :class="{ 'animate-eksen-vurgu': hedefEksen === axis }"
       >
         <h3 class="text-label-caps mb-3 text-on-surface-variant/70">
           {{ AXIS_LABELS[axis] }}
@@ -129,18 +129,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Ana sayfadan ?eksen=... ile gelindiğinde ilgili grup kısa süre
-   vurgulanır — kullanıcı nereye scroll edildiğini fark etsin, sonra
-   iz bırakmadan kaybolsun (DESIGN.md sade dil, kalıcı renk yok). */
-@keyframes eksen-vurgu {
-  0%, 100% { background-color: transparent; }
-  30% { background-color: var(--color-secondary-container); }
-}
-
-.animate-eksen-vurgu {
-  border-radius: 0.5rem;
-  animation: eksen-vurgu 1.6s ease-out;
-}
-</style>
