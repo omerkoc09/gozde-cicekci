@@ -47,9 +47,10 @@ func toCreateOrderResponse(o *order.Order) createOrderResponse {
 // deliveryConfigResponse frontend'in saat/ücret hardcode etmemesi için.
 // Sunucu ve frontend AYNI kaynaktan beslenmeli (spec §4).
 type deliveryConfigResponse struct {
-	Fee           string   `json:"fee"`
-	Slots         []string `json:"slots"`
-	SameDayCutoff string   `json:"same_day_cutoff"`
-	MaxDays       int      `json:"max_days"`
-	Districts     []string `json:"districts"`
+	Fee           string            `json:"fee"`
+	Slots         []string          `json:"slots"`
+	SameDayCutoff string            `json:"same_day_cutoff"`
+	MaxDays       int               `json:"max_days"`
+	Districts     []string          `json:"districts"`
+	DistrictFees  map[string]string `json:"district_fees"`
 }

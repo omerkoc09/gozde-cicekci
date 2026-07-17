@@ -40,6 +40,11 @@ type Config struct {
 	// DeliveryDistricts teslimat yapılan ilçeler — bilgi amaçlı, ücrete
 	// etkisi yok (2026-07-18 sipariş formu iyileştirmeleri spec'i).
 	DeliveryDistricts []string
+
+	// DeliveryFees ilçe adı → ücret eşlemesi ("Ödemiş" → "50"). Listede
+	// olmayan ilçe genel DeliveryFee'ye düşer — ilçeye özel ücret esnaftan
+	// öğrenildikçe eklenir, önceden hepsini girmek zorunluluğu yok.
+	DeliveryFees map[string]string
 }
 
 // envSearchDepth yukarı doğru kaç dizin taranacak. 4 fazlasıyla yeterli:
@@ -213,5 +218,20 @@ func loadDelivery(cfg *Config) {
 	cfg.DeliveryDistricts = strings.Split(districts, ",")
 	for i := range cfg.DeliveryDistricts {
 		cfg.DeliveryDistricts[i] = strings.TrimSpace(cfg.DeliveryDistricts[i])
+	}
+
+	cfg.DeliveryFees = map[string]string{}
+	for _, pair := range strings.Split(os.Getenv("DELIVERY_FEES"), ",") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		ilce, ucret, ok := strings.Cut(pair, ":")
+		if !ok {
+			continue // bozuk giriş — sessizce atla, genel ücrete düşülür
+		}
+
+		cfg.DeliveryFees[strings.TrimSpace(ilce)] = strings.TrimSpace(ucret)
 	}
 }

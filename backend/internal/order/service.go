@@ -27,6 +27,10 @@ type DeliveryConfig struct {
 	// Districts teslimat yapılan ilçeler — bilgi amaçlı, ücrete etkisi yok
 	// (2026-07-18 sipariş formu iyileştirmeleri spec'i).
 	Districts []string
+
+	// DistrictFees ilçeye özel teslimat ücreti ("Tire" → "80"). Listede
+	// olmayan ilçe Fee'ye (genel ücret) düşer.
+	DistrictFees map[string]string
 }
 
 type CreateItem struct {
@@ -104,8 +108,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
 	}
 
 	// Teslimat ücreti de siparişe kopyalanır — esnaf yarın değiştirirse
-	// dünkü siparişin toplamı bozulmasın (spec §3)
-	fee, err := decimal.NewFromString(s.cfg.Fee)
+	// dünkü siparişin toplamı bozulmasın (spec §3). İlçeye özel ücret
+	// varsa o kullanılır, yoksa genel ücrete düşülür.
+	feeStr := s.cfg.Fee
+	if districtFee, ok := s.cfg.DistrictFees[in.DeliveryDistrict]; ok {
+		feeStr = districtFee
+	}
+
+	fee, err := decimal.NewFromString(feeStr)
 	if err != nil {
 		return nil, fmt.Errorf("teslimat ücreti okunamadı: %w", err)
 	}

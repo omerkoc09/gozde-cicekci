@@ -62,5 +62,6 @@ func (h *orderHandler) deliveryConfig(c *fiber.Ctx) error {
 		SameDayCutoff: h.cfg.SameDayCutoff,
 		MaxDays:       h.cfg.MaxDays,
 		Districts:     h.cfg.Districts,
+		DistrictFees:  h.cfg.DistrictFees,
 	})
 }

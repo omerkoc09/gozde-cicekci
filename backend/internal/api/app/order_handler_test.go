@@ -65,7 +65,8 @@ func TestDeliveryConfig(t *testing.T) {
 	cfg := order.DeliveryConfig{
 		Fee: "50", Slots: []string{"09:00-12:00", "12:00-15:00"},
 		SameDayCutoff: "16:00", MaxDays: 30,
-		Districts: []string{"Ödemiş", "Tire", "Bayındır"},
+		Districts:    []string{"Ödemiş", "Tire", "Bayındır"},
+		DistrictFees: map[string]string{"Tire": "80"},
 	}
 
 	f := fiber.New()
@@ -83,4 +84,5 @@ func TestDeliveryConfig(t *testing.T) {
 	assert.Len(t, out.Slots, 2)
 	assert.Equal(t, 30, out.MaxDays)
 	assert.Len(t, out.Districts, 3)
+	assert.Equal(t, "80", out.DistrictFees["Tire"])
 }

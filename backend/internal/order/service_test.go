@@ -20,6 +20,7 @@ func testDeliveryConfig() DeliveryConfig {
 		SameDayCutoff: "16:00",
 		MaxDays:       30,
 		Districts:     []string{"Ödemiş", "Tire", "Bayındır"},
+		DistrictFees:  map[string]string{"Tire": "80"},
 	}
 }
 
@@ -62,11 +63,38 @@ func TestService_Create_FiyatDBdenOkunur(t *testing.T) {
 	o, err := svc.Create(context.Background(), testCreateInput(productID))
 	require.NoError(t, err)
 
-	// Ürün 1850, adet 2 → 3700 + 50 teslimat = 3750
+	// Ürün 1850, adet 2 → 3700 + 50 teslimat (Ödemiş = genel ücret) = 3750
 	assert.Equal(t, "3700", o.ItemsTotal.String())
 	assert.Equal(t, "50", o.DeliveryFee.String())
 	assert.Equal(t, "3750", o.Total.String())
 	assert.Equal(t, "1850", o.Items[0].PriceAtOrder.String())
+}
+
+// İlçeye özel ücret varsa genel ücret yerine o kullanılır.
+func TestService_Create_IlceyeOzelUcretKullanilir(t *testing.T) {
+	svc, _, productID := setupService(t)
+
+	in := testCreateInput(productID)
+	in.DeliveryDistrict = "Tire" // testDeliveryConfig: Tire=80, genel=50
+
+	o, err := svc.Create(context.Background(), in)
+	require.NoError(t, err)
+
+	assert.Equal(t, "80", o.DeliveryFee.String())
+	assert.Equal(t, "3780", o.Total.String())
+}
+
+// DistrictFees'te olmayan ilçe genel ücrete düşer.
+func TestService_Create_IlceOzelUcretiYoksaGenelUcreteDuser(t *testing.T) {
+	svc, _, productID := setupService(t)
+
+	in := testCreateInput(productID)
+	in.DeliveryDistrict = "Bayındır" // DistrictFees'te yok, genel=50
+
+	o, err := svc.Create(context.Background(), in)
+	require.NoError(t, err)
+
+	assert.Equal(t, "50", o.DeliveryFee.String())
 }
 
 func TestService_Create_PasifUrunReddedilir(t *testing.T) {
