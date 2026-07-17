@@ -60,6 +60,8 @@ export interface DeliveryConfig {
   same_day_cutoff: string
   max_days: number
   districts: string[]
+  /** İlçeye özel ücret — olmayan ilçe fee'ye (genel ücret) düşer. */
+  district_fees: Record<string, string>
 }
 
 export interface CreateOrderInput {

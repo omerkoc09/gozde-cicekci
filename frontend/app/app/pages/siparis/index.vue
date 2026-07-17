@@ -100,9 +100,17 @@ watch(musaitSlotlar, (slots) => {
     form.slot = ''
 })
 
+// İlçeye özel ücret varsa o gösterilir, yoksa genel ücrete düşülür —
+// backend'in Create() sırasında yaptığı hesaplamayla birebir aynı mantık.
+const teslimatUcreti = computed(() => {
+  const ilceyeOzel = form.district ? cfg.value?.district_fees?.[form.district] : undefined
+
+  return ilceyeOzel ?? cfg.value?.fee ?? '0'
+})
+
 const toplam = computed(() => {
   const ara = Number.parseFloat(itemsTotal.value)
-  const ucret = Number.parseFloat(cfg.value?.fee ?? '0')
+  const ucret = Number.parseFloat(teslimatUcreti.value)
 
   return (ara + ucret).toFixed(2)
 })
@@ -315,7 +323,7 @@ useSeoMeta({
           </div>
           <div class="flex justify-between">
             <span class="text-on-surface-variant">Teslimat</span>
-            <span>{{ formatPrice(cfg?.fee ?? '0') }}</span>
+            <span>{{ formatPrice(teslimatUcreti) }}</span>
           </div>
         </div>
 
