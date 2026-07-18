@@ -6,12 +6,21 @@ import type { RouteRecordRaw } from 'vue-router/auto'
 import { createRouter, createWebHistory } from 'vue-router/auto'
 import { useUserStore } from '@/store/user'
 
+// setupLayouts(pages) tüm sayfaları düz uygular; unplugin-vue-router'ın
+// dizin bazlı grup route'larına (örn. component'siz /auth parent'ı) da
+// layout sarar ve iç içe iki layout render edilir (sidebar login'de sızar).
+// Leaf route'ları teker teker sarmak bunu önler.
+//
+// /siparisler.vue + /siparisler/[id].vue gibi "aynı isimde dosya + klasör"
+// desenlerinde route'un hem component'i hem children'ı olur — bu durumda
+// children'a inmeden önce route'un kendisini de setupLayouts ile sarmak
+// gerekir, yoksa o sayfa layout'suz (sidebar'sız) render edilir.
 function recursiveLayouts(route: RouteRecordRaw): RouteRecordRaw {
   if (route.children) {
     for (let i = 0; i < route.children.length; i++)
       route.children[i] = recursiveLayouts(route.children[i])
 
-    return route
+    return route.component ? setupLayouts([route])[0] : route
   }
 
   return setupLayouts([route])[0]
