@@ -9,6 +9,7 @@ import (
 // id, sort_order ve image_key YOK — müşterinin işine yaramaz, iç detay sızmasın.
 type ImageView struct {
 	URL400  string `json:"url_400"`
+	URL800  string `json:"url_800"`
 	URL1200 string `json:"url_1200"`
 }
 
@@ -30,6 +31,7 @@ func toImageViews(imgSvc *image.Service, list []image.ProductImage) []ImageView 
 	for _, img := range list {
 		out = append(out, ImageView{
 			URL400:  imgSvc.URL(img.ImageKey, image.Size400),
+			URL800:  imgSvc.URL(img.ImageKey, image.Size800),
 			URL1200: imgSvc.URL(img.ImageKey, image.Size1200),
 		})
 	}

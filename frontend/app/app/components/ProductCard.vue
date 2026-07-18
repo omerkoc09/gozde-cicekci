@@ -20,11 +20,15 @@ const kapak = computed(() => props.product.images?.[0])
     <!-- Sabit aspect-ratio: fotoğraf inerken kart yüksekliği değişmesin,
          sayfa zıplamasın (spec §5.4). Referans 4:5 kullanıyor. -->
     <div class="relative mb-5 w-full overflow-hidden rounded-md bg-surface-container-low" style="aspect-ratio: 4 / 5">
-      <!-- Backend hazır iki boyut veriyor (url_400 / url_1200) — IPX'ten
-           tekrar geçirmeye gerek yok; kart için 400px kapak yeterli. -->
+      <!-- Backend üç boyut veriyor (400/800/1200). Kart 4:5 dikey ve kaynak
+           foto genelde yatay — object-cover kırpıp büyütünce 400px retina
+           ekranda bulanık kalıyordu. srcset ile yüksek yoğunluklu ekran 800px
+           yükler (kategori kartıyla aynı kalite). sizes: kart en fazla ~450px. -->
       <img
         v-if="kapak"
-        :src="kapak.url_400"
+        :src="kapak.url_800"
+        :srcset="`${kapak.url_400} 400w, ${kapak.url_800} 800w`"
+        sizes="(max-width: 640px) 50vw, 320px"
         :alt="product.name"
         loading="lazy"
         width="400"

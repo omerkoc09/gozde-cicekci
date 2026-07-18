@@ -67,14 +67,14 @@ func newTestService(t *testing.T) (*Service, *fakeStore, *pgxpool.Pool, context.
 	return NewService(store, NewDB(pool)), store, pool, context.Background()
 }
 
-func TestService_Upload_StoresBothSizes(t *testing.T) {
+func TestService_Upload_StoresAllSizes(t *testing.T) {
 	svc, store, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
 
 	img, err := svc.Upload(ctx, pid, makeJPEG(t, 2000, 1500))
 
 	require.NoError(t, err)
-	assert.Equal(t, 2, store.storedCount(), "400 ve 1200 yazılmalı")
+	assert.Equal(t, len(AllSizes), store.storedCount(), "400, 800 ve 1200 yazılmalı")
 	assert.NotEmpty(t, img.ImageKey)
 	assert.Equal(t, 0, img.SortOrder)
 }

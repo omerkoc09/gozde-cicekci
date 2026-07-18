@@ -2,6 +2,7 @@
 
 export interface ProductImage {
   url_400: string
+  url_800: string
   url_1200: string
 }
 

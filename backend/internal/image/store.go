@@ -11,14 +11,17 @@ import (
 type Size string
 
 const (
-	Size400  Size = "400"  // liste kartları
+	Size400  Size = "400"  // liste kartları (mobil / düşük yoğunluk)
+	Size800  Size = "800"  // ürün kartı retina (2x) — 4:5 grid'de keskin
 	Size900  Size = "900"  // kategori kartı (3:4 dikey, retina için 2x)
 	Size1200 Size = "1200" // detay sayfası + og:image
 	Size1920 Size = "1920" // ana sayfa slider — tam genişlik arka plan
 )
 
-// AllSizes ürün görselleri için üretilen boyutlar.
-var AllSizes = []Size{Size400, Size1200}
+// AllSizes ürün görselleri için üretilen boyutlar. 800: kart retina (2x)
+// keskinliği için — sadece 400 varken kartlar yüksek yoğunluklu ekranda
+// bulanık kalıyordu (kaynak yatay foto 4:5 karta kırpılıp büyütülünce).
+var AllSizes = []Size{Size400, Size800, Size1200}
 
 // SliderSizes slider görselleri için üretilen boyutlar. Slider tam genişlik
 // gösteriliyor; 1200 geniş ekranda bulanık kalır, o yüzden 1920 de üretilir.
@@ -34,6 +37,8 @@ func (s Size) Width() int {
 	switch s {
 	case Size400:
 		return 400
+	case Size800:
+		return 800
 	case Size900:
 		return 900
 	case Size1200:
