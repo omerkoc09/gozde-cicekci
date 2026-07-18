@@ -90,11 +90,12 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       ],
       link: [
-        // Gerçek marka logosu — tarayıcı sekmesi ikonu. SVG favicon modern
-        // tarayıcılarda çalışır; eski favicon.ico fallback olarak kalıyor.
+        // Gerçek marka logosu — tarayıcı sekmesi ikonu. Hem SVG (modern
+        // tarayıcı, keskin) hem .ico (gerçek logodan üretildi, evrensel
+        // fallback) hem apple-touch (PNG) veriliyor — her ortamda doğru logo.
         { rel: 'icon', type: 'image/svg+xml', href: '/gozde-icon.svg' },
-        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-        { rel: 'apple-touch-icon', href: '/gozde-icon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
       ],
     },
   },
