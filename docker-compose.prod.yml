@@ -85,8 +85,10 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      # SSR proxy'nin arkasındaki gerçek Go API (iç ağ, container adı)
-      NUXT_API_BASE: http://backend:8080/api
+      # SSR proxy'nin arkasındaki gerçek Go API (iç ağ, container adı).
+      # İsim TAM olarak NUXT_GO_API_BASE olmalı: Nuxt runtimeConfig.goApiBase
+      # anahtarını yalnızca bu isimle (NUXT_ + UPPER_SNAKE) runtime'da override eder.
+      NUXT_GO_API_BASE: http://backend:8080/api
       NUXT_PUBLIC_SITE_URL: ${SITE_URL}
       NUXT_PUBLIC_WHATSAPP_NUMBER: ${WHATSAPP_NUMBER}
       NUXT_PUBLIC_CONTACT_PHONE: ${CONTACT_PHONE}

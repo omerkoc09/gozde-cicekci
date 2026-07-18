@@ -32,8 +32,13 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     // Proxy'nin arkasındaki gerçek Go API — yalnızca sunucuda (Nitro) görünür,
-    // tarayıcıya sızmaz. NUXT_API_BASE env var'ıyla override edilir.
-    goApiBase: process.env.NUXT_API_BASE || 'http://localhost:8080/api',
+    // tarayıcıya sızmaz. Buradaki değer yalnızca DEV varsayılanı; production'da
+    // RUNTIME'da NUXT_GO_API_BASE env var'ıyla override edilir (Nuxt runtimeConfig
+    // anahtarları NUXT_<UPPER_SNAKE> ile eşlenir: goApiBase → NUXT_GO_API_BASE).
+    // Not: burada process.env okumak build zamanında değerlendirilir ve default'u
+    // imaja gömer — o yüzden okumuyoruz, override'ı Nuxt'un runtime mekanizmasına
+    // bırakıyoruz.
+    goApiBase: 'http://localhost:8080/api',
 
     public: {
       // Composable'ların çağırdığı adres — same-origin Nitro proxy'si.

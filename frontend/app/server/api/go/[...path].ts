@@ -33,20 +33,14 @@ export default defineEventHandler(async event => {
     return await $fetch(`${cfg.goApiBase}/${path}`, { query })
   }
   catch (err: unknown) {
-    const e = err as { status?: number, statusCode?: number, data?: unknown, message?: string, cause?: unknown }
+    const e = err as { status?: number, statusCode?: number, data?: unknown, message?: string }
 
-    console.error('[api/go proxy] fetch failed', {
-      target: `${cfg.goApiBase}/${path}`,
-      status: e?.status,
-      statusCode: e?.statusCode,
-      message: e?.message,
-      cause: e?.cause,
-      data: e?.data,
-    })
+    // Backend'e ulaşılamazsa (yanlış goApiBase, ağ vb.) hata sessizce boş
+    // veriye dönüşmesin — sunucu logunda görünür olsun.
+    console.error(`[api/go proxy] ${path} → ${cfg.goApiBase} başarısız:`, e?.message)
 
     throw createError({
       statusCode: e?.status ?? e?.statusCode ?? 502,
-      statusMessage: e?.message ?? 'Proxy fetch failed',
       data: e?.data,
     })
   }
