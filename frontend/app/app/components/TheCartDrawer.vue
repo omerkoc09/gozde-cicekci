@@ -59,11 +59,11 @@ onBeforeUnmount(() => {
           </h2>
           <button
             type="button"
-            class="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary"
+            class="flex size-10 items-center justify-center rounded-full border border-outline-variant/50 bg-surface-container-low text-primary transition-colors hover:bg-surface-container"
             aria-label="Kapat"
             @click="acik = false"
           >
-            <Icon name="material-symbols:close" size="22" />
+            <Icon name="material-symbols:close" size="24" />
           </button>
         </header>
 

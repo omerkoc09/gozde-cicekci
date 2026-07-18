@@ -25,9 +25,18 @@ export default defineNuxtConfig({
 
   // Referans Material Symbols ikon fontunu CDN'den çekiyordu (~2MB, 32 ikon).
   // Iconify koleksiyonundan yalnızca kullanılanlar bundle'a girer (spec §3.2).
+  //
+  // clientBundle.scan: kullanılan ikonları build sırasında tarayıp client
+  // bundle'ına da gömer. Aksi halde dinamik isimli ikonlar (ör. bottom nav'daki
+  // aktifMi() ? 'x' : 'y') ilk boyada boş gelip ancak Iconify API'sinden
+  // yüklenince görünüyordu — "yenileyince geliyor" sorununun kök nedeni buydu.
   icon: {
     mode: 'svg',
     serverBundle: { collections: ['material-symbols'] },
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 512,
+    },
   },
 
   runtimeConfig: {
@@ -79,6 +88,13 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      ],
+      link: [
+        // Gerçek marka logosu — tarayıcı sekmesi ikonu. SVG favicon modern
+        // tarayıcılarda çalışır; eski favicon.ico fallback olarak kalıyor.
+        { rel: 'icon', type: 'image/svg+xml', href: '/gozde-icon.svg' },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'apple-touch-icon', href: '/gozde-icon.svg' },
       ],
     },
   },
