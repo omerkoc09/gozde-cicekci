@@ -3,8 +3,7 @@ import { VIcon } from 'vuetify/components/VIcon'
 import { defineThemeConfig } from '@core'
 import { Skins } from '@core/enums'
 
-// ❗ Logo SVG must be imported with ?raw suffix
-import logo from '@images/logo.svg?raw'
+import gozdeIcon from '@images/gozde-icon.svg?url'
 
 import { AppContentLayoutNav, ContentWidth, FooterType, NavbarType } from '@layouts/enums'
 
@@ -13,8 +12,8 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
     // Küçük harf zorunlu: tip Lowercase<string> ve localStorage anahtar
     // öneki olarak kullanılıyor (namespaceConfig). Arayüzde text-capitalize
     // ile büyük harfle gösteriliyor.
-    title: 'çiçekçi',
-    logo: h('div', { innerHTML: logo, style: 'line-height:0; color: rgb(var(--v-global-theme-primary))' }),
+    title: 'gözde çiçek',
+    logo: h('img', { src: gozdeIcon, style: 'height: 32px; width: auto;' }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
     overlayNavFromBreakpoint: breakpointsVuetifyV3.lg - 1, // 1 for matching with vuetify breakpoint. Docs: https://next.vuetifyjs.com/en/features/display-and-platform/

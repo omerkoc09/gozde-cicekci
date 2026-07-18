@@ -2,6 +2,7 @@
 import type { VForm } from 'vuetify/lib/components/VForm/index.mjs'
 import authV1BottomShape from '@images/svg/auth-v1-bottom-shape.svg'
 import authV1TopShape from '@images/svg/auth-v1-top-shape.svg'
+import gozdeIcon from '@images/gozde-icon.svg?url'
 import { requiredValidator } from '@validators'
 import { ErrorPopup } from '@/utils/Popup'
 import { useUserStore } from '@/store/user'
@@ -60,8 +61,8 @@ const onSubmit = async () => {
           <template #prepend>
             <div class="d-flex">
               <img
-                src="/logo.png"
-                alt="Logo"
+                :src="gozdeIcon"
+                alt="Gözde Tasarım Çiçekçilik"
                 style="height: 100px;"
               >
             </div>
