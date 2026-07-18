@@ -54,6 +54,20 @@ func (s Size) Valid() bool {
 	return s.Width() > 0
 }
 
+// maxWidth verilen boyut listesindeki en büyük piksel genişliği döner.
+// Min-boyut kontrolü için: bir görsel türünün ürettiği en büyük kopya kadar
+// minimum istenmeli ki hiçbir boyut büyütülmesin (büyütme bulanıklık yapar).
+// Boş liste → 0.
+func maxWidth(sizes []Size) int {
+	max := 0
+	for _, s := range sizes {
+		if w := s.Width(); w > max {
+			max = w
+		}
+	}
+	return max
+}
+
 // Prefix saklamadaki üst klasör — görsel türlerini ayırır.
 // Key'ler rastgele olduğu için çakışma riski yok; ayrım operasyonel:
 // bucket'a bakınca neyin ne olduğu görünsün, biri silinirken diğeri etkilenmesin.

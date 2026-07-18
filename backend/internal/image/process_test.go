@@ -51,6 +51,13 @@ func readWebP(t *testing.T) []byte {
 	return data
 }
 
+func TestMaxWidth(t *testing.T) {
+	assert.Equal(t, 1200, maxWidth(AllSizes), "ürün: en büyük 1200")
+	assert.Equal(t, 900, maxWidth(CategorySizes), "kategori: en büyük 900")
+	assert.Equal(t, 1920, maxWidth(SliderSizes), "slider: en büyük 1920")
+	assert.Equal(t, 0, maxWidth(nil), "boş liste → 0")
+}
+
 func TestCheckMinWidth_YeterinceGenis(t *testing.T) {
 	// 1500px genişlik, 1200 minimumu karşılıyor → geçmeli
 	err := CheckMinWidth(makeJPEG(t, 1500, 1000), 1200)

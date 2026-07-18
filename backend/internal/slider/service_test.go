@@ -6,7 +6,6 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -78,7 +77,7 @@ func TestCreate_StoresAllSliderSizes(t *testing.T) {
 func TestCreate_WritesUnderSliderPrefix(t *testing.T) {
 	svc, dir, ctx := newTestService(t)
 
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 800, 400))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	assert.True(t, slideDirExists(t, dir, slide.ImageKey))
@@ -92,7 +91,7 @@ func TestCreate_RejectsEmptyTitle(t *testing.T) {
 	in := validInput()
 	in.Title = "   "
 
-	_, err := svc.Create(ctx, in, makeJPEG(t, 800, 400))
+	_, err := svc.Create(ctx, in, makeJPEG(t, 2400, 1200))
 
 	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
 }
@@ -108,20 +107,18 @@ func TestCreate_RejectsMissingImage(t *testing.T) {
 
 // Panelden webp yüklenebilmeli — esnafın elindeki görsel webp olabilir.
 // Fixture image paketinde: webp encoder olmadığı için üretilemiyor, okunuyor.
-func TestCreate_AcceptsWebP(t *testing.T) {
-	svc, dir, ctx := newTestService(t)
-	data, err := os.ReadFile("../image/testdata/sample.webp")
+// Slider görselleri tam ekran arka plan — en büyük boyut 1920px üretiliyor,
+// o yüzden yükleme de en az 1920px genişlik ister. Küçük görsel büyütülünce
+// bulanık kalırdı. (webp→jpeg format dönüşümü image paketinde ayrıca test
+// ediliyor; fixture 600px olduğu için burada boyut kontrolüne takılır.)
+func TestCreate_RejectsTooSmall(t *testing.T) {
+	svc, _, ctx := newTestService(t)
+	data, err := os.ReadFile("../image/testdata/sample.webp") // 600x400
 	require.NoError(t, err)
 
-	slide, err := svc.Create(ctx, validInput(), data)
+	_, err = svc.Create(ctx, validInput(), data)
 
-	require.NoError(t, err)
-	assert.True(t, slideDirExists(t, dir, slide.ImageKey))
-
-	// Girdi webp olsa da saklanan dosya JPEG — site .jpg servis ediyor.
-	stored, err := os.ReadFile(filepath.Join(dir, "slider", slide.ImageKey, "400.jpg"))
-	require.NoError(t, err)
-	assert.Equal(t, "image/jpeg", http.DetectContentType(stored))
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput)
 }
 
 func TestCreate_RejectsNonImageData(t *testing.T) {
@@ -138,7 +135,7 @@ func TestCreate_TrimsWhitespace(t *testing.T) {
 	slide, err := svc.Create(ctx, CreateInput{
 		Title:    "  Bahar  ",
 		Subtitle: "  Yeni sezon  ",
-	}, makeJPEG(t, 800, 400))
+	}, makeJPEG(t, 2400, 1200))
 
 	require.NoError(t, err)
 	assert.Equal(t, "Bahar", slide.Title)
@@ -154,7 +151,7 @@ func TestNextSortOrder_StartsAtZeroThenAppends(t *testing.T) {
 
 	in := validInput()
 	in.SortOrder = 5
-	_, err = svc.Create(ctx, in, makeJPEG(t, 800, 400))
+	_, err = svc.Create(ctx, in, makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	next, err := svc.NextSortOrder(ctx)
@@ -168,7 +165,7 @@ func TestListPublic_OnlyActiveInSortOrder(t *testing.T) {
 	mk := func(title string, active bool, order int) {
 		_, err := svc.Create(ctx, CreateInput{
 			Title: title, IsActive: active, SortOrder: order,
-		}, makeJPEG(t, 400, 200))
+		}, makeJPEG(t, 2400, 1200))
 		require.NoError(t, err)
 	}
 	mk("Ikinci", true, 1)
@@ -188,7 +185,7 @@ func TestListAdmin_IncludesInactive(t *testing.T) {
 
 	in := validInput()
 	in.IsActive = false
-	_, err := svc.Create(ctx, in, makeJPEG(t, 400, 200))
+	_, err := svc.Create(ctx, in, makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	list, err := svc.ListAdmin(ctx)
@@ -199,7 +196,7 @@ func TestListAdmin_IncludesInactive(t *testing.T) {
 
 func TestUpdate_PartialLeavesOtherFields(t *testing.T) {
 	svc, _, ctx := newTestService(t)
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 400, 200))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	newTitle := "Yaz Koleksiyonu"
@@ -213,7 +210,7 @@ func TestUpdate_PartialLeavesOtherFields(t *testing.T) {
 
 func TestUpdate_RejectsEmptyTitle(t *testing.T) {
 	svc, _, ctx := newTestService(t)
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 400, 200))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	empty := "  "
@@ -234,11 +231,11 @@ func TestUpdate_MissingSlide(t *testing.T) {
 // Görsel değişince eski dosya yetim kalmamalı.
 func TestReplaceImage_DeletesOldFile(t *testing.T) {
 	svc, dir, ctx := newTestService(t)
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 800, 400))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 	oldKey := slide.ImageKey
 
-	updated, err := svc.ReplaceImage(ctx, slide.ID, makeJPEG(t, 900, 500))
+	updated, err := svc.ReplaceImage(ctx, slide.ID, makeJPEG(t, 2400, 1200))
 
 	require.NoError(t, err)
 	assert.NotEqual(t, oldKey, updated.ImageKey, "yeni key üretilmeli")
@@ -249,7 +246,7 @@ func TestReplaceImage_DeletesOldFile(t *testing.T) {
 // Geçersiz görsel gelirse mevcut görsel korunmalı — slayt görselsiz kalmasın.
 func TestReplaceImage_InvalidKeepsCurrent(t *testing.T) {
 	svc, dir, ctx := newTestService(t)
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 800, 400))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	_, err = svc.ReplaceImage(ctx, slide.ID, []byte("görsel değil"))
@@ -264,14 +261,14 @@ func TestReplaceImage_InvalidKeepsCurrent(t *testing.T) {
 func TestReplaceImage_MissingSlide(t *testing.T) {
 	svc, _, ctx := newTestService(t)
 
-	_, err := svc.ReplaceImage(ctx, 9999, makeJPEG(t, 400, 200))
+	_, err := svc.ReplaceImage(ctx, 9999, makeJPEG(t, 2400, 1200))
 
 	assert.ErrorIs(t, err, errorsx.ErrNotFound)
 }
 
 func TestDelete_RemovesSlideAndFile(t *testing.T) {
 	svc, dir, ctx := newTestService(t)
-	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 800, 400))
+	slide, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
 
 	require.NoError(t, svc.Delete(ctx, slide.ID))
