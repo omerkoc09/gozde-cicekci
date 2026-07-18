@@ -10,9 +10,10 @@ const { public: cfg } = useRuntimeConfig()
 
 /** Google Maps yol tarifi — canlı embed yerine link (spec §6.3: KVKK + hız). */
 const haritaLinki = computed(() =>
-  cfg.contactAddress
+  cfg.contactMapsUrl
+  || (cfg.contactAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cfg.contactAddress)}`
-    : null,
+    : null),
 )
 </script>
 

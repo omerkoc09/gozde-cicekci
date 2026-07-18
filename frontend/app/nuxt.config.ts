@@ -40,15 +40,17 @@ export default defineNuxtConfig({
       // Hem SSR hem client çağrıları buraya gider, CORS'a takılmaz.
       apiBase: '/api/go',
 
-      whatsappNumber: process.env.NUXT_PUBLIC_WHATSAPP_NUMBER || '905536143686',
+      whatsappNumber: process.env.NUXT_PUBLIC_WHATSAPP_NUMBER || '905052178501',
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
 
       // İletişim bilgileri (spec §5.3 — settings tablosu ertelendi, .env'den
       // okunuyor). Varsayılanlar Gözde Tasarım'ın gerçek bilgileri; prod'da
       // env var ile override edilir.
-      contactPhone: process.env.NUXT_PUBLIC_CONTACT_PHONE || '0553 614 36 86',
-      contactAddress: process.env.NUXT_PUBLIC_CONTACT_ADDRESS || 'Teşvikiye Cd., Nişantaşı, İstanbul',
-      contactHours: process.env.NUXT_PUBLIC_CONTACT_HOURS || 'Her gün 09:00 - 20:00',
+      contactPhone: process.env.NUXT_PUBLIC_CONTACT_PHONE || '+90 553 614 00 63',
+      contactAddress: process.env.NUXT_PUBLIC_CONTACT_ADDRESS || 'Atatürk, Şht. Adnan Menderes Blv. No:31/A, 35750 Ödemiş/İzmir',
+      contactHours: process.env.NUXT_PUBLIC_CONTACT_HOURS || 'Her gün 09:00 - 22:00',
+      contactMapsUrl: process.env.NUXT_PUBLIC_CONTACT_MAPS_URL || 'https://www.google.com/maps/place/G%C3%B6zde+Tasar%C4%B1m+%C3%87i%C3%A7ek%C3%A7ilik/@38.229775,27.9810084,17z/data=!3m1!4b1!4m6!3m5!1s0x14b8e36cbb50999d:0x6032dce6058bd479!8m2!3d38.2297708!4d27.9835833!16s%2Fg%2F11z94dr3m5',
+      instagramUrl: process.env.NUXT_PUBLIC_INSTAGRAM_URL || 'https://www.instagram.com/gozde_tasarm_cicekcilik?igsh=MWEwbG1naGgycWtrOA==',
     },
   },
 
