@@ -49,7 +49,7 @@ useSeoMeta({
         <div class="grid gap-12 md:grid-cols-2 md:items-center md:gap-16">
           <div>
             <h2 class="font-serif text-3xl text-primary md:text-4xl">
-              Atölyemizi Ziyaret Edin
+              Mağazamızı Ziyaret Edin
             </h2>
             <p class="mt-4 max-w-md text-body-md text-on-surface-variant">
               Çiçek sanatımızı yerinde deneyimlemeniz ya da size özel tasarımlar
@@ -67,10 +67,7 @@ useSeoMeta({
           <div class="rounded-lg border border-outline-variant/40 bg-surface p-10 text-center md:p-14">
             <Icon name="material-symbols:location-on-outline" size="34" class="text-secondary" />
             <p class="mt-4 font-serif text-xl text-primary">
-              Nişantaşı Atölyemiz
-            </p>
-            <p class="mx-auto mt-2 max-w-xs text-body-md text-on-surface-variant">
-              Teşvikiye Caddesi üzerinde, randevu ile ziyarete açığız.
+              İzmir/Ödemiş Mağazamız
             </p>
             <NuxtLink to="/iletisim" class="btn-secondary text-label-caps mt-8">
               İletişim Bilgileri

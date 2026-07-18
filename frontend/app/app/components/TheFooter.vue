@@ -8,13 +8,7 @@
 const { public: cfg } = useRuntimeConfig()
 const yil = new Date().getFullYear()
 
-const eposta = ref('')
-const bultenMesaji = ref('')
 
-function bultenGonder() {
-  bultenMesaji.value = 'Bülten kaydı çok yakında açılıyor.'
-  eposta.value = ''
-}
 </script>
 
 <template>
@@ -104,27 +98,6 @@ function bultenGonder() {
               <Icon name="material-symbols:thumb-up-outline" size="18" />
             </a>
           </div>
-
-          <p class="text-label-caps mb-3 mt-8 text-secondary">
-            Bültene Kayıt Olun
-          </p>
-          <form class="flex items-center gap-2 border-b border-outline-variant pb-1" @submit.prevent="bultenGonder">
-            <label for="footer-eposta" class="sr-only">E-posta adresiniz</label>
-            <input
-              id="footer-eposta"
-              v-model="eposta"
-              type="email"
-              required
-              placeholder="E-posta adresiniz"
-              class="min-w-0 flex-1 bg-transparent py-1.5 text-body-md text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none"
-            >
-            <button type="submit" class="text-label-caps shrink-0 text-secondary hover:text-secondary-hover">
-              Gönder
-            </button>
-          </form>
-          <p v-if="bultenMesaji" class="mt-2 text-xs text-on-surface-variant" role="status">
-            {{ bultenMesaji }}
-          </p>
         </div>
       </div>
 
