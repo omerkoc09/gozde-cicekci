@@ -14,6 +14,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -40,7 +41,8 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	app := fiber.New()
 	Register(app.Group("/api/admin"), Deps{

@@ -71,4 +71,5 @@ func Register(router fiber.Router, d Deps) {
 	protected.Get("/orders", oh.list)
 	protected.Get("/orders/:id", oh.get)
 	protected.Patch("/orders/:id", oh.update)
+	protected.Post("/orders/:id/refund", oh.refund)
 }
