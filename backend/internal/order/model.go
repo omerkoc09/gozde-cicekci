@@ -9,17 +9,17 @@ import (
 type Status string
 
 const (
-	StatusPending   Status = "pending"
-	StatusConfirmed Status = "confirmed"
-	StatusDelivered Status = "delivered"
-	StatusCancelled Status = "cancelled"
+	StatusAwaitingPayment Status = "awaiting_payment"
+	StatusPaid            Status = "paid"
+	StatusDelivered       Status = "delivered"
+	StatusRefunded        Status = "refunded"
 )
 
 // Valid statü geçerli mi. DB'de CHECK var ama hatayı service'te yakalayıp
 // düzgün mesaj vermek için burada da kontrol ediliyor.
 func (s Status) Valid() bool {
 	switch s {
-	case StatusPending, StatusConfirmed, StatusDelivered, StatusCancelled:
+	case StatusAwaitingPayment, StatusPaid, StatusDelivered, StatusRefunded:
 		return true
 	}
 	return false
@@ -53,6 +53,10 @@ type Order struct {
 	ItemsTotal  decimal.Decimal `json:"items_total"`
 	DeliveryFee decimal.Decimal `json:"delivery_fee"`
 	Total       decimal.Decimal `json:"total"`
+
+	PaidAt     *time.Time `json:"paid_at,omitempty"`
+	RefundedAt *time.Time `json:"refunded_at,omitempty"`
+	PaymentRef string     `json:"payment_ref,omitempty"`
 
 	Note      string      `json:"note"`
 	Items     []OrderItem `json:"items"`

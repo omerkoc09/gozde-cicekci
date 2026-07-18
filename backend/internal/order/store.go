@@ -32,6 +32,7 @@ const orderSelect = `
 	       recipient_name, recipient_phone, delivery_address, delivery_district,
 	       delivery_date, delivery_slot, COALESCE(card_message, ''),
 	       items_total, delivery_fee, total,
+	       paid_at, refunded_at, COALESCE(payment_ref, ''),
 	       COALESCE(note, ''), created_at, updated_at
 	FROM orders`
 
@@ -43,6 +44,7 @@ func scanOrder(row pgx.Row) (*Order, error) {
 		&o.RecipientName, &o.RecipientPhone, &o.DeliveryAddress, &o.DeliveryDistrict,
 		&o.DeliveryDate, &o.DeliverySlot, &o.CardMessage,
 		&o.ItemsTotal, &o.DeliveryFee, &o.Total,
+		&o.PaidAt, &o.RefundedAt, &o.PaymentRef,
 		&o.Note, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -259,4 +261,75 @@ func (s *Store) Update(ctx context.Context, id int64, status *string, note *stri
 	}
 
 	return s.GetByID(ctx, id)
+}
+
+// SetPaymentRef siparişe PayTR merchant_oid yazar (token isteğinden sonra).
+func (s *Store) SetPaymentRef(ctx context.Context, id int64, ref string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE orders SET payment_ref = $2, updated_at = now() WHERE id = $1`, id, ref)
+	return err
+}
+
+// GetByPaymentRef callback'te merchant_oid ile siparişi bulur.
+func (s *Store) GetByPaymentRef(ctx context.Context, ref string) (*Order, error) {
+	o, err := scanOrder(s.pool.QueryRow(ctx, orderSelect+` WHERE payment_ref = $1`, ref))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errorsx.ErrNotFound
+		}
+		return nil, err
+	}
+	items, err := s.itemsOf(ctx, o.ID)
+	if err != nil {
+		return nil, err
+	}
+	o.Items = items
+	return o, nil
+}
+
+// SetPaid siparişi paid yapar (yalnızca awaiting_payment'tan). Zaten paid ise
+// dokunmaz — idempotency callback'te AddPaymentEvent kontrolüyle sağlanır ama
+// bu koşul çift güvenlik.
+func (s *Store) SetPaid(ctx context.Context, id int64) (*Order, error) {
+	ct, err := s.pool.Exec(ctx, `
+		UPDATE orders SET status = 'paid', paid_at = now(), updated_at = now()
+		WHERE id = $1 AND status = 'awaiting_payment'`, id)
+	if err != nil {
+		return nil, err
+	}
+	if ct.RowsAffected() == 0 {
+		return nil, errorsx.ErrNotFound
+	}
+	return s.GetByID(ctx, id)
+}
+
+// SetRefunded siparişi refunded yapar (paid veya delivered'dan).
+func (s *Store) SetRefunded(ctx context.Context, id int64) (*Order, error) {
+	ct, err := s.pool.Exec(ctx, `
+		UPDATE orders SET status = 'refunded', refunded_at = now(), updated_at = now()
+		WHERE id = $1 AND status IN ('paid','delivered')`, id)
+	if err != nil {
+		return nil, err
+	}
+	if ct.RowsAffected() == 0 {
+		return nil, errorsx.ErrNotFound
+	}
+	return s.GetByID(ctx, id)
+}
+
+// AddPaymentEvent denetim izi kaydı ekler.
+func (s *Store) AddPaymentEvent(ctx context.Context, orderID int64, eventType string, payload []byte) error {
+	_, err := s.pool.Exec(ctx,
+		`INSERT INTO payment_events (order_id, event_type, raw_payload) VALUES ($1,$2,$3)`,
+		orderID, eventType, payload)
+	return err
+}
+
+// HasPaymentEvent bu tip olay bu sipariş için işlenmiş mi (idempotency).
+func (s *Store) HasPaymentEvent(ctx context.Context, orderID int64, eventType string) (bool, error) {
+	var exists bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM payment_events WHERE order_id=$1 AND event_type=$2)`,
+		orderID, eventType).Scan(&exists)
+	return exists, err
 }

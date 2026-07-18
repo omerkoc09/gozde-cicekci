@@ -57,7 +57,7 @@ func TestStore_Create(t *testing.T) {
 
 	assert.NotZero(t, o.ID)
 	assert.NotEmpty(t, o.OrderNo)
-	assert.Equal(t, StatusPending, o.Status)
+	assert.Equal(t, StatusAwaitingPayment, o.Status)
 	assert.Equal(t, "Ahmet Yılmaz", o.BuyerName)
 	assert.Equal(t, "Ödemiş", o.DeliveryDistrict)
 	assert.True(t, o.Total.Equal(decimal.RequireFromString("1900.00")))
@@ -147,17 +147,17 @@ func TestStore_List_StatusFiltresi(t *testing.T) {
 	o, err := store.Create(ctx, in)
 	require.NoError(t, err)
 
-	confirmed := string(StatusConfirmed)
-	_, err = store.Update(ctx, o.ID, &confirmed, nil)
+	paid := string(StatusPaid)
+	_, err = store.Update(ctx, o.ID, &paid, nil)
 	require.NoError(t, err)
 
-	// pending filtresi: boş dönmeli
-	list, err := store.List(ctx, string(StatusPending), 50, 0)
+	// awaiting_payment filtresi: boş dönmeli
+	list, err := store.List(ctx, string(StatusAwaitingPayment), 50, 0)
 	require.NoError(t, err)
 	assert.Empty(t, list)
 
-	// confirmed filtresi: bir kayıt
-	list, err = store.List(ctx, string(StatusConfirmed), 50, 0)
+	// paid filtresi: bir kayıt
+	list, err = store.List(ctx, string(StatusPaid), 50, 0)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 
@@ -226,4 +226,162 @@ func TestStore_GetByID_Yok(t *testing.T) {
 	store := NewStore(pool)
 	_, err := store.GetByID(context.Background(), 999999)
 	assert.ErrorIs(t, err, errorsx.ErrNotFound)
+}
+
+func TestStore_SetPaid_AwaitingdanPaid(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	store := NewStore(pool)
+	in := testNewOrder()
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+
+	paid, err := store.SetPaid(ctx, o.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusPaid, paid.Status)
+	require.NotNil(t, paid.PaidAt)
+}
+
+func TestStore_SetPaid_AwaitingDegilseNotFound(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	store := NewStore(pool)
+	in := testNewOrder()
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+
+	_, err = store.SetPaid(ctx, o.ID)
+	require.NoError(t, err)
+
+	// zaten paid — ikinci SetPaid awaiting_payment koşuluna uymaz
+	_, err = store.SetPaid(ctx, o.ID)
+	assert.ErrorIs(t, err, errorsx.ErrNotFound)
+}
+
+func TestStore_SetRefunded_PaidtenRefunded(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	store := NewStore(pool)
+	in := testNewOrder()
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+
+	_, err = store.SetPaid(ctx, o.ID)
+	require.NoError(t, err)
+
+	refunded, err := store.SetRefunded(ctx, o.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusRefunded, refunded.Status)
+	require.NotNil(t, refunded.RefundedAt)
+}
+
+func TestStore_SetPaymentRef_GetByPaymentRef(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	store := NewStore(pool)
+	in := testNewOrder()
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+
+	err = store.SetPaymentRef(ctx, o.ID, "merchant-oid-123")
+	require.NoError(t, err)
+
+	found, err := store.GetByPaymentRef(ctx, "merchant-oid-123")
+	require.NoError(t, err)
+	assert.Equal(t, o.ID, found.ID)
+	assert.Equal(t, "merchant-oid-123", found.PaymentRef)
+}
+
+func TestStore_GetByPaymentRef_Yok(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	store := NewStore(pool)
+	_, err := store.GetByPaymentRef(context.Background(), "olmayan-ref")
+	assert.ErrorIs(t, err, errorsx.ErrNotFound)
+}
+
+func TestStore_HasPaymentEvent_Idempotency(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	var productID int64
+	err := pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	store := NewStore(pool)
+	in := testNewOrder()
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+
+	has, err := store.HasPaymentEvent(ctx, o.ID, "callback_ok")
+	require.NoError(t, err)
+	assert.False(t, has, "başlangıçta olay olmamalı")
+
+	err = store.AddPaymentEvent(ctx, o.ID, "callback_ok", []byte(`{}`))
+	require.NoError(t, err)
+
+	has, err = store.HasPaymentEvent(ctx, o.ID, "callback_ok")
+	require.NoError(t, err)
+	assert.True(t, has, "olay eklendikten sonra true olmalı")
 }
