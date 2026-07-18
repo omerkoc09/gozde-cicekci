@@ -2,12 +2,8 @@ import type { CreateOrderInput, CreateOrderResult, DeliveryConfig } from '~/type
 
 /**
  * Sipariş API'si. Çağrılar same-origin Nitro proxy'sinden geçer —
- * CORS'a takılmasın (bkz. useApi.ts).
+ * CORS'a takılmasın. apiBase() useApi.ts'den auto-import edilir.
  */
-function apiBase(): string {
-  return useRuntimeConfig().public.apiBase
-}
-
 export function useDeliveryConfig() {
   return useFetch<DeliveryConfig>(() => `${apiBase()}/delivery-config`, {
     key: 'delivery-config',

@@ -1,6 +1,6 @@
 # Proje Durumu
 
-Son güncelleme: 2026-07-16
+Son güncelleme: 2026-07-18
 
 ## Nerede kaldık
 
@@ -12,11 +12,43 @@ Son güncelleme: 2026-07-16
 | Template — admin panel iskeleti | ✅ Eklendi ve Node 22'ye uyarlandı |
 | Plan 4 — Admin panel | ✅ **Uygulandı** — 8/8 task, tarayıcıda doğrulandı |
 | Plan 3 — Nuxt public site | ✅ **Uygulandı** — 8/8 task, production SSR doğrulandı |
+| Sipariş yönetimi (Faz 2) | ✅ **Uygulandı** — sepet, teslimat ilçe/ücret, admin sipariş listesi/detayı |
 | Deployment altyapısı (Faz A) | ✅ **Hazır** — Docker Compose + Caddy, lokalde prod moduyla test edildi |
-| Final whole-branch review | ⬜ Ertelendi (Plan 1+2+3+4 birlikte) |
+| Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
 | Deployment (Faz B — VPS) | ⬜ Sen çalıştıracaksın — `DEPLOYMENT.md` ← SIRADA |
 
 Branch: `feat/backend-temeli` (her şey burada)
+
+Faz 3 (ödeme entegrasyonu/ETBİS) ve Faz 4 (raporlama, SEO, kampanya) bilinçli
+olarak ertelendi — site üzerinden doğrudan satış/ödeme yok (WhatsApp'a
+yönlendirme), bu yüzden ETBİS kaydı gerekmiyor. `docs/PROJECT_BRIEF.md` §Sonraki
+Fazlar'a bakınız.
+
+## Final review'da bulunup düzeltilen (2026-07-18)
+
+8 açıdan (correctness ×3, reuse, simplification, efficiency, altitude,
+conventions) çok-ajanlı review yapıldı, 7 bulgu doğrulanıp düzeltildi:
+
+- **Timezone bug (kritik).** Prod container'larda `TZ` set edilmiyordu →
+  UTC'de çalışıyordu. Türkiye sabit UTC+3 (DST yok). İstanbul saatiyle
+  00:00–02:59 arası: sipariş tarihi/aynı-gün-kesim-saati mantığı, public
+  sitedeki "Bugün" çipi ve sipariş numarası günlük sayacı yanlış gün
+  hesaplıyordu. Düzeltme: `docker-compose.prod.yml` + `docker-compose.yml`'de
+  `postgres`/`backend`/`app` servislerine `TZ: Europe/Istanbul` eklendi
+  (Go'nun `time.Now()` container'ın local tz'sini okur, kod değişikliği
+  gerekmedi).
+- **Admin sipariş listesi offset/limit tutarsızlığı.** `order_handler.go`
+  offset'i clamp edilmemiş ham `limit` ile hesaplıyordu. Şu anki admin
+  arayüzü bu parametreleri hiç göndermediği için canlıda tetiklenmiyordu ama
+  API sözleşmesinde gerçek bir hataydı. Düzeltildi: limit artık offset
+  hesabından önce clamp ediliyor.
+- **Sipariş listesi N+1 sorgu.** `Store.List` her sipariş için ayrı bir
+  `itemsOf` sorgusu çalıştırıyordu. `itemsOfMany` ile tek batch sorguya
+  indirildi (`WHERE order_id = ANY($1)`), regresyon testi eklendi
+  (`TestStore_List_HerSiparisKendiKalemleriniAlir`).
+- **Kod tekrarları.** `apiBase()` (`useOrders.ts`/`useApi.ts`) ve Türkçe para
+  formatlayıcı (`idare`'de 3 sayfa) ortak yerlere taşındı
+  (`frontend/idare/src/utils/Currency.ts`).
 
 ## Çalışan ne var
 

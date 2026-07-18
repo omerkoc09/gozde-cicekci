@@ -2,6 +2,7 @@
 import { useOrders } from '@/composables/useOrders'
 import type { Order } from '@/model/order'
 import { STATUS_COLORS, STATUS_LABELS } from '@/model/order'
+import { formatTutar as tutar } from '@/utils/Currency'
 import { ErrorPopup } from '@/utils/Popup'
 
 const api = useOrders()
@@ -34,9 +35,6 @@ const load = async () => {
 
 onMounted(load)
 watch(statusFilter, load)
-
-const tutar = (v: string) =>
-  `${Number.parseFloat(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
 
 const tarih = (d: string, slot: string) => {
   const [y, m, g] = d.split('-')

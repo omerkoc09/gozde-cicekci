@@ -2,6 +2,7 @@
 import { useOrders } from '@/composables/useOrders'
 import type { Order, OrderStatus } from '@/model/order'
 import { STATUS_COLORS, STATUS_LABELS } from '@/model/order'
+import { formatTutar as tutar } from '@/utils/Currency'
 import { ErrorPopup, SuccessToast } from '@/utils/Popup'
 
 const route = useRoute('siparisler-id')
@@ -55,8 +56,6 @@ const saveNote = async () => {
   SuccessToast('Not kaydedildi')
 }
 
-const tutar = (v: string) =>
-  `${Number.parseFloat(v).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
 </script>
 
 <template>
