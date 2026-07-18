@@ -36,6 +36,8 @@ watch(() => form.aliciBenim, (v) => {
 
 const gonderiliyor = ref(false)
 const hata = ref('')
+const odemeAcik = ref(false)
+const odemeToken = ref('')
 
 // Hazır tarih çipleri: bugün + sonraki 2 gün, dördüncü çip takvim açar.
 const GUN_ADLARI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
@@ -137,9 +139,10 @@ async function gonder() {
       card_message: cardMessage || undefined,
     })
 
-    // Başarılı → sepeti temizle, yoksa müşteri aynı siparişi tekrar verebilir
-    clear()
-    await router.push(`/siparis/tamam?no=${sonuc.order_no}`)
+    // Sepet burada TEMİZLENMEZ — ödeme henüz yapılmadı. Müşteri iframe'de
+    // öderse PayTR merchant_ok_url ile /siparis/tamam'a döner; orada temizlenir.
+    // İframe'i token ile aç:
+    await odemeIframiAc(sonuc.paytr_token, sonuc.order_no)
   }
   catch (e) {
     // Başarısız → sepet KORUNUR, müşterinin emeği silinmesin (spec §5)
@@ -148,6 +151,33 @@ async function gonder() {
   finally {
     gonderiliyor.value = false
   }
+}
+
+// PayTR iframe'ini token ile gömer. iframeResizer scriptini bir kez yükler.
+async function odemeIframiAc(token: string, orderNo: string) {
+  // order_no'yu tamam sayfası için sakla — PayTR redirect'inde query taşımıyoruz.
+  sessionStorage.setItem('bekleyen_siparis_no', orderNo)
+
+  await yukleIframeResizer()
+  odemeToken.value = token
+  odemeAcik.value = true
+  await nextTick()
+  // @ts-expect-error iFrameResize global (PayTR scripti)
+  window.iFrameResize({}, '#paytriframe')
+}
+
+function yukleIframeResizer(): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.getElementById('paytr-iframe-resizer')) {
+      resolve()
+      return
+    }
+    const s = document.createElement('script')
+    s.id = 'paytr-iframe-resizer'
+    s.src = 'https://www.paytr.com/js/iframeResizer.min.js'
+    s.onload = () => resolve()
+    document.head.appendChild(s)
+  })
 }
 
 useSeoMeta({
@@ -162,7 +192,7 @@ useSeoMeta({
       Siparişi Tamamla
     </h1>
 
-    <form class="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]" @submit.prevent="gonder">
+    <form v-if="!odemeAcik" class="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]" @submit.prevent="gonder">
       <div class="space-y-10">
         <!-- Sipariş veren -->
         <fieldset>
@@ -349,5 +379,15 @@ useSeoMeta({
         </p>
       </aside>
     </form>
+
+    <div v-if="odemeAcik" class="mt-8">
+      <iframe
+        id="paytriframe"
+        :src="`https://www.paytr.com/odeme/guvenli/${odemeToken}`"
+        frameborder="0"
+        scrolling="no"
+        style="width: 100%;"
+      />
+    </div>
   </div>
 </template>

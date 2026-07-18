@@ -76,4 +76,5 @@ export interface CreateOrderInput {
 export interface CreateOrderResult {
   order_no: string
   total: string
+  paytr_token: string
 }

@@ -1,11 +1,17 @@
 <script setup lang="ts">
 const route = useRoute()
-const orderNo = computed(() => String(route.query.no ?? ''))
+const { clear } = useCart()
+const orderNo = computed(() =>
+  String(route.query.no ?? (import.meta.client ? sessionStorage.getItem('bekleyen_siparis_no') : '') ?? ''))
 
 // Sipariş no yoksa buraya doğrudan gelinmiş — ana sayfaya gönder
 onMounted(() => {
-  if (!orderNo.value)
+  if (!orderNo.value) {
     navigateTo('/')
+    return
+  }
+  clear() // ödeme başarılı döndü, sepeti temizle
+  sessionStorage.removeItem('bekleyen_siparis_no')
 })
 
 useSeoMeta({
@@ -24,8 +30,9 @@ useSeoMeta({
       Siparişiniz Alındı
     </h1>
 
-    <p v-if="orderNo" class="mt-4 text-body-lg text-on-surface-variant">
-      Sipariş numaranız: <strong class="text-primary">{{ orderNo }}</strong>
+    <p class="mt-4 text-body-lg text-on-surface-variant">
+      Ödemeniz alındı, siparişiniz hazırlanıyor.
+      <span v-if="orderNo">Sipariş numaranız: <strong class="text-primary">{{ orderNo }}</strong></span>
     </p>
 
     <p class="mx-auto mt-4 max-w-md text-body-md text-on-surface-variant">
