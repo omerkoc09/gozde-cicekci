@@ -30,17 +30,19 @@ type createOrderRequest struct {
 	CardMessage string `json:"card_message"`
 }
 
-// createOrderResponse public yanıt — sipariş no ve toplam yeter.
-// Müşteriye iç detay (id, statü) sızdırılmaz.
+// createOrderResponse public yanıt — sipariş no, toplam ve PayTR iframe
+// token'ı yeter. Müşteriye iç detay (id, statü) sızdırılmaz.
 type createOrderResponse struct {
-	OrderNo string `json:"order_no"`
-	Total   string `json:"total"`
+	OrderNo    string `json:"order_no"`
+	Total      string `json:"total"`
+	PaytrToken string `json:"paytr_token"`
 }
 
-func toCreateOrderResponse(o *order.Order) createOrderResponse {
+func toCreateOrderResponse(o *order.Order, token string) createOrderResponse {
 	return createOrderResponse{
-		OrderNo: o.OrderNo,
-		Total:   o.Total.StringFixed(2),
+		OrderNo:    o.OrderNo,
+		Total:      o.Total.StringFixed(2),
+		PaytrToken: token,
 	}
 }
 

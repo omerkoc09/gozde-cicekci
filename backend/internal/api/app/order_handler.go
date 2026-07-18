@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/api"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/pkg/errorsx"
 )
 
@@ -47,12 +48,32 @@ func (h *orderHandler) create(c *fiber.Ctx) error {
 		})
 	}
 
-	o, err := h.svc.Create(c.Context(), in)
+	o, token, err := h.svc.Create(c.Context(), in, c.IP())
 	if err != nil {
 		return api.WriteError(c, err)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(toCreateOrderResponse(o))
+	return c.Status(fiber.StatusCreated).JSON(toCreateOrderResponse(o, token))
+}
+
+// paymentCallback PayTR sunucu-sunucu bildirimi. Yanıt DÜZ METİN "OK" olmalı,
+// yoksa PayTR tekrar tekrar gönderir. Ödeme kararı YALNIZCA burada verilir.
+func (h *orderHandler) paymentCallback(c *fiber.Ctx) error {
+	in := payment.CallbackInput{
+		MerchantOID: c.FormValue("merchant_oid"),
+		Status:      c.FormValue("status"),
+		TotalAmount: c.FormValue("total_amount"),
+		Hash:        c.FormValue("hash"),
+	}
+	raw := c.Body() // ham gövde denetim izi için
+
+	accepted, err := h.svc.ApplyCallback(c.Context(), in, raw)
+	if err != nil || !accepted {
+		// Hata/geçersiz → PayTR'ye OK DÖNME (tekrar denesin / sahte reddedilsin).
+		// PayTR "OK dışı" yanıtı başarısız sayar.
+		return c.Status(fiber.StatusBadRequest).SendString("FAIL")
+	}
+	return c.SendString("OK")
 }
 
 func (h *orderHandler) deliveryConfig(c *fiber.Ctx) error {

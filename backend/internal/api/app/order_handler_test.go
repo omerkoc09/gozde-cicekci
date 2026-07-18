@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +34,8 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg)
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()
 	oh := &orderHandler{svc: svc, cfg: cfg}
@@ -59,6 +62,84 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 	// 1850 × 2 + 50 = 3750 — gövdedeki "1.00" yok sayıldı
 	assert.Equal(t, "3750.00", out.Total)
 	assert.NotEmpty(t, out.OrderNo)
+	assert.NotEmpty(t, out.PaytrToken)
+}
+
+// newCallbackTestOrder callback testleri için MockProvider ile gerçek bir
+// sipariş oluşturur ve PayTR'nin bildirimde göndereceği merchant_oid
+// (Order.PaymentRef — order_no'dan TÜRETİLİR, aynısı DEĞİL) döner.
+func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, merchantOID string) {
+	t.Helper()
+	pool := database.NewTestDB(t)
+
+	var productID int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	cfg := order.DeliveryConfig{
+		Fee: "50", Slots: []string{"12:00-15:00"},
+		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş"},
+	}
+	svc = order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
+	oh = &orderHandler{svc: svc, cfg: cfg}
+
+	in := order.CreateInput{
+		BuyerName: "Ahmet", BuyerPhone: "05551112233",
+		RecipientName: "Ayşe", RecipientPhone: "05554445566",
+		DeliveryAddress: "Test Cad. 1", DeliveryDistrict: "Ödemiş",
+		DeliveryDate: time.Now().AddDate(0, 0, 2), DeliverySlot: "12:00-15:00",
+		Items: []order.CreateItem{{ProductID: productID, Quantity: 1}},
+	}
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1")
+	require.NoError(t, err)
+
+	return svc, oh, o.PaymentRef
+}
+
+func TestPaymentCallback_BasariliOKDoner(t *testing.T) {
+	_, oh, merchantOID := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	form := fmt.Sprintf("merchant_oid=%s&status=success&total_amount=190000&hash=irrelevant-for-mock",
+		merchantOID)
+	req := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	assert.Equal(t, "OK", string(bodyBytes))
+}
+
+func TestPaymentCallback_GecersizFAILDoner(t *testing.T) {
+	_, oh, _ := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	// Var olmayan merchant_oid → GetByPaymentRef hata verir → accepted=false
+	form := "merchant_oid=siparis-yok-99999&status=success&total_amount=190000&hash=x"
+	req := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, fiber.StatusOK, resp.StatusCode)
+	assert.NotEqual(t, "OK", string(bodyBytes))
 }
 
 func TestDeliveryConfig(t *testing.T) {

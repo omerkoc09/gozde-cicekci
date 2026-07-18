@@ -30,5 +30,6 @@ func Register(router fiber.Router, catSvc *category.Service,
 	router.Get("/categories/:slug", ch.getBySlug)
 
 	router.Post("/orders", oh.create)
+	router.Post("/payment/callback", oh.paymentCallback)
 	router.Get("/delivery-config", oh.deliveryConfig)
 }
