@@ -23,6 +23,7 @@ declare module 'vue-router/auto-routes' {
     '$error': RouteRecordInfo<'$error', '/:error(.*)', { error: ParamValue<true> }, { error: ParamValue<false> }>,
     'auth-login': RouteRecordInfo<'auth-login', '/auth/login', Record<never, never>, Record<never, never>>,
     'kategoriler': RouteRecordInfo<'kategoriler', '/kategoriler', Record<never, never>, Record<never, never>>,
+    'kullanicilar': RouteRecordInfo<'kullanicilar', '/kullanicilar', Record<never, never>, Record<never, never>>,
     'siparisler': RouteRecordInfo<'siparisler', '/siparisler', Record<never, never>, Record<never, never>>,
     'siparisler-id': RouteRecordInfo<'siparisler-id', '/siparisler/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'slider': RouteRecordInfo<'slider', '/slider', Record<never, never>, Record<never, never>>,

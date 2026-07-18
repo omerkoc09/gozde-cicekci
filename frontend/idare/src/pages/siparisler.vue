@@ -41,6 +41,10 @@ const tarih = (d: string, slot: string) => {
 
   return `${g}.${m}.${y} · ${slot}`
 }
+
+function handleRowClick(_: unknown, payload: { item: Order }) {
+  router.push(`/siparisler/${payload.item.id}`)
+}
 </script>
 
 <template>
@@ -79,7 +83,7 @@ const tarih = (d: string, slot: string) => {
         no-data-text="Sipariş yok"
         loading-text="Yükleniyor..."
         hover
-        @click:row="(_: unknown, { item }: { item: Order }) => router.push(`/siparisler/${item.id}`)"
+        @click:row="handleRowClick"
       >
         <template #item.order_no="{ item }">
           <code class="text-caption">{{ item.order_no }}</code>

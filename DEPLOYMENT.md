@@ -207,10 +207,10 @@ POSTGRES_PASSWORD=local-test
 POSTGRES_DB=cicekci
 DATABASE_URL=postgres://cicekci:local-test@postgres:5432/cicekci?sslmode=disable
 JWT_SECRET=lokal-test-en-az-32-karakterlik-anahtar
-WHATSAPP_NUMBER=905551234567
-CONTACT_PHONE=0555 123 45 67
-CONTACT_ADDRESS=Test
-CONTACT_HOURS=09:00-20:00
+WHATSAPP_NUMBER=905052178501
+CONTACT_PHONE=+90 553 614 00 63
+CONTACT_ADDRESS=Atatürk, Şht. Adnan Menderes Blv. No:31/A, 35750 Ödemiş/İzmir
+CONTACT_HOURS=09:00-22:00
 EOF
 
 docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml \
