@@ -22,6 +22,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/config"
@@ -62,7 +63,26 @@ func main() {
 		Districts:     cfg.DeliveryDistricts,
 		DistrictFees:  cfg.DeliveryFees,
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
+	var payProvider order.PaymentStarter
+	if cfg.PayTRConfigured() {
+		payProvider = payment.NewPayTR(payment.PayTRConfig{
+			MerchantID:   cfg.PayTRMerchantID,
+			MerchantKey:  cfg.PayTRMerchantKey,
+			MerchantSalt: cfg.PayTRMerchantSalt,
+			TestMode:     cfg.PayTRTestMode,
+		})
+		log.Println("ödeme: PayTR provider aktif (test_mode:", cfg.PayTRTestMode, ")")
+	} else {
+		payProvider = payment.NewMockProvider()
+		log.Println("ödeme: MOCK provider (PayTR anahtarları yok)")
+	}
+
+	// Public site ödeme sonrası buralara döner.
+	okURL := cfg.SiteURL + "/siparis/tamam"
+	failURL := cfg.SiteURL + "/siparis/hata"
+
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+		deliveryCfg, payProvider, okURL, failURL)
 
 	isProduction := cfg.IsProduction()
 
