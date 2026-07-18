@@ -177,12 +177,24 @@ func (s *Store) itemsOf(ctx context.Context, orderID int64) ([]OrderItem, error)
 
 // List siparişleri en yeniden eskiye listeler. status boşsa hepsi.
 func (s *Store) List(ctx context.Context, status string, limit, offset int) ([]Order, error) {
-	q := orderSelect
-	args := []any{}
-
 	if status != "" {
-		q += ` WHERE status = $1`
-		args = append(args, status)
+		return s.listWhere(ctx, `status = $1`, []any{status}, limit, offset)
+	}
+	return s.listWhere(ctx, "", nil, limit, offset)
+}
+
+// ListVisible awaiting_payment HARİÇ tüm siparişleri listeler (esnaf görünümü).
+// Ödeme başlatılıp tamamlanmamış siparişler esnafın önüne çöp olarak düşmesin.
+func (s *Store) ListVisible(ctx context.Context, limit, offset int) ([]Order, error) {
+	return s.listWhere(ctx, `status <> 'awaiting_payment'`, nil, limit, offset)
+}
+
+// listWhere List ve ListVisible'ın ortak gövdesi — sorgu + kalem doldurma
+// (itemsOfMany) tek yerde. whereClause boşsa WHERE eklenmez.
+func (s *Store) listWhere(ctx context.Context, whereClause string, args []any, limit, offset int) ([]Order, error) {
+	q := orderSelect
+	if whereClause != "" {
+		q += ` WHERE ` + whereClause
 	}
 	q += fmt.Sprintf(` ORDER BY created_at DESC LIMIT %d OFFSET %d`, limit, offset)
 

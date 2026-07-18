@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/errorsx"
 	"github.com/shopspring/decimal"
@@ -56,45 +58,50 @@ type CreateInput struct {
 }
 
 type Service struct {
-	store *Store
-	prod  ProductReader
-	cfg   DeliveryConfig
+	store   *Store
+	prod    ProductReader
+	cfg     DeliveryConfig
+	pay     PaymentStarter
+	okURL   string
+	failURL string
 }
 
-func NewService(store *Store, prod ProductReader, cfg DeliveryConfig) *Service {
-	return &Service{store: store, prod: prod, cfg: cfg}
+func NewService(store *Store, prod ProductReader, cfg DeliveryConfig,
+	pay PaymentStarter, okURL, failURL string) *Service {
+	return &Service{store: store, prod: prod, cfg: cfg, pay: pay, okURL: okURL, failURL: failURL}
 }
 
 // maxQuantity absürt girdiye karşı duvar. UI'da limit YOK — 50 buket gerçek
 // bir sipariş olabilir (spec §5). Bu sadece 999999999 gibi girdileri eler.
 const maxQuantity = 1000
 
-func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
+func (s *Service) Create(ctx context.Context, in CreateInput, userIP string) (*Order, string, error) {
 	if err := s.validateContact(&in); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := s.validateDelivery(in); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if len(in.Items) == 0 {
-		return nil, fmt.Errorf("%w: sepet boş", errorsx.ErrInvalidInput)
+		return nil, "", fmt.Errorf("%w: sepet boş", errorsx.ErrInvalidInput)
 	}
 
 	// FİYAT DB'DEN OKUNUR — sepetten gelen fiyata asla güvenilmez (spec §2.2)
 	items := make([]NewOrderItem, 0, len(in.Items))
+	basket := make([]payment.BasketItem, 0, len(in.Items))
 	itemsTotal := decimal.Zero
 
 	for _, ci := range in.Items {
 		if ci.Quantity <= 0 || ci.Quantity > maxQuantity {
-			return nil, fmt.Errorf("%w: geçersiz adet", errorsx.ErrInvalidInput)
+			return nil, "", fmt.Errorf("%w: geçersiz adet", errorsx.ErrInvalidInput)
 		}
 
 		p, err := s.prod.GetByID(ctx, ci.ProductID)
 		if err != nil {
-			return nil, fmt.Errorf("%w: ürün bulunamadı", errorsx.ErrInvalidInput)
+			return nil, "", fmt.Errorf("%w: ürün bulunamadı", errorsx.ErrInvalidInput)
 		}
 		if !p.IsActive {
-			return nil, fmt.Errorf("%w: %q artık satışta değil", errorsx.ErrInvalidInput, p.Name)
+			return nil, "", fmt.Errorf("%w: %q artık satışta değil", errorsx.ErrInvalidInput, p.Name)
 		}
 
 		// p.Price zaten decimal.Decimal — dönüşüm gerekmez
@@ -104,6 +111,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
 			ProductName:  p.Name,
 			PriceAtOrder: p.Price,
 			Quantity:     ci.Quantity,
+		})
+		basket = append(basket, payment.BasketItem{
+			Name: p.Name, PriceKurus: payment.KurusFromDecimal(p.Price), Quantity: ci.Quantity,
 		})
 	}
 
@@ -117,10 +127,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
 
 	fee, err := decimal.NewFromString(feeStr)
 	if err != nil {
-		return nil, fmt.Errorf("teslimat ücreti okunamadı: %w", err)
+		return nil, "", fmt.Errorf("teslimat ücreti okunamadı: %w", err)
 	}
+	total := itemsTotal.Add(fee)
 
-	return s.store.Create(ctx, NewOrder{
+	o, err := s.store.Create(ctx, NewOrder{
 		BuyerName:        in.BuyerName,
 		BuyerPhone:       in.BuyerPhone,
 		BuyerEmail:       in.BuyerEmail,
@@ -133,9 +144,41 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Order, error) {
 		CardMessage:      in.CardMessage,
 		ItemsTotal:       itemsTotal,
 		DeliveryFee:      fee,
-		Total:            itemsTotal.Add(fee),
+		Total:            total,
 		Items:            items,
 	})
+	if err != nil {
+		return nil, "", err
+	}
+
+	// merchant_oid PayTR için ALFANÜMERİK olmalı (tire kabul etmez). order_no
+	// "2607-0042" → tireyi at + tekillik için sipariş id'si ekle.
+	merchantOID := strings.ReplaceAll(o.OrderNo, "-", "") + "x" + strconv.FormatInt(o.ID, 10)
+	if err := s.store.SetPaymentRef(ctx, o.ID, merchantOID); err != nil {
+		return nil, "", err
+	}
+
+	email := in.BuyerEmail
+	if email == "" {
+		email = "noemail@example.com" // PayTR email zorunlu; müşteri girmediyse placeholder
+	}
+
+	res, err := s.pay.Start(ctx, payment.StartInput{
+		MerchantOID: merchantOID,
+		UserIP:      userIP,
+		Email:       email,
+		AmountKurus: payment.KurusFromDecimal(total),
+		Basket:      basket,
+		OkURL:       s.okURL,
+		FailURL:     s.failURL,
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("ödeme başlatılamadı: %w", err)
+	}
+
+	_ = s.store.AddPaymentEvent(ctx, o.ID, "token_requested", nil)
+	o.PaymentRef = merchantOID
+	return o, res.Token, nil
 }
 
 func (s *Service) validateContact(in *CreateInput) error {
@@ -209,6 +252,79 @@ func (s *Service) pastCutoff(now time.Time) bool {
 	return nowMin > cutMin
 }
 
+// ApplyCallback PayTR bildirimini işler. Dönüş accepted → PayTR'ye "OK"
+// dönülüp dönülmeyeceği.
+//
+// Güvenlik kuralı: siparişi paid yapan TEK koşul res.OK (hash geçerli VE
+// status=success). Bu yüzden sahte hash asla SetPaid'e ulaşmaz.
+//
+// accepted mantığı:
+//   - Sipariş bulunamadı (GetByPaymentRef hata) → accepted=false. Var olmayan
+//     oid; PayTR'ye OK DÖNME (sahte/eski istek).
+//   - res.OK=false (hash geçersiz VEYA status=failed) → callback_fail izi bırak,
+//     accepted=true. Gerekçe: GetByPaymentRef siparişi buldu → oid meşru; failed
+//     ödemede de PayTR geçerli callback gönderir ve OK bekler. Para hareketi yok,
+//     sipariş awaiting_payment kalır. OK dönmezsek PayTR aynı failed'i döngüde
+//     tekrar gönderir.
+//   - res.OK=true → idempotent şekilde paid yap, accepted=true.
+func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, rawPayload []byte) (bool, error) {
+	res := s.pay.VerifyCallback(in)
+
+	o, err := s.store.GetByPaymentRef(ctx, in.MerchantOID)
+	if err != nil {
+		return false, err
+	}
+
+	if !res.OK {
+		_ = s.store.AddPaymentEvent(ctx, o.ID, "callback_fail", rawPayload)
+		return true, nil
+	}
+
+	// Hash geçerli + success. Idempotency: zaten işlenmişse tekrar etme.
+	already, err := s.store.HasPaymentEvent(ctx, o.ID, "callback_ok")
+	if err != nil {
+		return false, err
+	}
+	if already {
+		return true, nil // no-op, ama OK dön
+	}
+
+	if _, err := s.store.SetPaid(ctx, o.ID); err != nil {
+		return false, err
+	}
+	_ = s.store.AddPaymentEvent(ctx, o.ID, "callback_ok", rawPayload)
+	return true, nil
+}
+
+// Refund PayTR iadesini çağırır, başarılıysa siparişi refunded yapar.
+func (s *Service) Refund(ctx context.Context, id int64) (*Order, error) {
+	o, err := s.store.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if o.Status != StatusPaid && o.Status != StatusDelivered {
+		return nil, fmt.Errorf("%w: yalnızca ödenmiş sipariş iade edilebilir", errorsx.ErrInvalidInput)
+	}
+	if o.PaymentRef == "" {
+		return nil, fmt.Errorf("%w: ödeme referansı yok", errorsx.ErrInvalidInput)
+	}
+
+	err = s.pay.Refund(ctx, payment.RefundInput{
+		MerchantOID:       o.PaymentRef,
+		ReturnAmountKurus: payment.KurusFromDecimal(o.Total),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("iade başarısız: %w", err)
+	}
+
+	refunded, err := s.store.SetRefunded(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.store.AddPaymentEvent(ctx, id, "refund", nil)
+	return refunded, nil
+}
+
 func (s *Service) List(ctx context.Context, status string, limit, offset int) ([]Order, error) {
 	if status != "" && !Status(status).Valid() {
 		return nil, fmt.Errorf("%w: geçersiz durum", errorsx.ErrInvalidInput)
@@ -219,7 +335,9 @@ func (s *Service) List(ctx context.Context, status string, limit, offset int) ([
 	if offset < 0 {
 		offset = 0
 	}
-
+	if status == "" {
+		return s.store.ListVisible(ctx, limit, offset)
+	}
 	return s.store.List(ctx, status, limit, offset)
 }
 
@@ -228,10 +346,24 @@ func (s *Service) Get(ctx context.Context, id int64) (*Order, error) {
 }
 
 // Update statü ve/veya not günceller. nil alan değişmez (PATCH semantiği).
+// Elle izin verilen tek geçiş: paid → delivered. Ödeme/iade statüleri
+// (awaiting_payment/paid/refunded) callback ve refund akışıyla set edilir,
+// elle atanamaz.
 func (s *Service) Update(ctx context.Context, id int64, status *string, note *string) (*Order, error) {
 	if status != nil {
-		if !Status(*status).Valid() {
+		st := Status(*status)
+		if !st.Valid() {
 			return nil, fmt.Errorf("%w: geçersiz durum", errorsx.ErrInvalidInput)
+		}
+		if st != StatusDelivered {
+			return nil, fmt.Errorf("%w: bu durum elle atanamaz", errorsx.ErrInvalidInput)
+		}
+		cur, err := s.store.GetByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if cur.Status != StatusPaid {
+			return nil, fmt.Errorf("%w: yalnızca ödenmiş sipariş teslim edilebilir", errorsx.ErrInvalidInput)
 		}
 	}
 
