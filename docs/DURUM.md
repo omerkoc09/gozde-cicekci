@@ -15,14 +15,51 @@ Son güncelleme: 2026-07-18
 | Sipariş yönetimi (Faz 2) | ✅ **Uygulandı** — sepet, teslimat ilçe/ücret, admin sipariş listesi/detayı |
 | Deployment altyapısı (Faz A) | ✅ **Hazır** — Docker Compose + Caddy, lokalde prod moduyla test edildi |
 | Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
-| Deployment (Faz B — VPS) | ⬜ Sen çalıştıracaksın — `DEPLOYMENT.md` ← SIRADA |
+| Deployment (Faz B — VPS) | ✅ **CANLI** (2026-07-18) — https://gozdetasarimcicekcilik.com, Hetzner CPX12 |
 
-Branch: `feat/backend-temeli` (her şey burada)
+Branch: `main` (deploy edilen), geliştirme `feat/backend-temeli`'de başlamıştı
 
 Faz 3 (ödeme entegrasyonu/ETBİS) ve Faz 4 (raporlama, SEO, kampanya) bilinçli
 olarak ertelendi — site üzerinden doğrudan satış/ödeme yok (WhatsApp'a
 yönlendirme), bu yüzden ETBİS kaydı gerekmiyor. `docs/PROJECT_BRIEF.md` §Sonraki
 Fazlar'a bakınız.
+
+## Canlı ortam (2026-07-18)
+
+- **Domain:** gozdetasarimcicekcilik.com (Cloudflare'de kayıtlı, DNS-only —
+  proxy KAPALI, çünkü Caddy kendi Let's Encrypt TLS'ini alıyor)
+- **Sunucu:** Hetzner CPX12 (2 vCPU / **2GB RAM**), Falkenstein, Ubuntu 24.04,
+  IP 167.233.225.38
+- **Deploy edilen branch:** `main`
+- **Admin kullanıcı:** askinaktas
+- **Güncelleme:** sunucuda `cd /root/cicekci && git pull origin main &&
+  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
+
+### Deploy sırasında çıkan sorunlar ve çözümleri (sonra lazım olur)
+
+**2GB RAM build'de yetmiyor (OOM).** İlk `docker compose build` sırasında
+Nuxt/Node build'i "JavaScript heap out of memory" ve sistem OOM killer ile
+düşüyordu. İki katmanlı çözüm: (1) sunucuya kalıcı **4GB swap** eklendi
+(`/swapfile`, fstab'da), (2) `frontend/app/Dockerfile`'da build adımına
+`ENV NODE_OPTIONS="--max-old-space-size=2048"`. Runtime'da 2GB fazlasıyla
+yeter — sorun sadece build anındaki geçici tepe kullanımdı.
+
+**Public site hiç veri göstermiyordu (KRİTİK, iki ayrı bug).** Ana sayfa,
+kategoriler, slider hep boştu — ama veriler backend'de KAYITLIYDI. İki neden
+üst üste bindi:
+1. **Caddy routing:** genel `handle /api/*` kuralı `/api/go/*` isteklerini de
+   yakalayıp doğrudan backend'e gönderiyordu; backend'de o route yok → 404.
+   `handle /api/go/* { reverse_proxy app:3000 }` bloğu genel kuraldan ÖNCE
+   eklendi (`deploy/Caddyfile`).
+2. **Env adı uyuşmazlığı:** Nuxt `runtimeConfig.goApiBase`'i runtime'da yalnızca
+   `NUXT_GO_API_BASE` env'iyle override eder, ama compose `NUXT_API_BASE`
+   gönderiyordu. Override çalışmayınca proxy build'e gömülü `localhost:8080`
+   default'una düşüp ECONNREFUSED alıyordu. `nuxt.config.ts`'te
+   `process.env.NUXT_API_BASE` okuması da build zamanında değerlenip default'u
+   imaja gömdüğü için kaldırıldı; compose `NUXT_GO_API_BASE`'e çevrildi.
+   **Ders:** `/api/go/*` proxy'sini kullanan HER yol (tüm public composable'lar)
+   buna bağlı — bu iki nokta doğru değilse public site komple boş görünür ama
+   sessizce (hata sayfası değil, boş liste).
 
 ## Final review'da bulunup düzeltilen (2026-07-18)
 
