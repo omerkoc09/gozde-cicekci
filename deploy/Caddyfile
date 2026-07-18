@@ -5,6 +5,14 @@
 # lokal test için :80 kullanılabilir (DEPLOYMENT.md'ye bak).
 
 {$SITE_DOMAIN} {
+	# Nuxt'un same-origin proxy'si (/api/go/* → server/api/go/[...path].ts).
+	# Genel /api/* kuralından ÖNCE gelmeli, yoksa o kural bunu da yakalayıp
+	# doğrudan backend'e gönderir — backend'de /api/go/* diye bir route
+	# olmadığı için 404 döner ve public site hiçbir veri çekemez.
+	handle /api/go/* {
+		reverse_proxy app:3000
+	}
+
 	# Backend API — public uçlar
 	handle /api/* {
 		reverse_proxy backend:8080
