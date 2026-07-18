@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/disintegration/imaging"
+	"github.com/omerkoc/cicekci/pkg/errorsx"
 
 	// Decoder kayıtları — image.Decode bunlar olmadan formatı tanımaz.
 	// webp yalnızca DECODE eder; çıktı her zaman JPEG (bkz. Process).
@@ -47,6 +48,27 @@ func DetectFormat(data []byte) (string, error) {
 		return "", fmt.Errorf("%w: %s (sadece JPEG, PNG veya WebP)",
 			ErrUnsupportedFormat, contentType)
 	}
+}
+
+// CheckMinWidth görselin en az minWidth piksel genişlikte olduğunu doğrular.
+// Sistem küçük görselleri BÜYÜTMEZ (bulanıklaşır), o yüzden hedef boyutlardan
+// (ör. ürün için 1200px) küçük bir foto yüklenirse kart/detay bulanık kalır.
+// Bunu yükleme anında reddedip esnafa anlaşılır bir mesaj döndürüyoruz.
+//
+// Decode hatası da ErrInvalidInput ile sarılır: bozuk/eksik dosya sunucu
+// hatası değil, kullanıcının seçtiği dosyanın sorunudur (API 400 dönsün).
+func CheckMinWidth(data []byte, minWidth int) error {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("%w: görsel okunamadı (dosya bozuk veya desteklenmeyen)", errorsx.ErrInvalidInput)
+	}
+
+	if cfg.Width < minWidth {
+		return fmt.Errorf("%w: görsel çok küçük (%dpx) — en az %dpx genişliğinde, "+
+			"kaliteli bir fotoğraf yükleyin", errorsx.ErrInvalidInput, cfg.Width, minWidth)
+	}
+
+	return nil
 }
 
 // Process görseli decode eder, hedef genişliğe küçültür ve JPEG olarak encode eder.

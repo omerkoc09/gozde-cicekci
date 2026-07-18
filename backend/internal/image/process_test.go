@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/omerkoc/cicekci/pkg/errorsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,6 +49,32 @@ func readWebP(t *testing.T) []byte {
 	data, err := os.ReadFile(filepath.Join("testdata", "sample.webp"))
 	require.NoError(t, err, "testdata/sample.webp okunamadı")
 	return data
+}
+
+func TestCheckMinWidth_YeterinceGenis(t *testing.T) {
+	// 1500px genişlik, 1200 minimumu karşılıyor → geçmeli
+	err := CheckMinWidth(makeJPEG(t, 1500, 1000), 1200)
+	assert.NoError(t, err)
+}
+
+func TestCheckMinWidth_TamSinirda(t *testing.T) {
+	// Tam minimum genişlik → geçmeli (>=)
+	err := CheckMinWidth(makeJPEG(t, 1200, 800), 1200)
+	assert.NoError(t, err)
+}
+
+func TestCheckMinWidth_CokKucuk(t *testing.T) {
+	// 800px genişlik, 1200 isteniyor → reddedilmeli, ErrInvalidInput
+	err := CheckMinWidth(makeJPEG(t, 800, 600), 1200)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
+}
+
+func TestCheckMinWidth_BozukVeri(t *testing.T) {
+	// Decode edilemeyen veri → ErrInvalidInput (sunucu hatası değil)
+	err := CheckMinWidth([]byte("bu bir görsel değil"), 1200)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
 }
 
 func TestDetectFormat_JPEG(t *testing.T) {

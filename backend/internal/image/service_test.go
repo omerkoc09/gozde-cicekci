@@ -83,7 +83,7 @@ func TestService_Upload_StoredDataIsJPEG(t *testing.T) {
 	svc, store, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
 
-	img, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	img, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
 
 	stored := store.put[objectPath(PrefixProducts, img.ImageKey, Size400)]
@@ -97,7 +97,7 @@ func TestService_Upload_AcceptsPNG(t *testing.T) {
 	svc, _, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
 
-	_, err := svc.Upload(ctx, pid, makePNG(t, 600, 400))
+	_, err := svc.Upload(ctx, pid, makePNG(t, 1200, 800))
 
 	require.NoError(t, err)
 }
@@ -112,6 +112,18 @@ func TestService_Upload_RejectsUnsupportedFormat(t *testing.T) {
 	assert.Equal(t, 0, store.storedCount(), "geçersiz format hiç yazılmamalı")
 }
 
+// Çok küçük görsel (min genişliğin altında) reddedilmeli — büyütülünce
+// bulanık kalır. Hiç dosya yazılmadan ErrInvalidInput dönmeli.
+func TestService_Upload_RejectsTooSmall(t *testing.T) {
+	svc, store, pool, ctx := newTestService(t)
+	pid := insertProduct(t, pool, "Buket")
+
+	_, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput)
+	assert.Equal(t, 0, store.storedCount(), "küçük görsel hiç yazılmamalı")
+}
+
 // Spec §4.4 atomiklik: ikinci boyut yazılamazsa birincisi geri alınır ve
 // DB'ye kayıt atılmaz. Yarım görsel kalmaz.
 func TestService_Upload_SecondSizeFails_RollsBackFirst(t *testing.T) {
@@ -119,7 +131,7 @@ func TestService_Upload_SecondSizeFails_RollsBackFirst(t *testing.T) {
 	pid := insertProduct(t, pool, "Buket")
 	store.failPutN = 2 // ikinci Put patlasın
 
-	_, err := svc.Upload(ctx, pid, makeJPEG(t, 1000, 800))
+	_, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 960))
 
 	require.Error(t, err)
 	assert.Equal(t, 0, store.storedCount(), "yazılan ilk boyut temizlenmeli")
@@ -135,7 +147,7 @@ func TestService_Upload_FirstSizeFails_NoDBRecord(t *testing.T) {
 	pid := insertProduct(t, pool, "Buket")
 	store.failPutN = 1
 
-	_, err := svc.Upload(ctx, pid, makeJPEG(t, 1000, 800))
+	_, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 960))
 
 	require.Error(t, err)
 	imgs, err := NewDB(pool).ListByProduct(ctx, pid)
@@ -147,7 +159,7 @@ func TestService_Upload_FirstSizeFails_NoDBRecord(t *testing.T) {
 func TestService_Upload_DBFails_CleansUpFiles(t *testing.T) {
 	svc, store, _, ctx := newTestService(t)
 
-	_, err := svc.Upload(ctx, 9999, makeJPEG(t, 800, 600))
+	_, err := svc.Upload(ctx, 9999, makeJPEG(t, 1200, 900))
 
 	require.Error(t, err)
 	assert.Equal(t, 0, store.storedCount(), "DB hatası sonrası dosyalar temizlenmeli")
@@ -158,9 +170,9 @@ func TestService_Upload_MultipleImagesOrdered(t *testing.T) {
 	svc, _, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
 
-	first, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	first, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
-	second, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	second, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
 
 	assert.Equal(t, 0, first.SortOrder)
@@ -171,7 +183,7 @@ func TestService_Upload_MultipleImagesOrdered(t *testing.T) {
 func TestService_Delete_RemovesFromStoreAndDB(t *testing.T) {
 	svc, store, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
-	img, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	img, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
 
 	require.NoError(t, svc.Delete(ctx, img.ID))
@@ -194,9 +206,9 @@ func TestService_Delete_NotFound(t *testing.T) {
 func TestService_DeleteAllForProduct(t *testing.T) {
 	svc, store, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
-	_, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	_, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
-	_, err = svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	_, err = svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
 
 	require.NoError(t, svc.DeleteAllForProduct(ctx, pid))
@@ -217,9 +229,9 @@ func TestService_DeleteAllForProduct_NoImages(t *testing.T) {
 func TestService_Reorder(t *testing.T) {
 	svc, _, pool, ctx := newTestService(t)
 	pid := insertProduct(t, pool, "Buket")
-	first, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	first, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
-	second, err := svc.Upload(ctx, pid, makeJPEG(t, 800, 600))
+	second, err := svc.Upload(ctx, pid, makeJPEG(t, 1200, 900))
 	require.NoError(t, err)
 
 	require.NoError(t, svc.Reorder(ctx, pid, []int64{second.ID, first.ID}))

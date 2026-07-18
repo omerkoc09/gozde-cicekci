@@ -70,7 +70,7 @@ func TestImage_Upload(t *testing.T) {
 	pid := createProduct(t, app, token, "Buket")
 
 	resp, err := app.Test(uploadRequest(t, imagesPath(pid), token,
-		makeTestJPEG(t, 1000, 800), "image", "foto.jpg"), -1)
+		makeTestJPEG(t, 1200, 960), "image", "foto.jpg"), -1)
 
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
@@ -138,9 +138,9 @@ func TestImage_Upload_ProductNotFound(t *testing.T) {
 func TestImage_List(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Buket")
-	_, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "1.jpg"), -1)
+	_, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "1.jpg"), -1)
 	require.NoError(t, err)
-	_, err = app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "2.jpg"), -1)
+	_, err = app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "2.jpg"), -1)
 	require.NoError(t, err)
 
 	resp, err := app.Test(authedRequest(http.MethodGet, imagesPath(pid), "", token), -1)
@@ -157,7 +157,7 @@ func TestImage_Delete(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Buket")
 	uploadResp, err := app.Test(uploadRequest(t, imagesPath(pid), token,
-		makeTestJPEG(t, 800, 600), "image", "foto.jpg"), -1)
+		makeTestJPEG(t, 1200, 900), "image", "foto.jpg"), -1)
 	require.NoError(t, err)
 	var img ImageView
 	require.NoError(t, json.NewDecoder(uploadResp.Body).Decode(&img))
@@ -173,12 +173,12 @@ func TestImage_Reorder(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Buket")
 
-	r1, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "1.jpg"), -1)
+	r1, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "1.jpg"), -1)
 	require.NoError(t, err)
 	var first ImageView
 	require.NoError(t, json.NewDecoder(r1.Body).Decode(&first))
 
-	r2, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "2.jpg"), -1)
+	r2, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "2.jpg"), -1)
 	require.NoError(t, err)
 	var second ImageView
 	require.NoError(t, json.NewDecoder(r2.Body).Decode(&second))
@@ -198,11 +198,11 @@ func TestImage_Reorder_IncompleteListRejected(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Buket")
 
-	r1, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "1.jpg"), -1)
+	r1, err := app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "1.jpg"), -1)
 	require.NoError(t, err)
 	var first ImageView
 	require.NoError(t, json.NewDecoder(r1.Body).Decode(&first))
-	_, err = app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 800, 600), "image", "2.jpg"), -1)
+	_, err = app.Test(uploadRequest(t, imagesPath(pid), token, makeTestJPEG(t, 1200, 900), "image", "2.jpg"), -1)
 	require.NoError(t, err)
 
 	body := `{"image_ids":[` + strconv.FormatInt(first.ID, 10) + `]}`
@@ -217,7 +217,7 @@ func TestProduct_Delete_RemovesImages(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Silinecek")
 	_, err := app.Test(uploadRequest(t, imagesPath(pid), token,
-		makeTestJPEG(t, 800, 600), "image", "foto.jpg"), -1)
+		makeTestJPEG(t, 1200, 900), "image", "foto.jpg"), -1)
 	require.NoError(t, err)
 
 	resp, err := app.Test(authedRequest(http.MethodDelete,
@@ -232,7 +232,7 @@ func TestProduct_Get_IncludesImages(t *testing.T) {
 	app, token := newTestAdminAPI(t)
 	pid := createProduct(t, app, token, "Buket")
 	_, err := app.Test(uploadRequest(t, imagesPath(pid), token,
-		makeTestJPEG(t, 800, 600), "image", "foto.jpg"), -1)
+		makeTestJPEG(t, 1200, 900), "image", "foto.jpg"), -1)
 	require.NoError(t, err)
 
 	resp, err := app.Test(authedRequest(http.MethodGet,

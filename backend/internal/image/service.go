@@ -25,7 +25,16 @@ func NewService(store Store, db *DB) *Service {
 // başarılıysa DB'ye kayıt atılır. Ara adımda hata olursa yazılanlar silinir.
 // Böylece DB kaydı olmayan dosya (yetim) veya dosyası olmayan DB kaydı
 // (kırık görsel) oluşmaz.
+// productMinWidth ürün görseli için minimum kabul genişliği. En büyük üretilen
+// boyut (Size1200) kadar — böylece hiçbir boyut büyütme gerektirmez, hepsi keskin.
+const productMinWidth = 1200
+
 func (s *Service) Upload(ctx context.Context, productID int64, data []byte) (*ProductImage, error) {
+	// Çok küçük görsel büyütülünce bulanık kalır — yükleme anında reddet.
+	if err := CheckMinWidth(data, productMinWidth); err != nil {
+		return nil, err
+	}
+
 	processed := make(map[Size][]byte, len(AllSizes))
 	for _, size := range AllSizes {
 		out, err := Process(data, size)
