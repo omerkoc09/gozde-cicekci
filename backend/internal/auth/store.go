@@ -56,3 +56,62 @@ func (s *Store) Create(ctx context.Context, username, passwordHash string) (*Adm
 	}
 	return &u, nil
 }
+
+// List tüm admin kullanıcılarını kullanıcı adına göre sıralı döner.
+func (s *Store) List(ctx context.Context) ([]AdminUser, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, username FROM admin_users ORDER BY username`)
+	if err != nil {
+		return nil, fmt.Errorf("admin listele: %w", err)
+	}
+	defer rows.Close()
+
+	var users []AdminUser
+	for rows.Next() {
+		var u AdminUser
+		if err := rows.Scan(&u.ID, &u.Username); err != nil {
+			return nil, fmt.Errorf("admin listele: %w", err)
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("admin listele: %w", err)
+	}
+	return users, nil
+}
+
+// Count kayıtlı admin sayısını döner.
+func (s *Store) Count(ctx context.Context) (int, error) {
+	var count int
+	err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM admin_users`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("admin say: %w", err)
+	}
+	return count, nil
+}
+
+// Delete bir admin kullanıcısını siler.
+func (s *Store) Delete(ctx context.Context, id int64) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM admin_users WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("admin sil: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errorsx.ErrNotFound
+	}
+	return nil
+}
+
+// UpdatePassword bir adminin şifre hash'ini günceller. passwordHash zaten hashlenmiş olmalı.
+func (s *Store) UpdatePassword(ctx context.Context, id int64, passwordHash string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE admin_users SET password_hash = $2 WHERE id = $1`,
+		id, passwordHash)
+	if err != nil {
+		return fmt.Errorf("şifre güncelle: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return errorsx.ErrNotFound
+	}
+	return nil
+}

@@ -58,3 +58,41 @@ func (s *Service) Login(ctx context.Context, username, password string) (string,
 
 	return GenerateToken(user.ID, user.Username, s.jwtSecret)
 }
+
+// ListAdmins tüm admin kullanıcılarını döner.
+func (s *Service) ListAdmins(ctx context.Context) ([]AdminUser, error) {
+	return s.store.List(ctx)
+}
+
+// DeleteAdmin bir admin kullanıcısını siler. Bir admin kendi hesabını
+// silemez ve sistemde en az bir admin kalmalıdır — bu ikisi de kullanıcının
+// kazara panelden dışarı kilitlenmesini önler.
+func (s *Service) DeleteAdmin(ctx context.Context, requesterID, targetID int64) error {
+	if requesterID == targetID {
+		return fmt.Errorf("%w: kendi hesabınızı silemezsiniz", errorsx.ErrInvalidInput)
+	}
+
+	count, err := s.store.Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count <= 1 {
+		return fmt.Errorf("%w: son admin silinemez", errorsx.ErrInvalidInput)
+	}
+
+	return s.store.Delete(ctx, targetID)
+}
+
+// ChangePassword bir adminin şifresini değiştirir.
+func (s *Service) ChangePassword(ctx context.Context, id int64, newPassword string) error {
+	if len(newPassword) < minPasswordLength {
+		return fmt.Errorf("%w: şifre en az %d karakter olmalı", errorsx.ErrInvalidInput, minPasswordLength)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("şifre hashle: %w", err)
+	}
+
+	return s.store.UpdatePassword(ctx, id, string(hash))
+}

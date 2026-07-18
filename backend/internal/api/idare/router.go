@@ -24,6 +24,7 @@ type Deps struct {
 // Register admin rotalarını bağlar. /login hariç hepsi JWT korumalı.
 func Register(router fiber.Router, d Deps) {
 	ah := &authHandler{svc: d.AuthSvc, secureCookie: d.SecureCookie}
+	uh := &userHandler{svc: d.AuthSvc}
 	ch := &categoryHandler{svc: d.CatSvc, imgSvc: d.ImgSvc}
 	ph := &productHandler{svc: d.ProdSvc, imgSvc: d.ImgSvc}
 	ih := &imageHandler{svc: d.ImgSvc, prodSvc: d.ProdSvc}
@@ -36,6 +37,11 @@ func Register(router fiber.Router, d Deps) {
 
 	protected.Post("/logout", ah.logout)
 	protected.Get("/me", ah.me)
+
+	protected.Get("/users", uh.list)
+	protected.Post("/users", uh.create)
+	protected.Delete("/users/:id", uh.delete)
+	protected.Patch("/users/:id/password", uh.resetPassword)
 
 	protected.Get("/products", ph.list)
 	protected.Post("/products", ph.create)
