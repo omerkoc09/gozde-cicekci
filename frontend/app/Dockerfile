@@ -24,6 +24,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Nuxt .output/ üretir — Nitro sunucusu + istemci varlıkları
+# NODE_OPTIONS: küçük VPS'lerde (ör. 2GB RAM) V8'in varsayılan heap limiti
+# build'i "JavaScript heap out of memory" ile düşürüyor — swap varsa bile.
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN pnpm build
 
 # ---- çalışma ----
