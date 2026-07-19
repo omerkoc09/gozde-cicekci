@@ -1,6 +1,6 @@
 # Proje Durumu
 
-Son güncelleme: 2026-07-18
+Son güncelleme: 2026-07-19
 
 ## Nerede kaldık
 
@@ -16,12 +16,50 @@ Son güncelleme: 2026-07-18
 | Deployment altyapısı (Faz A) | ✅ **Hazır** — Docker Compose + Caddy, lokalde prod moduyla test edildi |
 | Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
 | Deployment (Faz B — VPS) | ✅ **CANLI** (2026-07-18) — https://gozdetasarimcicekcilik.com, Hetzner CPX12 |
+| Faz 3 — Ödeme (PayTR) | 🟡 **Kodlandı + mock E2E doğrulandı** (2026-07-19) — 10 task, 306 backend testi; gerçek PayTR sandbox testi (Task 12) ve ETBİS bekliyor |
 
-Branch: `main` (deploy edilen), geliştirme `feat/backend-temeli`'de başlamıştı
+Branch: `main` (deploy edilen). Faz 3 geliştirmesi `odeme-sistemi` branch'inde.
 
-Faz 3 (ödeme entegrasyonu/ETBİS) ve Faz 4 (raporlama, SEO, kampanya) bilinçli
-olarak ertelendi — site üzerinden doğrudan satış/ödeme yok (WhatsApp'a
-yönlendirme), bu yüzden ETBİS kaydı gerekmiyor. `docs/PROJECT_BRIEF.md` §Sonraki
+## Faz 3 — Ödeme Entegrasyonu (PayTR), 2026-07-19
+
+Spec: `docs/superpowers/specs/2026-07-19-faz3-odeme-entegrasyonu-design.md`
+Plan: `docs/superpowers/plans/2026-07-19-faz3-odeme-entegrasyonu.md`
+
+**Kararlar:** PayTR iFrame API, direkt çekim + iade (provizyon değil), önce
+sipariş kaydet (`awaiting_payment`) → sonra öde, tek adım onay (ödendi=onaylı),
+panelden tek tıkla PayTR iadesi, ödenmemiş sipariş esnafa görünmez, bildirim yok
+(PayTR maili yeter). Anahtarlar gelene kadar `MockProvider` ile geliştirildi.
+
+**Statü seti değişti:** `awaiting_payment` → `paid` → `delivered`, `refunded`.
+Eski `pending`/`confirmed`/`cancelled` kaldırıldı (canlıda gerçek sipariş yoktu).
+
+**Mock ile uçtan uca doğrulandı (2026-07-19):** sipariş oluştur→`awaiting_payment`
++`payment_ref` ✅, callback success→`paid`+`paid_at`+`callback_ok` izi ✅,
+idempotency (aynı callback iki kez→ikisi de `OK`, tek `callback_ok`) ✅, admin
+listesi `awaiting_payment` gizliyor ✅, iade→`refunded`+`refunded_at`+`refund` izi ✅.
+
+**E2E'de bulunup düzeltilen KRİTİK bug (BUG B):** `payment_events.raw_payload`
+JSONB; handler callback denetim izine PayTR'nin **form-encoded** ham gövdesini
+(`c.Body()`) yazıyordu → geçerli JSON olmadığı için JSONB reddediyor, hata
+`AddPaymentEvent`'te (`_ =`) yutuluyor → `callback_ok` hiç yazılmıyor →
+idempotency `HasPaymentEvent`'e dayandığı için ikinci callback'te bozuluyor,
+handler PayTR'ye `FAIL` dönüyordu (sonsuz retry). Fix: parse edilmiş
+`CallbackInput` JSON'a marshal edilip yazılıyor; yazım hataları artık loglanıyor.
+Regresyon testi eklendi (`fix(payment)` commit'i). **Ders: unit testler payload
+olarak geçerli JSON geçiriyordu; gerçek form-encoded yolu test edilmemişti.**
+
+**Bilinen kırılganlık (BUG A, prod'u BUGÜN etkilemiyor):** `order_no` günlük
+öneki Go `time.Now()` (Go TZ) ile, günlük sayaç `Postgres CURRENT_DATE` (Postgres
+TZ) ile üretiliyor. İki TZ ayrışırsa (ör. UTC Postgres) `order_no` çakışıp sipariş
+oluşturma 500 verir. Prod'da compose her iki servise de `TZ=Europe/Istanbul`
+verdiği için tutarlı. Faz 2 kodu; Faz 3 doğrulaması (lokal UTC Postgres) ortaya
+çıkardı. Sayaç ve önek aynı TZ kaynağından beslenmeli — ayrı iş olarak ele alınacak.
+
+**Sırada (Faz 3 kapanışı):** (1) whole-branch review, (2) gerçek PayTR sandbox
+anahtarlarıyla uçtan uca test — Task 12 (callback localhost'a ulaşmaz, tünel/deploy
+gerekir), (3) ETBİS kaydı (kullanıcının işi, canlıya almadan önce zorunlu).
+
+Faz 4 (raporlama, SEO, kampanya) ertelendi. `docs/PROJECT_BRIEF.md` §Sonraki
 Fazlar'a bakınız.
 
 ## Canlı ortam (2026-07-18)
