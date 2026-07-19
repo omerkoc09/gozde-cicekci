@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -65,7 +66,17 @@ func (h *orderHandler) paymentCallback(c *fiber.Ctx) error {
 		TotalAmount: c.FormValue("total_amount"),
 		Hash:        c.FormValue("hash"),
 	}
-	raw := c.Body() // ham gövde denetim izi için
+	// raw_payload JSONB kolonu — PayTR'nin gönderdiği ham gövde form-encoded
+	// (merchant_oid=...&status=...), GEÇERLİ JSON DEĞİL. Ham gövdeyi doğrudan
+	// geçmek JSONB insert'ini "invalid input syntax for type json" ile
+	// reddeder; bu hata AddPaymentEvent'te yutulduğu için callback_ok hiç
+	// yazılmaz ve idempotency kontrolü (HasPaymentEvent) bozulur. Bunun yerine
+	// parse edilmiş alanları JSON'a çevirip yapılandırılmış + geçerli bir
+	// denetim izi payload'ı üretiyoruz.
+	raw, err := json.Marshal(in)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString("FAIL")
+	}
 
 	accepted, err := h.svc.ApplyCallback(c.Context(), in, raw)
 	if err != nil || !accepted {

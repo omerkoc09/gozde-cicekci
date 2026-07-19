@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
@@ -68,9 +69,11 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 // newCallbackTestOrder callback testleri için MockProvider ile gerçek bir
 // sipariş oluşturur ve PayTR'nin bildirimde göndereceği merchant_oid
 // (Order.PaymentRef — order_no'dan TÜRETİLİR, aynısı DEĞİL) döner.
-func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, merchantOID string) {
+// pool ayrıca dönülür — testler payment_events tablosunu doğrudan
+// sorgulayıp denetim izini (idempotency'nin dayandığı temel) kontrol edebilsin.
+func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, merchantOID string, orderID int64, pool *pgxpool.Pool) {
 	t.Helper()
-	pool := database.NewTestDB(t)
+	pool = database.NewTestDB(t)
 
 	var productID int64
 	err := pool.QueryRow(context.Background(),
@@ -97,11 +100,11 @@ func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, m
 	o, _, err := svc.Create(context.Background(), in, "127.0.0.1")
 	require.NoError(t, err)
 
-	return svc, oh, o.PaymentRef
+	return svc, oh, o.PaymentRef, o.ID, pool
 }
 
 func TestPaymentCallback_BasariliOKDoner(t *testing.T) {
-	_, oh, merchantOID := newCallbackTestOrder(t)
+	_, oh, merchantOID, _, _ := newCallbackTestOrder(t)
 
 	f := fiber.New()
 	f.Post("/payment/callback", oh.paymentCallback)
@@ -121,8 +124,75 @@ func TestPaymentCallback_BasariliOKDoner(t *testing.T) {
 	assert.Equal(t, "OK", string(bodyBytes))
 }
 
+// TestPaymentCallback_IkinciCallbackIdempotentOKDoner PayTR'nin aynı
+// başarılı bildirimi TEKRAR gönderdiği (retry/ağ hatası) senaryoyu test
+// eder. Kök neden: handler denetim izi payload'ı olarak form-encoded ham
+// gövdeyi (c.Body()) geçiyordu — payment_events.raw_payload JSONB olduğu
+// için bu INSERT veritabanı hatasıyla reddediliyor, hata AddPaymentEvent'te
+// yutuluyor, callback_ok HİÇ yazılmıyordu. İkinci callback'te idempotency
+// kontrolü (HasPaymentEvent callback_ok) yanlışlıkla false dönüyor,
+// SetPaid tekrar çağrılıyor ama sipariş zaten paid olduğu için
+// WHERE status='awaiting_payment' 0 satır etkiliyor → ErrNotFound →
+// handler PayTR'ye "FAIL" dönüyordu (olması gereken: idempotent "OK").
+//
+// Bu test gerçek handler'ı form-encoded gövdeyle İKİ KEZ çağırır (mock
+// veya sahte payload değil — gerçek Postgres test DB + gerçek JSONB
+// kısıtı) ve hem ikinci yanıtın OK olduğunu hem de payment_events'te
+// TEK callback_ok kaydı olduğunu doğrular.
+func TestPaymentCallback_IkinciCallbackIdempotentOKDoner(t *testing.T) {
+	svc, oh, merchantOID, orderID, pool := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	form := fmt.Sprintf("merchant_oid=%s&status=success&total_amount=190000&hash=irrelevant-for-mock",
+		merchantOID)
+
+	// Birinci callback (PayTR'nin ilk bildirimi)
+	req1 := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req1.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp1, err := f.Test(req1)
+	require.NoError(t, err)
+	body1, err := io.ReadAll(resp1.Body)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp1.StatusCode, "birinci callback OK dönmeli")
+	require.Equal(t, "OK", string(body1))
+
+	// İkinci callback — PayTR aynı bildirimi tekrar gönderiyor (retry).
+	// Idempotent olmalı: sipariş zaten paid, yine de "OK" dönmeli.
+	req2 := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp2, err := f.Test(req2)
+	require.NoError(t, err)
+	body2, err := io.ReadAll(resp2.Body)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp2.StatusCode, "ikinci (retry) callback da OK dönmeli — idempotency")
+	assert.Equal(t, "OK", string(body2))
+
+	// payment_events'te TEK callback_ok kaydı olmalı (idempotency kontrolünün
+	// çalışabilmesi için ÖNCE callback_ok'un başarıyla yazılmış olması gerekir).
+	o, err := svc.Get(context.Background(), orderID)
+	require.NoError(t, err)
+	assert.Equal(t, "paid", string(o.Status))
+
+	var count int
+	err = pool.QueryRow(context.Background(),
+		`SELECT COUNT(*) FROM payment_events WHERE order_id=$1 AND event_type='callback_ok'`,
+		orderID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "callback_ok tam olarak bir kez yazılmalı (JSONB'ye geçerli JSON insert edilebilmeli)")
+
+	// raw_payload gerçekten JSONB'ye uygun geçerli JSON olarak yazılmış mı.
+	var rawPayload []byte
+	err = pool.QueryRow(context.Background(),
+		`SELECT raw_payload FROM payment_events WHERE order_id=$1 AND event_type='callback_ok'`,
+		orderID).Scan(&rawPayload)
+	require.NoError(t, err)
+	assert.True(t, json.Valid(rawPayload), "raw_payload geçerli JSON olmalı (JSONB kolonu)")
+}
+
 func TestPaymentCallback_GecersizFAILDoner(t *testing.T) {
-	_, oh, _ := newCallbackTestOrder(t)
+	_, oh, _, _, _ := newCallbackTestOrder(t)
 
 	f := fiber.New()
 	f.Post("/payment/callback", oh.paymentCallback)

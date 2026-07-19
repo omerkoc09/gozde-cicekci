@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"fmt"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -276,7 +277,9 @@ func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, r
 	}
 
 	if !res.OK {
-		_ = s.store.AddPaymentEvent(ctx, o.ID, "callback_fail", rawPayload)
+		if err := s.store.AddPaymentEvent(ctx, o.ID, "callback_fail", rawPayload); err != nil {
+			log.Printf("denetim izi yazılamadı (order=%d, event=callback_fail): %v", o.ID, err)
+		}
 		return true, nil
 	}
 
@@ -292,7 +295,15 @@ func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, r
 	if _, err := s.store.SetPaid(ctx, o.ID); err != nil {
 		return false, err
 	}
-	_ = s.store.AddPaymentEvent(ctx, o.ID, "callback_ok", rawPayload)
+	// callback_ok yazımı idempotency'nin TEMELİ — yazılamazsa bir sonraki
+	// callback'te HasPaymentEvent yanlışlıkla false döner ve SetPaid tekrar
+	// çağrılır (sipariş zaten paid olduğu için ErrNotFound ile başarısız
+	// olur → PayTR'ye yanlışlıkla FAIL dönülür). SetPaid burada zaten
+	// başarıyla tamamlandığı için hatayı döndürmüyoruz (para hareketi
+	// gerçek, geri alınamaz) ama görünür olsun diye logluyoruz.
+	if err := s.store.AddPaymentEvent(ctx, o.ID, "callback_ok", rawPayload); err != nil {
+		log.Printf("KRİTİK: callback_ok denetim izi yazılamadı, idempotency riskte (order=%d): %v", o.ID, err)
+	}
 	return true, nil
 }
 
