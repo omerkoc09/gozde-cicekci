@@ -267,7 +267,11 @@ func (s *Service) pastCutoff(now time.Time) bool {
 //     ödemede de PayTR geçerli callback gönderir ve OK bekler. Para hareketi yok,
 //     sipariş awaiting_payment kalır. OK dönmezsek PayTR aynı failed'i döngüde
 //     tekrar gönderir.
-//   - res.OK=true → idempotent şekilde paid yap, accepted=true.
+//   - res.OK=true ama zaten callback_ok işlenmişse → idempotent no-op, accepted=true.
+//   - res.OK=true, ilk işleniş, ama TotalAmount sipariş tutarıyla uyuşmuyorsa →
+//     callback_fail izi bırak, paid YAPMA, accepted=true (callback meşru, OK
+//     dönülmezse PayTR retry döngüsüne girer; sadece para hareketi durdurulur).
+//   - res.OK=true ve tutar eşleşiyorsa → paid yap, accepted=true.
 func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, rawPayload []byte) (bool, error) {
 	res := s.pay.VerifyCallback(in)
 
@@ -290,6 +294,23 @@ func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, r
 	}
 	if already {
 		return true, nil // no-op, ama OK dön
+	}
+
+	// Tutar doğrulaması: hash geçerli olması callback'in PayTR'den geldiğini
+	// kanıtlar ama bildirilen tutarın sipariş tutarıyla eşleştiğini garanti
+	// etmez (kısmi ödeme, PayTR tarafı hata vb). Sipariş bir finansal kayıt —
+	// farklı tutarla sessizce paid yapılamaz.
+	expectedKurus := payment.KurusFromDecimal(o.Total)
+	gotKurus, parseErr := strconv.ParseInt(in.TotalAmount, 10, 64)
+	if parseErr != nil || gotKurus != expectedKurus {
+		log.Printf("KRİTİK: callback tutarı sipariş tutarıyla uyuşmuyor (order=%d, callback=%s, beklenen=%d)",
+			o.ID, in.TotalAmount, expectedKurus)
+		if err := s.store.AddPaymentEvent(ctx, o.ID, "callback_fail", rawPayload); err != nil {
+			log.Printf("denetim izi yazılamadı (order=%d, event=callback_fail): %v", o.ID, err)
+		}
+		// Callback meşru (hash geçerli) — PayTR'ye OK dön, aksi halde sonsuz
+		// retry döngüsüne girer. Sadece sipariş paid yapılmıyor.
+		return true, nil
 	}
 
 	if _, err := s.store.SetPaid(ctx, o.ID); err != nil {

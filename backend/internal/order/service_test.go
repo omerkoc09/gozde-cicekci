@@ -299,6 +299,41 @@ func TestService_ApplyCallback_HashGecersizPaidYapmaz(t *testing.T) {
 	assert.Nil(t, got.PaidAt)
 }
 
+// Callback'teki tutar sipariş tutarıyla uyuşmuyorsa (ör. kısmi ödeme, PayTR
+// hatası) hash geçerli olsa bile sipariş paid yapılmaz — para bir finansal
+// kayıttır, sessizce farklı tutarla kapatılamaz.
+func TestService_ApplyCallback_TutarUyusmazsaPaidYapmaz(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, _, productID := setupServiceWithPay(t, pay)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1")
+	require.NoError(t, err)
+	require.Equal(t, "3750", o.Total.String())
+
+	accepted, err := svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef,
+		Status:      "success",
+		TotalAmount: "1", // sipariş 375000 kuruş iken yanlış tutar
+		Hash:        "gecerli-hash",
+	}, []byte(`{"status":"success"}`))
+	require.NoError(t, err)
+	// hash geçerli/meşru callback → PayTR'ye OK dönülür (retry döngüsüne girmesin)
+	assert.True(t, accepted)
+
+	got, err := svc.Get(context.Background(), o.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusAwaitingPayment, got.Status)
+	assert.Nil(t, got.PaidAt)
+
+	hasFail, err := svc.store.HasPaymentEvent(context.Background(), o.ID, "callback_fail")
+	require.NoError(t, err)
+	assert.True(t, hasFail, "tutar uyuşmazlığı callback_fail izi bırakmalı")
+
+	hasOK, err := svc.store.HasPaymentEvent(context.Background(), o.ID, "callback_ok")
+	require.NoError(t, err)
+	assert.False(t, hasOK, "tutar uyuşmazsa callback_ok yazılmamalı")
+}
+
 // Var olmayan merchant_oid → GetByPaymentRef ErrNotFound, accepted=false.
 func TestService_ApplyCallback_BilinmeyenOidReddedilir(t *testing.T) {
 	pay := &fakePay{callbackOK: true}
