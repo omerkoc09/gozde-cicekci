@@ -47,11 +47,10 @@ type Config struct {
 	DeliveryFees map[string]string
 
 	// PayTR ödeme (Faz 3). Anahtarlar boşsa mock provider kullanılır.
-	PayTRMerchantID    string
-	PayTRMerchantKey   string
-	PayTRMerchantSalt  string
-	PayTRTestMode      bool
-	PaymentCallbackURL string
+	PayTRMerchantID   string
+	PayTRMerchantKey  string
+	PayTRMerchantSalt string
+	PayTRTestMode     bool
 }
 
 // envSearchDepth yukarı doğru kaç dizin taranacak. 4 fazlasıyla yeterli:
@@ -252,10 +251,6 @@ func loadPayment(cfg *Config) {
 	cfg.PayTRMerchantKey = os.Getenv("PAYTR_MERCHANT_KEY")
 	cfg.PayTRMerchantSalt = os.Getenv("PAYTR_MERCHANT_SALT")
 	cfg.PayTRTestMode = os.Getenv("PAYTR_TEST_MODE") != "0" // varsayılan test modu açık
-	cfg.PaymentCallbackURL = os.Getenv("PAYMENT_CALLBACK_URL")
-	if cfg.PaymentCallbackURL == "" {
-		cfg.PaymentCallbackURL = cfg.SiteURL + "/api/payment/callback"
-	}
 }
 
 // PayTRConfigured gerçek PayTR anahtarları var mı. false ise main.go mock

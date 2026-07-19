@@ -334,6 +334,53 @@ func TestService_ApplyCallback_TutarUyusmazsaPaidYapmaz(t *testing.T) {
 	assert.False(t, hasOK, "tutar uyuşmazsa callback_ok yazılmamalı")
 }
 
+// Kalıcı kilitlenme olmadığını kanıtlar: yanlış tutarlı callback siparişi
+// awaiting_payment'ta bırakır (yukarıdaki test), ama aynı merchant_oid ile
+// SONRA gelen doğru tutarlı bir callback siparişi yine de paid yapabilmeli.
+func TestService_ApplyCallback_YanlisTutarSonraDogruTutarPaidYapar(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, _, productID := setupServiceWithPay(t, pay)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1")
+	require.NoError(t, err)
+	require.Equal(t, "3750", o.Total.String())
+
+	// 1. Yanlış tutarlı callback — sipariş awaiting_payment'ta kalmalı.
+	accepted, err := svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef,
+		Status:      "success",
+		TotalAmount: "1", // sipariş 375000 kuruş iken yanlış tutar
+		Hash:        "gecerli-hash",
+	}, []byte(`{"status":"success","attempt":"1"}`))
+	require.NoError(t, err)
+	assert.True(t, accepted)
+
+	got, err := svc.Get(context.Background(), o.ID)
+	require.NoError(t, err)
+	require.Equal(t, StatusAwaitingPayment, got.Status)
+	require.Nil(t, got.PaidAt)
+
+	// 2. Aynı merchant_oid ile SONRA gelen doğru tutarlı callback — sipariş
+	// paid olmalı. Önceki callback_fail izi bunu kilitlememeli.
+	accepted, err = svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef,
+		Status:      "success",
+		TotalAmount: "375000", // doğru tutar
+		Hash:        "gecerli-hash",
+	}, []byte(`{"status":"success","attempt":"2"}`))
+	require.NoError(t, err)
+	assert.True(t, accepted)
+
+	got, err = svc.Get(context.Background(), o.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusPaid, got.Status, "doğru tutarlı ikinci callback siparişi paid yapmalı")
+	assert.NotNil(t, got.PaidAt)
+
+	hasOK, err := svc.store.HasPaymentEvent(context.Background(), o.ID, "callback_ok")
+	require.NoError(t, err)
+	assert.True(t, hasOK, "doğru tutarlı callback callback_ok izi bırakmalı")
+}
+
 // Var olmayan merchant_oid → GetByPaymentRef ErrNotFound, accepted=false.
 func TestService_ApplyCallback_BilinmeyenOidReddedilir(t *testing.T) {
 	pay := &fakePay{callbackOK: true}

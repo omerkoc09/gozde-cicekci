@@ -303,7 +303,6 @@ func TestLoad_PayTRDefaultsUnconfigured(t *testing.T) {
 
 	assert.False(t, cfg.PayTRConfigured())
 	assert.True(t, cfg.PayTRTestMode, "PAYTR_TEST_MODE ayarlanmamışsa varsayılan test modu açık olmalı")
-	assert.Equal(t, cfg.SiteURL+"/api/payment/callback", cfg.PaymentCallbackURL)
 }
 
 // Üçü de doluysa PayTRConfigured true döner — main.go gerçek PayTR provider'ı seçer.
@@ -333,16 +332,4 @@ func TestLoad_PayTRUnconfiguredWhenPartiallySet(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, cfg.PayTRConfigured())
-}
-
-// PAYMENT_CALLBACK_URL açıkça verilmişse SiteURL'den türetilen varsayılanı
-// geçersiz kılmalı — PayTR panelindeki bildirim URL'i özelleştirilebilmeli.
-func TestLoad_PaymentCallbackURLOverride(t *testing.T) {
-	setBaseEnv(t)
-	t.Setenv("PAYMENT_CALLBACK_URL", "https://example.com/ozel/geri-bildirim")
-
-	cfg, err := Load()
-	require.NoError(t, err)
-
-	assert.Equal(t, "https://example.com/ozel/geri-bildirim", cfg.PaymentCallbackURL)
 }

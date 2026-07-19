@@ -213,6 +213,7 @@ const tarihSaat = (d: string | null) => {
             <VBtn
               v-if="order.status === 'paid'"
               :loading="saving"
+              :disabled="saving"
               color="success"
               @click="setStatus('delivered')"
             >
@@ -221,6 +222,7 @@ const tarihSaat = (d: string | null) => {
             <VBtn
               v-if="order.status === 'paid' || order.status === 'delivered'"
               :loading="saving"
+              :disabled="saving"
               color="error"
               variant="outlined"
               @click="iadeEt"
@@ -242,6 +244,7 @@ const tarihSaat = (d: string | null) => {
             />
             <VBtn
               :loading="saving"
+              :disabled="saving"
               class="mt-2"
               @click="saveNote"
             >

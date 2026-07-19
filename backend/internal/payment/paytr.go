@@ -32,6 +32,12 @@ type PayTRConfig struct {
 type PayTRProvider struct {
 	cfg    PayTRConfig
 	client *http.Client
+
+	// tokenURL/refundURL normalde sabit PayTR uç noktaları. Alan olarak
+	// tutulmalarının tek sebebi test edilebilirlik — testte httptest.Server
+	// adresine yönlendirilirler. NewPayTR dışında değiştirilmemeli.
+	tokenURL  string
+	refundURL string
 }
 
 func NewPayTR(cfg PayTRConfig) *PayTRProvider {
@@ -39,7 +45,7 @@ func NewPayTR(cfg PayTRConfig) *PayTRProvider {
 	if c == nil {
 		c = &http.Client{Timeout: 20 * time.Second}
 	}
-	return &PayTRProvider{cfg: cfg, client: c}
+	return &PayTRProvider{cfg: cfg, client: c, tokenURL: tokenURL, refundURL: refundURL}
 }
 
 // KurusFromDecimal tutarı kuruşa çevirir (× 100, tam sayı). PayTR kuruş bekler.
@@ -100,7 +106,7 @@ func (p *PayTRProvider) Start(ctx context.Context, in StartInput) (StartResult, 
 		"merchant_fail_url": {in.FailURL},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return StartResult{}, err
 	}
@@ -151,7 +157,7 @@ func (p *PayTRProvider) Refund(ctx context.Context, in RefundInput) error {
 		"paytr_token":   {token},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, refundURL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.refundURL, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
 	}
