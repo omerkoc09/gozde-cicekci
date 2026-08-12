@@ -104,6 +104,9 @@ func (p *PayTRProvider) Start(ctx context.Context, in StartInput) (StartResult, 
 		"test_mode":         {p.testModeStr()},
 		"merchant_ok_url":   {in.OkURL},
 		"merchant_fail_url": {in.FailURL},
+		"user_name":         {in.UserName},
+		"user_address":      {in.UserAddress},
+		"user_phone":        {in.UserPhone},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.tokenURL, strings.NewReader(form.Encode()))

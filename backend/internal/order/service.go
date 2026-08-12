@@ -172,6 +172,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string) (*O
 		Basket:      basket,
 		OkURL:       s.okURL,
 		FailURL:     s.failURL,
+		// PayTR user_* alanlarını zorunlu tutuyor. Ödeyen (buyer) bilgileri
+		// kullanılır — çiçekte alıcı farklı olabilir ama ödemeyi buyer yapar.
+		UserName:    in.BuyerName,
+		UserAddress: in.DeliveryAddress,
+		UserPhone:   in.BuyerPhone,
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("ödeme başlatılamadı: %w", err)

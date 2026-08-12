@@ -18,6 +18,13 @@ type StartInput struct {
 	Basket      []BasketItem
 	OkURL       string
 	FailURL     string
+
+	// PayTR canlı sunucusu user_name/user_address/user_phone alanlarını
+	// zorunlu tutuyor (doküman "opsiyonel" dese de get-token bunlarsız
+	// "Zorunlu alan degeri gecersiz veya gonderilmedi" hatası veriyor).
+	UserName    string
+	UserAddress string
+	UserPhone   string
 }
 
 type StartResult struct {
