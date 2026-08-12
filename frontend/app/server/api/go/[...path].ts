@@ -29,8 +29,18 @@ export default defineEventHandler(async event => {
 
   const query = getQuery(event)
 
+  // Gelen isteğin method'unu ve (varsa) body'sini backend'e ilet. Bu olmadan
+  // $fetch her isteği GET olarak gönderirdi: sipariş oluşturma (POST /orders)
+  // backend'e GET olarak ulaşıp 405 alır, ödeme akışı hiç başlamazdı.
+  const method = event.method
+
+  // GET/HEAD dışındaki metodlarda body oku (POST sipariş gövdesi vb.).
+  let body: unknown
+  if (method !== 'GET' && method !== 'HEAD')
+    body = await readBody(event)
+
   try {
-    return await $fetch(`${cfg.goApiBase}/${path}`, { query })
+    return await $fetch(`${cfg.goApiBase}/${path}`, { query, method, body })
   }
   catch (err: unknown) {
     const e = err as { status?: number, statusCode?: number, data?: unknown, message?: string }
