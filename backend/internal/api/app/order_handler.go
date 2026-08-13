@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/api"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/pkg/errorsx"
@@ -15,8 +16,9 @@ import (
 var errInvalidDate = fmt.Errorf("%w: geçersiz teslimat tarihi", errorsx.ErrInvalidInput)
 
 type orderHandler struct {
-	svc *order.Service
-	cfg order.DeliveryConfig
+	svc       *order.Service
+	cfg       order.DeliveryConfig
+	jwtSecret string
 }
 
 func (h *orderHandler) create(c *fiber.Ctx) error {
@@ -49,7 +51,15 @@ func (h *orderHandler) create(c *fiber.Ctx) error {
 		})
 	}
 
-	o, token, err := h.svc.Create(c.Context(), in, c.IP())
+	// Giriş yapmış müşteri varsa siparişi ona bağla (opsiyonel — yoksa misafir).
+	var customerID *int64
+	if tok := c.Cookies(customer.CookieName); tok != "" {
+		if claims, err := customer.ParseToken(tok, h.jwtSecret); err == nil {
+			customerID = &claims.CustomerID
+		}
+	}
+
+	o, token, err := h.svc.Create(c.Context(), in, c.IP(), customerID)
 	if err != nil {
 		return api.WriteError(c, err)
 	}

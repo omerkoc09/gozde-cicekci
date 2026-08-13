@@ -97,7 +97,7 @@ func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, m
 		DeliveryDate: time.Now().AddDate(0, 0, 2), DeliverySlot: "12:00-15:00",
 		Items: []order.CreateItem{{ProductID: productID, Quantity: 1}},
 	}
-	o, _, err := svc.Create(context.Background(), in, "127.0.0.1")
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
 	require.NoError(t, err)
 
 	return svc, oh, o.PaymentRef, o.ID, pool

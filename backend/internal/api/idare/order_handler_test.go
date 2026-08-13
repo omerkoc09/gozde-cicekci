@@ -79,7 +79,7 @@ func newTestPaidOrder(t *testing.T, svc *order.Service, productID int64) *order.
 		DeliveryDate:     time.Now().AddDate(0, 0, 2),
 		DeliverySlot:     "12:00-15:00",
 	}
-	o, _, err := svc.Create(context.Background(), in, "127.0.0.1")
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
 	require.NoError(t, err)
 
 	_, err = svc.ApplyCallback(context.Background(), payment.CallbackInput{
