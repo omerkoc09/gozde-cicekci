@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/pkg/errorsx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,4 +57,22 @@ func TestParseToken_Expired(t *testing.T) {
 
 	require.ErrorIs(t, err, errorsx.ErrUnauthorized,
 		"süresi dolmuş token kabul edilmemeli")
+}
+
+// TestParseToken_CustomerTokenReddedilir GÜVENLİK testi: invariant #1'in ters
+// yönü. Admin token'ının customer uçlarına erişemediği zaten kanıtlıydı
+// (customer.ParseToken Type != "customer" kontrolü); bu test simetriği
+// kanıtlıyor — bir customer_token (typ:"customer") cicekci_token cookie'sine
+// konsa bile auth.ParseToken (admin) onu reddetmeli. İki token türü de AYNI
+// secret ile imzalandığı için bu ayrım yalnızca typ claim'ine dayanıyor;
+// claim alan adlarının tesadüfen çakışmamasına güvenmek yerine artık
+// yapısal bir kontrol var.
+func TestParseToken_CustomerTokenReddedilir(t *testing.T) {
+	custToken, err := customer.GenerateToken(1, testSecret)
+	require.NoError(t, err)
+
+	_, err = ParseToken(custToken, testSecret)
+
+	require.ErrorIs(t, err, errorsx.ErrUnauthorized,
+		"customer token admin ParseToken tarafından reddedilmeli")
 }
