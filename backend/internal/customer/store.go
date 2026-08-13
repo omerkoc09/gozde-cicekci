@@ -26,9 +26,9 @@ func (s *Store) Create(ctx context.Context, email, passwordHash, name, phone str
 	err := s.pool.QueryRow(ctx,
 		`INSERT INTO customers (email, password_hash, name, phone)
 		 VALUES ($1,$2,$3,$4)
-		 RETURNING id, email, name, phone, password_hash`,
+		 RETURNING id, email, name, phone, password_hash, created_at, updated_at`,
 		email, passwordHash, name, phone,
-	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash)
+	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash, &cst.CreatedAt, &cst.UpdatedAt)
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -43,9 +43,9 @@ func (s *Store) Create(ctx context.Context, email, passwordHash, name, phone str
 func (s *Store) FindByEmail(ctx context.Context, email string) (*Customer, error) {
 	var cst Customer
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, name, phone, password_hash FROM customers WHERE email = $1`,
+		`SELECT id, email, name, phone, password_hash, created_at, updated_at FROM customers WHERE email = $1`,
 		email,
-	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash)
+	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash, &cst.CreatedAt, &cst.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errorsx.ErrNotFound
 	}
@@ -58,9 +58,9 @@ func (s *Store) FindByEmail(ctx context.Context, email string) (*Customer, error
 func (s *Store) GetByID(ctx context.Context, id int64) (*Customer, error) {
 	var cst Customer
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, name, phone, password_hash FROM customers WHERE id = $1`,
+		`SELECT id, email, name, phone, password_hash, created_at, updated_at FROM customers WHERE id = $1`,
 		id,
-	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash)
+	).Scan(&cst.ID, &cst.Email, &cst.Name, &cst.Phone, &cst.PasswordHash, &cst.CreatedAt, &cst.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errorsx.ErrNotFound
 	}

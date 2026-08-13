@@ -27,6 +27,31 @@ func TestStore_Create_FindByEmail(t *testing.T) {
 	require.Equal(t, "Ali", got.Name)
 }
 
+// TestStore_ZamanDamgalari_TumOkumalardaDolu — Create/GetByID/FindByEmail
+// üçü de aynı Customer struct'ını dolduruyor. Biri created_at/updated_at
+// kolonlarını SELECT etmezse alan sessizce sıfır tarih (0001-01-01) kalır ve
+// admin panelinde "Kayıt tarihi" boş görünür. Hata tam olarak böyle çıktı:
+// liste doğruyken detay boştu.
+func TestStore_ZamanDamgalari_TumOkumalardaDolu(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	created, err := s.Create(ctx, "zaman@b.com", "hash", "Zaman", "555")
+	require.NoError(t, err)
+	require.False(t, created.CreatedAt.IsZero(), "Create created_at döndürmeli")
+	require.False(t, created.UpdatedAt.IsZero(), "Create updated_at döndürmeli")
+
+	byID, err := s.GetByID(ctx, created.ID)
+	require.NoError(t, err)
+	require.False(t, byID.CreatedAt.IsZero(), "GetByID created_at döndürmeli")
+	require.False(t, byID.UpdatedAt.IsZero(), "GetByID updated_at döndürmeli")
+
+	byEmail, err := s.FindByEmail(ctx, "zaman@b.com")
+	require.NoError(t, err)
+	require.False(t, byEmail.CreatedAt.IsZero(), "FindByEmail created_at döndürmeli")
+	require.False(t, byEmail.UpdatedAt.IsZero(), "FindByEmail updated_at döndürmeli")
+}
+
 func TestStore_Create_EmailCakismasiConflict(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
