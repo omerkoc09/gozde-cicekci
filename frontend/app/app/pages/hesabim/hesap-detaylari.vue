@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Customer } from '~/types/api'
-import { apiErrorMessage } from '~/composables/useOrders'
+import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
 
 definePageMeta({ layout: 'account' })
 
@@ -69,7 +69,12 @@ async function sifreKaydet() {
     sifreForm.new_password = ''
   }
   catch (e) {
-    sifreHata.value = apiErrorMessage(e)
+    // Şifre değiştirme ucunda 401 = mevcut şifre yanlış (oturum zaten
+    // geçerli, aksi halde sayfa /giris'e yönlenirdi). Sabit "Yetkisiz"
+    // yerine kullanıcıya hangi alanı düzelteceğini söylüyoruz.
+    sifreHata.value = apiErrorStatus(e) === 401
+      ? 'Mevcut şifreniz hatalı.'
+      : apiErrorMessage(e)
   }
   finally {
     sifreKaydediliyor.value = false

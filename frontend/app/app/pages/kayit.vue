@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '~/composables/useOrders'
+import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
 
 useSeoMeta({
   title: 'Kayıt Ol | Gözde Tasarım Çiçekçilik',
@@ -40,7 +40,12 @@ async function gonder() {
     await router.push('/hesabim')
   }
   catch (e) {
-    hata.value = apiErrorMessage(e)
+    // Backend kayıt hatalarında zaten açıklayıcı Türkçe mesaj dönüyor
+    // (şifre kısa, e-posta geçersiz, hesap zaten var...). 409'da mesaj
+    // beklenmedik şekilde boş gelirse kullanıcı ne yapacağını bilsin.
+    hata.value = apiErrorStatus(e) === 409
+      ? 'Bu e-posta ile zaten bir hesap var. Giriş yapmayı deneyin.'
+      : apiErrorMessage(e)
   }
   finally {
     gonderiliyor.value = false

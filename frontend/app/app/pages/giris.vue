@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { apiErrorMessage } from '~/composables/useOrders'
+import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
 
 useSeoMeta({
   title: 'Giriş Yap | Gözde Tasarım Çiçekçilik',
@@ -33,7 +33,14 @@ async function gonder() {
     await router.push('/hesabim')
   }
   catch (e) {
-    hata.value = apiErrorMessage(e)
+    // Giriş ucunda 401 tek bir şey demek: e-posta ya da şifre yanlış.
+    // Backend'in sabit "Yetkisiz" mesajı kullanıcıya ne yapacağını
+    // söylemiyor — burada duruma özel karşılığını veriyoruz. (Hangisinin
+    // yanlış olduğunu SÖYLEMİYORUZ: e-posta kayıtlı mı sızdırmamak için
+    // backend de ikisine aynı hatayı dönüyor.)
+    hata.value = apiErrorStatus(e) === 401
+      ? 'E-posta veya şifre hatalı. Lütfen kontrol edip tekrar deneyin.'
+      : apiErrorMessage(e)
   }
   finally {
     gonderiliyor.value = false
