@@ -129,6 +129,7 @@ func main() {
 		ImgSvc:       imgSvc,
 		SliderSvc:    sliderSvc,
 		OrderSvc:     orderSvc,
+		CustSvc:      custSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})
