@@ -17,9 +17,18 @@ Son güncelleme: 2026-07-19
 | Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
 | Deployment (Faz B — VPS) | ✅ **CANLI** (2026-07-18) — https://gozdetasarimcicekcilik.com, Hetzner CPX12 |
 | Faz 3 — Ödeme (PayTR) | 🟡 **Kodlandı + mock E2E doğrulandı** (2026-07-19) — 10 task, 306 backend testi; gerçek PayTR sandbox testi (Task 12) ve ETBİS bekliyor |
-| Üyelik / müşteri hesabı | 🟡 **Kodlandı + lokal E2E doğrulandı** (2026-08-13) — 11 task; `uyelik` branch'inde, whole-branch review bekliyor |
+| Üyelik / müşteri hesabı | 🟢 **main'e merge edildi** (2026-08-13) — 11 task + review/fix turları; deploy bekliyor |
 
-Branch: `main` (deploy edilen). Faz 3 geliştirmesi `odeme-sistemi`, üyelik `uyelik` branch'inde.
+Branch: `main` (deploy edilen). **2026-08-13:** `uyelik` main'e merge edildi;
+`uyelik` `odeme-sistemi` üstüne kurulduğu için PayTR de aynı merge'le main'e
+geldi (49 commit). Yani main artık HEM üyelik HEM ödeme içeriyor.
+
+> ⚠️ **Deploy öncesi:** Sunucudaki `.env`'de PayTR anahtarları tanımlıysa
+> `git pull origin main` sonrası gerçek PayTR provider devreye girer
+> (`cmd/server/main.go` PayTRConfigured()). Anahtar yoksa mock'a düşer.
+> `PAYTR_TEST_MODE` değerini deploy öncesi kontrol edin.
+> Ayrıca migration 9 (`customers` + `orders.customer_id`) sunucuda
+> uygulanmalı: `migrate -path backend/migrations -database "$DATABASE_URL" up`.
 
 ## Üyelik / Müşteri Hesabı, 2026-08-13
 
