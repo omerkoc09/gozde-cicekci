@@ -23,12 +23,28 @@ Branch: `main` (deploy edilen). **2026-08-13:** `uyelik` main'e merge edildi;
 `uyelik` `odeme-sistemi` üstüne kurulduğu için PayTR de aynı merge'le main'e
 geldi (49 commit). Yani main artık HEM üyelik HEM ödeme içeriyor.
 
-> ⚠️ **Deploy öncesi:** Sunucudaki `.env`'de PayTR anahtarları tanımlıysa
-> `git pull origin main` sonrası gerçek PayTR provider devreye girer
-> (`cmd/server/main.go` PayTRConfigured()). Anahtar yoksa mock'a düşer.
-> `PAYTR_TEST_MODE` değerini deploy öncesi kontrol edin.
-> Ayrıca migration 9 (`customers` + `orders.customer_id`) sunucuda
-> uygulanmalı: `migrate -path backend/migrations -database "$DATABASE_URL" up`.
+### Deploy öncesi kontrol listesi (2026-08-13 kararları)
+
+**1. PayTR TEST MODUNDA kalacak.** Karar: ETBİS kaydı beklediği için canlı
+moda geçilmiyor (PayTR zaten ETBİS'siz canlıya izin vermiyor) ve sitede
+henüz gerçek satış yok.
+
+Sunucudaki `.env`'de `PAYTR_TEST_MODE` **`0` OLMAMALI**. Kod varsayılanı
+güvenli tarafta: `os.Getenv("PAYTR_TEST_MODE") != "0"` — değişken yoksa,
+boşsa veya `1` ise test modu açık. Canlıya geçmek açıkça `=0` yazmayı
+gerektirir.
+
+Doğrulama: deploy sonrası sunucu logunda şu satır görünmeli →
+`ödeme: PayTR provider aktif (test_mode: true )`
+Eğer `test_mode: false` görürseniz DURUN, `.env`'i düzeltin.
+
+> Test modunda müşteri GERÇEKTEN ödeme yapamaz; sipariş `awaiting_payment`
+> statüsünde kalır. Gerçek satışa başlamadan önce ETBİS tamamlanıp
+> `PAYTR_TEST_MODE=0` yapılmalı.
+
+**2. Migration 9 uygulanmalı** (`customers` + `orders.customer_id`), yoksa
+backend müşteri tablosunu bulamaz:
+`migrate -path backend/migrations -database "$DATABASE_URL" up`
 
 ## Üyelik / Müşteri Hesabı, 2026-08-13
 
