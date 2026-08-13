@@ -371,3 +371,50 @@ const customerOrderLimit = 200
 func (s *Store) ListByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
 	return s.listWhere(ctx, "customer_id = $1", []any{customerID}, customerOrderLimit, 0)
 }
+
+// RecentAddress müşterinin daha önce gönderdiği bir teslimat adresi.
+// Adres defteri tablosu YOK — bu veri geçmiş siparişlerden türetiliyor.
+type RecentAddress struct {
+	RecipientName    string `json:"recipient_name"`
+	RecipientPhone   string `json:"recipient_phone"`
+	DeliveryAddress  string `json:"delivery_address"`
+	DeliveryDistrict string `json:"delivery_district"`
+}
+
+// recentAddressLimit sipariş formunda önerilecek en fazla adres sayısı.
+// Uzun liste seçimi kolaylaştırmaz, zorlaştırır.
+const recentAddressLimit = 5
+
+// RecentAddresses müşterinin geçmiş siparişlerinden benzersiz teslimat
+// adreslerini en yeniden eskiye döner.
+//
+// Aynı alıcıya birden çok sipariş verilmişse tek satır döner (DISTINCT ON);
+// hangi sipariş olduğu önemli değil, adresin kendisi öneriliyor. Sıralama
+// için son kullanım tarihi baz alınır — en son gönderilen en üstte.
+func (s *Store) RecentAddresses(ctx context.Context, customerID int64) ([]RecentAddress, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT recipient_name, recipient_phone, delivery_address, delivery_district
+		FROM (
+			SELECT DISTINCT ON (recipient_name, recipient_phone, delivery_address, delivery_district)
+			       recipient_name, recipient_phone, delivery_address, delivery_district, created_at
+			FROM orders
+			WHERE customer_id = $1
+			ORDER BY recipient_name, recipient_phone, delivery_address, delivery_district, created_at DESC
+		) AS benzersiz
+		ORDER BY created_at DESC
+		LIMIT $2`, customerID, recentAddressLimit)
+	if err != nil {
+		return nil, fmt.Errorf("geçmiş adresler: %w", err)
+	}
+	defer rows.Close()
+
+	adresler := []RecentAddress{}
+	for rows.Next() {
+		var a RecentAddress
+		if err := rows.Scan(&a.RecipientName, &a.RecipientPhone, &a.DeliveryAddress, &a.DeliveryDistrict); err != nil {
+			return nil, err
+		}
+		adresler = append(adresler, a)
+	}
+	return adresler, rows.Err()
+}

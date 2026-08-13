@@ -46,4 +46,5 @@ func Register(router fiber.Router, catSvc *category.Service,
 	custProtected.Get("/me", custH.me)
 	custProtected.Patch("/me", custH.updateMe)
 	custProtected.Get("/orders", custH.orders)
+	custProtected.Get("/addresses", custH.addresses)
 }

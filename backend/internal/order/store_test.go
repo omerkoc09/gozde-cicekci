@@ -377,6 +377,88 @@ func createTestOrderWithCustomer(t *testing.T, store *Store, customerID *int64) 
 	return o
 }
 
+// createTestOrderWithAddress belirli bir alıcı/adresle sipariş oluşturur —
+// RecentAddresses testinin adres varyasyonuna ihtiyacı var.
+func createTestOrderWithAddress(t *testing.T, store *Store, customerID *int64, aliciAd, adres string) *Order {
+	t.Helper()
+
+	ctx := context.Background()
+	var productID int64
+	require.NoError(t, store.pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID))
+
+	in := testNewOrder()
+	in.CustomerID = customerID
+	in.RecipientName = aliciAd
+	in.DeliveryAddress = adres
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+	return o
+}
+
+// TestStore_RecentAddresses geçmiş siparişlerden adres önerisi: tekrar eden
+// adres tek kez döner, BAŞKA müşterinin adresi hiç dönmez.
+func TestStore_RecentAddresses(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	var cid1, cid2 int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('adres1@example.com', 'h', 'Bir', '05551112233') RETURNING id`).Scan(&cid1))
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('adres2@example.com', 'h', 'İki', '05554445566') RETURNING id`).Scan(&cid2))
+
+	// cid1: aynı adrese İKİ sipariş + farklı bir adrese bir sipariş.
+	createTestOrderWithAddress(t, store, &cid1, "Annem", "Atatürk Cad. No:1")
+	createTestOrderWithAddress(t, store, &cid1, "Annem", "Atatürk Cad. No:1")
+	createTestOrderWithAddress(t, store, &cid1, "Ofis", "Cumhuriyet Sok. No:5")
+	// cid2: sızmaması gereken adres.
+	createTestOrderWithAddress(t, store, &cid2, "Baskasi", "Gizli Mah. No:9")
+
+	adresler, err := store.RecentAddresses(ctx, cid1)
+	require.NoError(t, err)
+
+	require.Len(t, adresler, 2, "tekrar eden adres tek kez dönmeli")
+	for _, a := range adresler {
+		require.NotEqual(t, "Gizli Mah. No:9", a.DeliveryAddress,
+			"başka müşterinin adresi sızmamalı")
+	}
+
+	// En son kullanılan en üstte (Ofis siparişi son verildi).
+	require.Equal(t, "Ofis", adresler[0].RecipientName)
+}
+
+// TestStore_RecentAddresses_SiparisYokBosDizi nil değil boş dizi dönmeli —
+// JSON'da null yerine [] olsun.
+func TestStore_RecentAddresses_SiparisYokBosDizi(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	var cid int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('bos@example.com', 'h', 'Bos', '05551112233') RETURNING id`).Scan(&cid))
+
+	adresler, err := store.RecentAddresses(ctx, cid)
+	require.NoError(t, err)
+	require.NotNil(t, adresler)
+	require.Empty(t, adresler)
+}
+
 func TestStore_ListByCustomer_YalnizKendiSiparisleri(t *testing.T) {
 	pool := database.NewTestDB(t)
 	defer pool.Close()

@@ -103,3 +103,14 @@ export interface CustomerOrder {
   delivery_date: string
   items: CustomerOrderItem[]
 }
+
+/**
+ * /customer/addresses — geçmiş siparişlerden türetilen teslimat adresleri.
+ * Adres defteri tablosu YOK; bu veri orders'tan geliyor.
+ */
+export interface RecentAddress {
+  recipient_name: string
+  recipient_phone: string
+  delivery_address: string
+  delivery_district: string
+}

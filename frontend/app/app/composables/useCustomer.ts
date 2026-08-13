@@ -1,4 +1,4 @@
-import type { Customer, CustomerOrder } from '~/types/api'
+import type { Customer, CustomerOrder, RecentAddress } from '~/types/api'
 
 /**
  * Müşteri oturumu — spec 2026-08-13 üyelik/müşteri hesabı.
@@ -70,5 +70,19 @@ export function useCustomer() {
     return await $fetch<CustomerOrder[]>(`${apiBase()}/customer/orders`)
   }
 
-  return { register, login, logout, me, updateProfile, myOrders }
+  /**
+   * Geçmiş siparişlerden türetilen teslimat adresleri (adres defteri
+   * tablosu yok). Giriş yoksa boş dizi — sipariş formu misafirde
+   * bozulmamalı.
+   */
+  async function myAddresses(): Promise<RecentAddress[]> {
+    try {
+      return await $fetch<RecentAddress[]>(`${apiBase()}/customer/addresses`)
+    }
+    catch {
+      return []
+    }
+  }
+
+  return { register, login, logout, me, updateProfile, myOrders, myAddresses }
 }

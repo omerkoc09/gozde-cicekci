@@ -163,6 +163,37 @@ func TestCustomer_Orders_YalnizKendisi(t *testing.T) {
 	assert.Equal(t, 1, list[0].Items[0].Quantity)
 }
 
+// TestCustomer_Addresses_AuthGerekli adres kişisel veri — cookie'siz
+// erişilememeli.
+func TestCustomer_Addresses_AuthGerekli(t *testing.T) {
+	app, _, _, _, _, _ := newTestAPIFull(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/customer/addresses", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+}
+
+// TestCustomer_Addresses_SiparisYokBosDizi hiç siparişi olmayan müşteri
+// null değil [] almalı — frontend dizi bekliyor.
+func TestCustomer_Addresses_SiparisYokBosDizi(t *testing.T) {
+	app, _, _, _, custSvc, _ := newTestAPIFull(t)
+
+	token, _, err := custSvc.Register(context.Background(), "adressiz@example.com", "sifre1234", "Ad Soyad", "05551110000")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/customer/addresses", nil)
+	req.AddCookie(&http.Cookie{Name: customer.CookieName, Value: token})
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var adresler []map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&adresler))
+	assert.NotNil(t, adresler)
+	assert.Empty(t, adresler)
+}
+
 // patchMe /customer/me'ye verilen cookie ile PATCH atar, yanıtı döner.
 func patchMe(t *testing.T, app *fiber.App, cookie, body string) *http.Response {
 	t.Helper()

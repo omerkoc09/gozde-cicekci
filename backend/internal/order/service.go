@@ -388,6 +388,12 @@ func (s *Service) ListByCustomer(ctx context.Context, customerID int64) ([]Order
 	return s.store.ListByCustomer(ctx, customerID)
 }
 
+// RecentAddresses müşterinin geçmiş siparişlerinden benzersiz teslimat
+// adreslerini döner — sipariş formunda öneri olarak gösterilir.
+func (s *Service) RecentAddresses(ctx context.Context, customerID int64) ([]RecentAddress, error) {
+	return s.store.RecentAddresses(ctx, customerID)
+}
+
 // Update statü ve/veya not günceller. nil alan değişmez (PATCH semantiği).
 // Elle izin verilen tek geçiş: paid → delivered. Ödeme/iade statüleri
 // (awaiting_payment/paid/refunded) callback ve refund akışıyla set edilir,

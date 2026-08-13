@@ -140,3 +140,21 @@ func (h *customerHandler) orders(c *fiber.Ctx) error {
 	}
 	return c.JSON(toCreateOrderCustomerViews(list))
 }
+
+// addresses GET /api/customer/addresses — müşterinin geçmiş siparişlerinden
+// türetilen teslimat adresleri. Adres defteri tablosu yok; sipariş formunda
+// "daha önce buraya göndermiştiniz" önerisi için kullanılır.
+//
+// Auth korumalı grupta: adres kişisel veri, yalnızca sahibi görebilir
+// (customerID token'dan gelir, istemciden değil).
+func (h *customerHandler) addresses(c *fiber.Ctx) error {
+	id, err := customerIDOf(c)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	adresler, err := h.orderSvc.RecentAddresses(c.Context(), id)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	return c.JSON(adresler)
+}
