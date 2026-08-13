@@ -19,10 +19,21 @@ const emit = defineEmits<{ openCart: [] }>()
 const { count: cartCount } = useCart()
 const { me } = useCustomer()
 
-const girisYapilmis = ref(false)
+// null = henüz bilinmiyor (SSR + hydration öncesi), true/false = biliniyor.
+// Oturum HttpOnly cookie'de olduğu için sunucuda render sırasında bilinmiyor;
+// me() ancak client'ta çalışır.
+//
+// Bilinmezken hedef /hesabim: orası giriş yoksa zaten /giris'e yönlendiriyor,
+// yani girişli kullanıcı doğru yere gider, girişsiz kullanıcı bir adım
+// fazladan atar. Tersi (false varsayımı) girişli kullanıcıyı yanlış sayfaya
+// gönderirdi — daha kötü olan bu.
+const girisYapilmis = ref<boolean | null>(null)
 onMounted(async () => {
   girisYapilmis.value = !!(await me())
 })
+
+const hesapYolu = computed(() => (girisYapilmis.value === false ? '/giris' : '/hesabim'))
+const hesapEtiketi = computed(() => (girisYapilmis.value === false ? 'Giriş Yap' : 'Hesabım'))
 
 const { data: categories } = await useCategoryList()
 
@@ -153,9 +164,9 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         </button>
 
         <NuxtLink
-          :to="girisYapilmis ? '/hesabim' : '/giris'"
+          :to="hesapYolu"
           class="hidden rounded p-2 transition-colors hover:text-secondary sm:block"
-          :aria-label="girisYapilmis ? 'Hesabım' : 'Giriş Yap'"
+          :aria-label="hesapEtiketi"
         >
           <Icon name="material-symbols:person-outline" size="22" />
         </NuxtLink>

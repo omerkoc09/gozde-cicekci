@@ -357,7 +357,17 @@ func (s *Store) HasPaymentEvent(ctx context.Context, orderID int64, eventType st
 	return exists, err
 }
 
+// customerOrderLimit bir müşterinin hesabım ekranında dönülen en fazla
+// sipariş sayısı.
+//
+// Sayfalama BİLİNÇLİ olarak yok: tek şubeli bir çiçekçide tek müşterinin
+// 200'ü aşan siparişi gerçekçi değil ve "hesabım" ekranı bir arşiv değil,
+// son siparişlere bakma yeri. Sınır aşılırsa en eskiler sessizce düşer —
+// müşteri sayısı bu ölçeğe gelirse burası sayfalamaya çevrilmeli
+// (listWhere zaten limit/offset alıyor, değişiklik küçük olur).
+const customerOrderLimit = 200
+
 // ListByCustomer bir müşterinin kendi siparişlerini en yeniden eskiye döner.
 func (s *Store) ListByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
-	return s.listWhere(ctx, "customer_id = $1", []any{customerID}, 200, 0)
+	return s.listWhere(ctx, "customer_id = $1", []any{customerID}, customerOrderLimit, 0)
 }

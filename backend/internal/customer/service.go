@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 
 	"github.com/omerkoc/cicekci/pkg/errorsx"
@@ -18,6 +19,48 @@ const minPasswordLength = 8
 // "Sunucu hatası" olarak yüzeye çıkardı. Burada erkenden yakalayıp 400
 // döndürüyoruz. Bayt uzunluğu — rune değil, bcrypt de bayt üzerinden sayıyor.
 const maxPasswordLength = 72
+
+// Alan uzunluk tavanları. Kolonlar düz TEXT olduğundan sınır konmazsa
+// kimlik doğrulaması gerektirmeyen /customer/register ucuna megabaytlık
+// değerler POST edilip kalıcı yazılabilir (depolama/DoS tavanı — enjeksiyon
+// değil, sorgular parametreli).
+//
+// 254: RFC 5321'in e-posta adresi üst sınırı. 120: ad soyad için fazlasıyla
+// yeterli.
+const (
+	maxEmailLength = 254
+	maxNameLength  = 120
+)
+
+// validateEmail e-postayı doğrular. net/mail.ParseAddress kullanılıyor çünkü
+// eski kontrol (strings.Contains(email,"@") && len>=3) "a@", "@b", "@ " gibi
+// çöpleri kabul ediyordu — yani API, kayıt formundaki type="email"
+// alanının reddettiği değerleri kabul ediyordu ve tarayıcı dışı bir istemci
+// ulaşılamaz hesaplar açabiliyordu.
+func validateEmail(email string) error {
+	if len(email) > maxEmailLength {
+		return fmt.Errorf("%w: e-posta en fazla %d karakter olabilir", errorsx.ErrInvalidInput, maxEmailLength)
+	}
+	addr, err := mail.ParseAddress(email)
+	// ParseAddress "Ad <a@b.com>" biçimini de kabul eder; burada yalnızca
+	// çıplak adres isteniyor, o yüzden ayrıştırılan adres girdiyle birebir
+	// eşleşmeli.
+	if err != nil || addr.Address != email {
+		return fmt.Errorf("%w: geçerli bir e-posta girin", errorsx.ErrInvalidInput)
+	}
+	return nil
+}
+
+// validateName ad soyad alanını doğrular.
+func validateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("%w: ad soyad gerekli", errorsx.ErrInvalidInput)
+	}
+	if len(name) > maxNameLength {
+		return fmt.Errorf("%w: ad soyad en fazla %d karakter olabilir", errorsx.ErrInvalidInput, maxNameLength)
+	}
+	return nil
+}
 
 type Service struct {
 	store     *Store
@@ -34,8 +77,8 @@ func (s *Service) Register(ctx context.Context, email, password, name, phone str
 	name = strings.TrimSpace(name)
 	phone = strings.TrimSpace(phone)
 
-	if !strings.Contains(email, "@") || len(email) < 3 {
-		return "", nil, fmt.Errorf("%w: geçerli bir e-posta girin", errorsx.ErrInvalidInput)
+	if err := validateEmail(email); err != nil {
+		return "", nil, err
 	}
 	if len(password) < minPasswordLength {
 		return "", nil, fmt.Errorf("%w: şifre en az %d karakter olmalı", errorsx.ErrInvalidInput, minPasswordLength)
@@ -43,8 +86,8 @@ func (s *Service) Register(ctx context.Context, email, password, name, phone str
 	if len(password) > maxPasswordLength {
 		return "", nil, fmt.Errorf("%w: şifre en fazla %d karakter olabilir", errorsx.ErrInvalidInput, maxPasswordLength)
 	}
-	if name == "" {
-		return "", nil, fmt.Errorf("%w: ad soyad gerekli", errorsx.ErrInvalidInput)
+	if err := validateName(name); err != nil {
+		return "", nil, err
 	}
 	if phone == "" {
 		return "", nil, fmt.Errorf("%w: telefon gerekli", errorsx.ErrInvalidInput)
@@ -121,8 +164,8 @@ func (s *Service) Count(ctx context.Context, q string) (int, error) {
 func (s *Service) UpdateProfile(ctx context.Context, id int64, name, phone string) (*Customer, error) {
 	name = strings.TrimSpace(name)
 	phone = strings.TrimSpace(phone)
-	if name == "" {
-		return nil, fmt.Errorf("%w: ad soyad gerekli", errorsx.ErrInvalidInput)
+	if err := validateName(name); err != nil {
+		return nil, err
 	}
 	if phone == "" {
 		return nil, fmt.Errorf("%w: telefon gerekli", errorsx.ErrInvalidInput)

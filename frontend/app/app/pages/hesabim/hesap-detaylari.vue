@@ -122,6 +122,7 @@ async function cikisYap() {
             v-model="profil.name"
             type="text"
             required
+            maxlength="120"
             class="w-full border-b border-outline-variant bg-transparent py-2 text-body-md text-on-surface transition-colors focus:border-accent-gold focus:outline-none"
           >
         </div>

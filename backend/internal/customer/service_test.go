@@ -2,6 +2,7 @@ package customer
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/omerkoc/cicekci/pkg/errorsx"
@@ -65,6 +66,44 @@ func TestService_UpdateProfile_GecersizTelefonRed(t *testing.T) {
 	got, err := s.UpdateProfile(context.Background(), c.ID, "Ali", "0555 999 88 77")
 	require.NoError(t, err)
 	require.Equal(t, "5559998877", got.Phone)
+}
+
+// TestService_Register_GecersizEpostaRed (M2) — eski kontrol
+// strings.Contains(email,"@") && len>=3 idi ve "a@", "@b" gibi çöpleri
+// kabul ediyordu; yani API, kayıt formundaki type="email" alanının
+// reddettiği değerleri kabul ediyordu.
+func TestService_Register_GecersizEpostaRed(t *testing.T) {
+	s := newTestService(t)
+	gecersiz := []string{"a@", "@b", "@ ", "duz-metin", "", "a@b@c.com", "Ad <a@b.com>"}
+	for _, e := range gecersiz {
+		_, _, err := s.Register(context.Background(), e, "sifre1234", "Ali", "5551112233")
+		require.ErrorIs(t, err, errorsx.ErrInvalidInput, "e-posta %q reddedilmeliydi", e)
+	}
+}
+
+// TestService_Register_UzunAlanlarRed (M1) — kolonlar düz TEXT olduğu için
+// sınır yoksa kimlik doğrulaması gerektirmeyen kayıt ucuna megabaytlık
+// değerler yazılabiliyordu.
+func TestService_Register_UzunAlanlarRed(t *testing.T) {
+	s := newTestService(t)
+
+	uzunEposta := strings.Repeat("a", 250) + "@ornek.com" // 260 > 254
+	_, _, err := s.Register(context.Background(), uzunEposta, "sifre1234", "Ali", "5551112233")
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput, "254 karakterden uzun e-posta reddedilmeli")
+
+	uzunAd := strings.Repeat("a", 121) // 121 > 120
+	_, _, err = s.Register(context.Background(), "uzunad@b.com", "sifre1234", uzunAd, "5551112233")
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput, "120 karakterden uzun ad reddedilmeli")
+}
+
+// TestService_UpdateProfile_UzunAdRed sınır profil güncellemede de geçerli.
+func TestService_UpdateProfile_UzunAdRed(t *testing.T) {
+	s := newTestService(t)
+	_, c, err := s.Register(context.Background(), "profiluzun@b.com", "sifre1234", "Ali", "5551112233")
+	require.NoError(t, err)
+
+	_, err = s.UpdateProfile(context.Background(), c.ID, strings.Repeat("a", 121), "5551112233")
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput)
 }
 
 func TestService_Login_YanlisSifreUnauthorized(t *testing.T) {

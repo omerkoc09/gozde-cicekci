@@ -91,12 +91,13 @@ async function gonder() {
       <form class="mt-10 space-y-5" @submit.prevent="gonder">
         <label class="block">
           <span class="text-label-caps text-secondary">Ad Soyad *</span>
-          <input v-model="form.name" required autocomplete="name" class="mt-1.5 w-full rounded border border-outline-variant/50 bg-surface px-3 py-2.5 text-body-md text-on-surface focus:border-secondary focus:outline-none">
+          <!-- maxlength backend sınırlarıyla aynı (service.go maxNameLength/maxEmailLength) -->
+          <input v-model="form.name" required maxlength="120" autocomplete="name" class="mt-1.5 w-full rounded border border-outline-variant/50 bg-surface px-3 py-2.5 text-body-md text-on-surface focus:border-secondary focus:outline-none">
         </label>
 
         <label class="block">
           <span class="text-label-caps text-secondary">E-posta *</span>
-          <input v-model="form.email" required type="email" autocomplete="email" class="mt-1.5 w-full rounded border border-outline-variant/50 bg-surface px-3 py-2.5 text-body-md text-on-surface focus:border-secondary focus:outline-none">
+          <input v-model="form.email" required type="email" maxlength="254" autocomplete="email" class="mt-1.5 w-full rounded border border-outline-variant/50 bg-surface px-3 py-2.5 text-body-md text-on-surface focus:border-secondary focus:outline-none">
         </label>
 
         <label class="block">

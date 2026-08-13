@@ -7,9 +7,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // $fetch'i taklit etmek gerekiyor.
 const fetchMock = vi.fn()
 
+// useState (Nuxt auto-import) me() sonucunu istek başına önbelleğe alıyor.
+// Testte basit bir ref sözlüğüyle taklit ediliyor; her testten önce
+// sıfırlanıyor ki testler birbirinin önbelleğini görmesin.
+let stateStore: Record<string, { value: unknown }> = {}
+
 beforeEach(() => {
+  stateStore = {}
   vi.stubGlobal('$fetch', fetchMock)
   vi.stubGlobal('apiBase', () => '/api/go')
+  vi.stubGlobal('useState', (key: string, init: () => unknown) => {
+    if (!(key in stateStore))
+      stateStore[key] = { value: init() }
+    return stateStore[key]
+  })
 })
 
 afterEach(() => {
@@ -85,5 +96,71 @@ describe('useCustomer', () => {
       method: 'PATCH',
       body: { name: 'Yeni Ad', phone: '05551112233' },
     })
+  })
+
+  // --- Önbellek davranışı (M5) ---
+  // Hesabım ekranlarında layout + sayfa + header aynı veriyi bağımsız
+  // istiyordu: tek gezinmede 3 ağ çağrısı.
+
+  it('me() aynı istekte ikinci kez ağa çıkmaz', async () => {
+    const { useCustomer } = await import('./useCustomer')
+    const musteri = { id: 1, email: 'a@b.com', name: 'Ali', phone: '5551112233' }
+    fetchMock.mockResolvedValueOnce(musteri)
+
+    const c = useCustomer()
+    expect(await c.me()).toEqual(musteri)
+    expect(await c.me()).toEqual(musteri)
+    expect(await c.me()).toEqual(musteri)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('me() giriş yokken de (null) önbelleğe alır', async () => {
+    const { useCustomer } = await import('./useCustomer')
+    fetchMock.mockRejectedValue(new Error('401'))
+
+    const c = useCustomer()
+    expect(await c.me()).toBeNull()
+    expect(await c.me()).toBeNull()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('me(true) önbelleği atlar', async () => {
+    const { useCustomer } = await import('./useCustomer')
+    const musteri = { id: 1, email: 'a@b.com', name: 'Ali', phone: '5551112233' }
+    fetchMock.mockResolvedValue(musteri)
+
+    const c = useCustomer()
+    await c.me()
+    await c.me(true)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  // Kritik: çıkış yapan kullanıcı önbellek yüzünden hâlâ girişli görünmemeli.
+  it('logout() sonrası me() null döner (önbellek temizlenir)', async () => {
+    const { useCustomer } = await import('./useCustomer')
+    const musteri = { id: 1, email: 'a@b.com', name: 'Ali', phone: '5551112233' }
+    fetchMock.mockResolvedValueOnce(musteri) // ilk me()
+    const c = useCustomer()
+    expect(await c.me()).toEqual(musteri)
+
+    fetchMock.mockResolvedValueOnce({ ok: true }) // logout
+    await c.logout()
+
+    expect(await c.me()).toBeNull()
+  })
+
+  it('register() sonrası me() ağa çıkmadan yeni müşteriyi döner', async () => {
+    const { useCustomer } = await import('./useCustomer')
+    const musteri = { id: 2, email: 'yeni@b.com', name: 'Yeni', phone: '5551112233' }
+    fetchMock.mockResolvedValueOnce(musteri)
+
+    const c = useCustomer()
+    await c.register({ email: 'yeni@b.com', password: 'sifre1234', name: 'Yeni', phone: '5551112233' })
+
+    expect(await c.me()).toEqual(musteri)
+    expect(fetchMock).toHaveBeenCalledTimes(1) // yalnızca register
   })
 })
