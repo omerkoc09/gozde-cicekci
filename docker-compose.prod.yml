@@ -142,22 +142,78 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATABASE: ${POSTGRES_DB}
       PGHOST: postgres
+      # Off-site kopya için (opsiyonel — R2_BACKUP_BUCKET boşsa atlanır).
+      # R2_BACKUP_BUCKET görsellerin public bucket'ından AYRI/PRIVATE olmalı.
+      R2_BACKUP_BUCKET: ${R2_BACKUP_BUCKET:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
     volumes:
       - ./backups:/backups
       - uploads:/uploads:ro
     depends_on:
       postgres:
         condition: service_healthy
-    # Basit günlük döngü: her 24 saatte bir yedek al, 7 günden eskiyi sil
+    # Basit günlük döngü: her 24 saatte bir yedek al, 7 günden eskiyi sil.
+    #
+    # Yedekler ayrıca R2'ye (off-site) kopyalanır: aynı diskte duran yedek,
+    # sunucu/disk kaybında yedek sayılmaz. R2_BACKUP_BUCKET tanımlı değilse
+    # bu adım sessizce atlanır — kopyalama opsiyonel, yerel yedek her hâlükârda
+    # alınır.
+    #
+    # DİKKAT: R2_BACKUP_BUCKET, görsellerin PUBLIC bucket'ından AYRI ve
+    # PRIVATE olmalı. Dump'lar müşteri e-postası, telefonu ve şifre hash'i
+    # içerir (üyelik 2026-08-13).
+    #
+    # Hata görünürlüğü: her adım kontrol edilir, başarısızlık /backups/SON_HATA
+    # dosyasına yazılır ve son başarılı yedeğin damgası /backups/SON_BASARILI
+    # dosyasında tutulur. Sessizce boş yedek üretme riskini kaldırır —
+    # SON_BASARILI'nın tarihi eskiyse yedek bozulmuş demektir.
     entrypoint: ["sh", "-c"]
     command:
       - |
+        apk add --no-cache rclone >/dev/null 2>&1 || echo "UYARI: rclone kurulamadı, R2 kopyalama devre dışı"
         while true; do
           TS=$$(date +%Y%m%d_%H%M%S)
-          pg_dump -Fc -f /backups/db_$$TS.dump && echo "db yedek: db_$$TS.dump"
-          tar czf /backups/uploads_$$TS.tar.gz -C /uploads . && echo "uploads yedek: uploads_$$TS.tar.gz"
+          HATA=""
+
+          if pg_dump -Fc -f /backups/db_$$TS.dump; then
+            echo "db yedek: db_$$TS.dump"
+          else
+            HATA="$$HATA pg_dump"
+          fi
+
+          if tar czf /backups/uploads_$$TS.tar.gz -C /uploads .; then
+            echo "uploads yedek: uploads_$$TS.tar.gz"
+          else
+            HATA="$$HATA tar"
+          fi
+
+          # Off-site kopya (opsiyonel). Yalnızca o günün dosyalarını gönderir.
+          if [ -n "$$R2_BACKUP_BUCKET" ] && command -v rclone >/dev/null 2>&1; then
+            export RCLONE_CONFIG_R2_TYPE=s3
+            export RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+            export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$$R2_ACCESS_KEY_ID"
+            export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$$R2_SECRET_ACCESS_KEY"
+            export RCLONE_CONFIG_R2_ENDPOINT="https://$$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+            if rclone copy /backups "r2:$$R2_BACKUP_BUCKET" \
+                 --include "db_$$TS.dump" --include "uploads_$$TS.tar.gz" 2>&1; then
+              echo "off-site kopya: r2:$$R2_BACKUP_BUCKET"
+            else
+              HATA="$$HATA rclone"
+            fi
+          fi
+
           find /backups -name 'db_*.dump' -mtime +7 -delete
           find /backups -name 'uploads_*.tar.gz' -mtime +7 -delete
+
+          if [ -z "$$HATA" ]; then
+            echo "$$TS" > /backups/SON_BASARILI
+            rm -f /backups/SON_HATA
+          else
+            echo "$$TS başarısız adımlar:$$HATA" | tee -a /backups/SON_HATA
+          fi
+
           sleep 86400
         done
 
