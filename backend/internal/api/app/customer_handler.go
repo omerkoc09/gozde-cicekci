@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,8 +69,23 @@ func (h *customerHandler) logout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"ok": true})
 }
 
+// customerIDOf middleware'in Locals'a koyduğu customerID'yi güvenle okur.
+// Bugün yalnızca customer.Middleware arkasındaki route'lar buraya düşüyor,
+// ama tip assertion'ı çıplak bırakmak ileride route gruplaması değişirse
+// 401 yerine panic'e döner — comma-ok ile bunu önlüyoruz.
+func customerIDOf(c *fiber.Ctx) (int64, error) {
+	id, ok := c.Locals("customerID").(int64)
+	if !ok {
+		return 0, errorsx.ErrUnauthorized
+	}
+	return id, nil
+}
+
 func (h *customerHandler) me(c *fiber.Ctx) error {
-	id := c.Locals("customerID").(int64)
+	id, err := customerIDOf(c)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
 	cst, err := h.svc.Get(c.Context(), id)
 	if err != nil {
 		return api.WriteError(c, err)
@@ -78,12 +94,29 @@ func (h *customerHandler) me(c *fiber.Ctx) error {
 }
 
 func (h *customerHandler) updateMe(c *fiber.Ctx) error {
-	id := c.Locals("customerID").(int64)
+	id, err := customerIDOf(c)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
 	var req updateProfileRequest
 	if err := c.BodyParser(&req); err != nil {
 		return api.WriteError(c, errGecersizIstek)
 	}
-	// Şifre değiştirme istendiyse önce onu uygula.
+
+	// Önce TÜM girdiyi doğrula, sonra uygula — aksi halde şifre değişikliği
+	// commit edildikten SONRA profil doğrulaması 400 dönebilir (örn. boş
+	// telefon) ve kullanıcı "hiçbir şey değişmedi" sanırken aslında yeni
+	// şifreyle kilitli kalır (eski şifre artık çalışmaz). Servis katmanı
+	// zaten aynı kuralları uyguluyor; burada mutasyondan önce tekrar ediyoruz.
+	name := strings.TrimSpace(req.Name)
+	phone := strings.TrimSpace(req.Phone)
+	if name == "" {
+		return api.WriteError(c, fmt.Errorf("%w: ad soyad gerekli", errorsx.ErrInvalidInput))
+	}
+	if phone == "" {
+		return api.WriteError(c, fmt.Errorf("%w: telefon gerekli", errorsx.ErrInvalidInput))
+	}
+
 	if req.NewPassword != "" {
 		if err := h.svc.ChangePassword(c.Context(), id, req.CurrentPassword, req.NewPassword); err != nil {
 			return api.WriteError(c, err)
@@ -97,7 +130,10 @@ func (h *customerHandler) updateMe(c *fiber.Ctx) error {
 }
 
 func (h *customerHandler) orders(c *fiber.Ctx) error {
-	id := c.Locals("customerID").(int64)
+	id, err := customerIDOf(c)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
 	list, err := h.orderSvc.ListByCustomer(c.Context(), id)
 	if err != nil {
 		return api.WriteError(c, err)

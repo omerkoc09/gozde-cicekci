@@ -161,3 +161,78 @@ func TestCustomer_Orders_YalnizKendisi(t *testing.T) {
 	assert.Equal(t, "Test Buket", list[0].Items[0].ProductName)
 	assert.Equal(t, 1, list[0].Items[0].Quantity)
 }
+
+// patchMe /customer/me'ye verilen cookie ile PATCH atar, yanıtı döner.
+func patchMe(t *testing.T, app *fiber.App, cookie, body string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPatch, "/api/customer/me", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: customer.CookieName, Value: cookie})
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	return resp
+}
+
+// TestCustomer_UpdateMe_BasariliProfilGuncelleme temel mutlu yol: geçerli
+// ad/telefon ile PATCH /customer/me profili günceller.
+func TestCustomer_UpdateMe_BasariliProfilGuncelleme(t *testing.T) {
+	app, _, _, _, custSvc, _ := newTestAPIFull(t)
+
+	token, _, err := custSvc.Register(context.Background(), "profil@example.com", "sifre1234", "Eski Ad", "05551110000")
+	require.NoError(t, err)
+
+	body := `{"name":"Yeni Ad","phone":"05559998877"}`
+	resp := patchMe(t, app, token, body)
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var cv customerView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&cv))
+	assert.Equal(t, "Yeni Ad", cv.Name)
+	assert.Equal(t, "05559998877", cv.Phone)
+}
+
+// TestCustomer_UpdateMe_YanlisMevcutSifreReddedilir current_password yanlışsa
+// 401 döner ve şifre DEĞİŞMEZ (invariant #5: şifre değişikliği mevcut şifre
+// doğrulaması gerektirir).
+func TestCustomer_UpdateMe_YanlisMevcutSifreReddedilir(t *testing.T) {
+	app, _, _, _, custSvc, _ := newTestAPIFull(t)
+
+	token, _, err := custSvc.Register(context.Background(), "sifretest@example.com", "dogrusifre1", "Ad Soyad", "05551110000")
+	require.NoError(t, err)
+
+	body := `{"name":"Ad Soyad","phone":"05551110000","current_password":"yanlissifre","new_password":"yenisifre123"}`
+	resp := patchMe(t, app, token, body)
+	assert.Equal(t, fiber.StatusUnauthorized, resp.StatusCode)
+
+	// Eski şifre hâlâ çalışmalı — değişmemiş olmalı.
+	_, err = custSvc.Login(context.Background(), "sifretest@example.com", "dogrusifre1")
+	assert.NoError(t, err, "yanlış current_password ile PATCH sonrası eski şifre hâlâ çalışmalı")
+}
+
+// TestCustomer_UpdateMe_GecersizProfilSifreyiDegistirmez I1 sıralama
+// düzeltmesinin kanıtı: current_password DOĞRU ve new_password geçerli olsa
+// BİLE, profil alanları geçersizse (boş telefon) şifre DEĞİŞTİRİLMEMELİ.
+// Eski (hatalı) davranışta ChangePassword önce commit ediliyordu ve kullanıcı
+// 400 alıp "hiçbir şey değişmedi" sanıyor ama aslında eski şifresi artık
+// çalışmıyordu. Bu test eski şifrenin PATCH sonrası hâlâ çalıştığını kanıtlar.
+func TestCustomer_UpdateMe_GecersizProfilSifreyiDegistirmez(t *testing.T) {
+	app, _, _, _, custSvc, _ := newTestAPIFull(t)
+
+	token, _, err := custSvc.Register(context.Background(), "siralama@example.com", "eskisifre1", "Ad Soyad", "05551110000")
+	require.NoError(t, err)
+
+	// current_password doğru, new_password geçerli, ama phone boş → profil
+	// doğrulaması reddetmeli VE şifre hiç değişmemeli.
+	body := `{"name":"Ad Soyad","phone":"","current_password":"eskisifre1","new_password":"yenisifre123"}`
+	resp := patchMe(t, app, token, body)
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode,
+		"boş telefon 400 ile reddedilmeli")
+
+	// Eski şifre hâlâ çalışmalı — ChangePassword hiç commit edilmemiş olmalı.
+	_, err = custSvc.Login(context.Background(), "siralama@example.com", "eskisifre1")
+	assert.NoError(t, err, "geçersiz profil verisiyle PATCH sonrası eski şifre hâlâ çalışmalı (I1 fix)")
+
+	// Yeni şifreyle giriş BAŞARISIZ olmalı — hiç uygulanmadı.
+	_, err = custSvc.Login(context.Background(), "siralama@example.com", "yenisifre123")
+	assert.Error(t, err, "yeni şifre asla commit edilmemiş olmalı")
+}
