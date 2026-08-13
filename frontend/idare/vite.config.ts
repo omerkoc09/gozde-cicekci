@@ -17,6 +17,18 @@ export default defineConfig({
   // Router import.meta.env.BASE_URL'i, varlık yolları da base'i takip eder.
   // Dev'de '/' kalır (VITE_BASE tanımsız), çalışma bozulmaz.
   base: process.env.VITE_BASE || '/',
+
+  // Dev sunucusu 5173'e SABİTLENİR. Backend CORS'u yalnızca
+  // http://localhost:5173'e izin veriyor (cmd/server/main.go allowedOrigins).
+  // strictPort olmadan, 5173 doluyken (örn. unutulmuş ikinci bir dev sunucusu)
+  // Vite sessizce 5174'e kayıyor ve panel CORS hatası veriyor — hata mesajı
+  // sebebi göstermediği için teşhisi zor. Port doluysa sessizce kaymak yerine
+  // açıkça patlaması daha iyi: gerçek sorun zaten "zaten çalışan bir örnek var".
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
+
   plugins: [
     // Docs: https://github.com/posva/unplugin-vue-router
     // ℹ️ This plugin should be placed before vue plugin
