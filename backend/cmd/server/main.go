@@ -20,6 +20,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/api/idare"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
@@ -84,6 +85,8 @@ func main() {
 	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool),
 		deliveryCfg, payProvider, okURL, failURL)
 
+	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
+
 	isProduction := cfg.IsProduction()
 
 	f := fiber.New(fiber.Config{
@@ -117,7 +120,8 @@ func main() {
 
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
-	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg)
+	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
+		custSvc, cfg.JWTSecret, isProduction)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
