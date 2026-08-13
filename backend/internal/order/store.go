@@ -32,7 +32,7 @@ const orderSelect = `
 	       recipient_name, recipient_phone, delivery_address, delivery_district,
 	       delivery_date, delivery_slot, COALESCE(card_message, ''),
 	       items_total, delivery_fee, total,
-	       paid_at, refunded_at, COALESCE(payment_ref, ''),
+	       paid_at, refunded_at, COALESCE(payment_ref, ''), customer_id,
 	       COALESCE(note, ''), created_at, updated_at
 	FROM orders`
 
@@ -44,7 +44,7 @@ func scanOrder(row pgx.Row) (*Order, error) {
 		&o.RecipientName, &o.RecipientPhone, &o.DeliveryAddress, &o.DeliveryDistrict,
 		&o.DeliveryDate, &o.DeliverySlot, &o.CardMessage,
 		&o.ItemsTotal, &o.DeliveryFee, &o.Total,
-		&o.PaidAt, &o.RefundedAt, &o.PaymentRef,
+		&o.PaidAt, &o.RefundedAt, &o.PaymentRef, &o.CustomerID,
 		&o.Note, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -100,13 +100,13 @@ func (s *Store) createOnce(ctx context.Context, in NewOrder) (*Order, error) {
 			order_no, buyer_name, buyer_phone, buyer_email,
 			recipient_name, recipient_phone, delivery_address, delivery_district,
 			delivery_date, delivery_slot, card_message,
-			items_total, delivery_fee, total
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+			items_total, delivery_fee, total, customer_id
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING id`,
 		orderNo, in.BuyerName, in.BuyerPhone, nullIfEmpty(in.BuyerEmail),
 		in.RecipientName, in.RecipientPhone, in.DeliveryAddress, in.DeliveryDistrict,
 		in.DeliveryDate, in.DeliverySlot, nullIfEmpty(in.CardMessage),
-		in.ItemsTotal, in.DeliveryFee, in.Total,
+		in.ItemsTotal, in.DeliveryFee, in.Total, in.CustomerID,
 	).Scan(&id)
 	if err != nil {
 		return nil, err
@@ -344,4 +344,9 @@ func (s *Store) HasPaymentEvent(ctx context.Context, orderID int64, eventType st
 		`SELECT EXISTS(SELECT 1 FROM payment_events WHERE order_id=$1 AND event_type=$2)`,
 		orderID, eventType).Scan(&exists)
 	return exists, err
+}
+
+// ListByCustomer bir müşterinin kendi siparişlerini en yeniden eskiye döner.
+func (s *Store) ListByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
+	return s.listWhere(ctx, "customer_id = $1", []any{customerID}, 200, 0)
 }

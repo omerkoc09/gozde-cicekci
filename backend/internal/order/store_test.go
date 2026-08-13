@@ -353,6 +353,56 @@ func TestStore_GetByPaymentRef_Yok(t *testing.T) {
 	assert.ErrorIs(t, err, errorsx.ErrNotFound)
 }
 
+// createTestOrderWithCustomer testNewOrder desenini kullanır ama
+// NewOrder.CustomerID set eder. Ürün de yoksa oluşturur.
+func createTestOrderWithCustomer(t *testing.T, store *Store, customerID *int64) *Order {
+	t.Helper()
+
+	ctx := context.Background()
+	var productID int64
+	err := store.pool.QueryRow(ctx,
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('Test', 'test', 100.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	in := testNewOrder()
+	in.CustomerID = customerID
+	in.Items = []NewOrderItem{{
+		ProductID: productID, ProductName: "Test",
+		PriceAtOrder: decimal.RequireFromString("100.00"), Quantity: 1,
+	}}
+
+	o, err := store.Create(ctx, in)
+	require.NoError(t, err)
+	return o
+}
+
+func TestStore_ListByCustomer_YalnizKendiSiparisleri(t *testing.T) {
+	pool := database.NewTestDB(t)
+	defer pool.Close()
+
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	var custID1, custID2 int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('musteri1@example.com', 'hash', 'Müşteri Bir', '05551112233') RETURNING id`).
+		Scan(&custID1))
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('musteri2@example.com', 'hash', 'Müşteri İki', '05554445566') RETURNING id`).
+		Scan(&custID2))
+
+	o1 := createTestOrderWithCustomer(t, store, &custID1)
+	_ = createTestOrderWithCustomer(t, store, &custID2)
+
+	list, err := store.ListByCustomer(ctx, custID1)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Equal(t, o1.ID, list[0].ID)
+}
+
 func TestStore_HasPaymentEvent_Idempotency(t *testing.T) {
 	pool := database.NewTestDB(t)
 	defer pool.Close()

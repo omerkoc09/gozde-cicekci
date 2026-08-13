@@ -58,6 +58,8 @@ type Order struct {
 	RefundedAt *time.Time `json:"refunded_at,omitempty"`
 	PaymentRef string     `json:"payment_ref,omitempty"`
 
+	CustomerID *int64 `json:"customer_id,omitempty"`
+
 	Note      string      `json:"note"`
 	Items     []OrderItem `json:"items"`
 	CreatedAt time.Time   `json:"created_at"`
@@ -82,6 +84,8 @@ type NewOrder struct {
 	ItemsTotal  decimal.Decimal
 	DeliveryFee decimal.Decimal
 	Total       decimal.Decimal
+
+	CustomerID *int64
 
 	Items []NewOrderItem
 }
