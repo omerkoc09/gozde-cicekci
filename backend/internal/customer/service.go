@@ -91,6 +91,26 @@ func (s *Service) Get(ctx context.Context, id int64) (*Customer, error) {
 	return s.store.GetByID(ctx, id)
 }
 
+// maxListLimit admin listeleme uçlarının üst sınırı — sayfa boyutu ne
+// gönderilirse gönderilsin bunun üstüne çıkmaz.
+const maxListLimit = 100
+
+// List admin panelinde salt okunur müşteri listesi (arama + sayfalama).
+func (s *Service) List(ctx context.Context, q string, limit, offset int) ([]Customer, error) {
+	if limit <= 0 || limit > maxListLimit {
+		limit = maxListLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.store.List(ctx, strings.TrimSpace(q), limit, offset)
+}
+
+// Count List ile aynı filtreyle toplam sayı (sayfalama için).
+func (s *Service) Count(ctx context.Context, q string) (int, error) {
+	return s.store.Count(ctx, strings.TrimSpace(q))
+}
+
 func (s *Service) UpdateProfile(ctx context.Context, id int64, name, phone string) (*Customer, error) {
 	name = strings.TrimSpace(name)
 	phone = strings.TrimSpace(phone)
