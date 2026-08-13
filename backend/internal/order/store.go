@@ -71,6 +71,17 @@ func (s *Store) Create(ctx context.Context, in NewOrder) (*Order, error) {
 			lastErr = err
 			continue
 		}
+
+		// customer_id FK ihlali (23503): token geçerli görünse de müşteri
+		// artık DB'de yok (silinmiş) — JWT 7 gün canlı kalabildiği için
+		// mümkün. Sipariş verilmesini engellemek yerine misafir siparişine
+		// düş: checkout'un kırılmaması guest akışında en önemli kural.
+		if errors.As(err, &pgErr) && pgErr.Code == "23503" &&
+			strings.Contains(pgErr.ConstraintName, "customer_id") && in.CustomerID != nil {
+			guestIn := in
+			guestIn.CustomerID = nil
+			return s.createOnce(ctx, guestIn)
+		}
 		return nil, err
 	}
 

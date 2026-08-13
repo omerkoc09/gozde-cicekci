@@ -120,6 +120,35 @@ func TestService_Create_CustomerIDBaglar(t *testing.T) {
 	assert.Nil(t, guest.CustomerID)
 }
 
+// TestService_Create_SilinmisMusteriMisafireDuser I3 regresyon testi.
+// Müşteri satırı silindikten SONRA aynı (artık geçersiz) customerID ile
+// sipariş oluşturulmaya çalışılırsa — JWT hâlâ 7 gün geçerli olabileceği
+// için bu gerçek bir senaryo — INSERT customers(id) FK'sini ihlal eder
+// (Postgres 23503). Eski davranış: store.Create'in retry döngüsü yalnızca
+// 23505'i (order_no çakışması) yakalıyordu, 23503 doğrudan yukarı patlıyor
+// ve checkout 500 ile başarısız oluyordu. Beklenen: sipariş yine de
+// oluşmalı, ama customer_id NULL (misafir) olarak — checkout ASLA
+// kırılmamalı (guest checkout en önemli değişmez).
+func TestService_Create_SilinmisMusteriMisafireDuser(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	ctx := context.Background()
+
+	var customerID int64
+	require.NoError(t, pool.QueryRow(ctx,
+		`INSERT INTO customers (email, password_hash, name, phone)
+		 VALUES ('silinecek@example.com', 'hash', 'Silinecek Müşteri', '05551112233') RETURNING id`).
+		Scan(&customerID))
+
+	// Müşteri satırını sil — token hâlâ geçerli görünüyor olabilir ama artık
+	// var olmayan bir customerID'yi temsil ediyor.
+	_, err := pool.Exec(ctx, `DELETE FROM customers WHERE id = $1`, customerID)
+	require.NoError(t, err)
+
+	o, _, err := svc.Create(ctx, testCreateInput(productID), "127.0.0.1", &customerID)
+	require.NoError(t, err, "silinmiş müşteri FK ihlali checkout'u başarısız kılmamalı")
+	assert.Nil(t, o.CustomerID, "sipariş misafir (customer_id NULL) olarak oluşmalı")
+}
+
 // İlçeye özel ücret varsa genel ücret yerine o kullanılır.
 func TestService_Create_IlceyeOzelUcretKullanilir(t *testing.T) {
 	svc, _, productID := setupService(t)

@@ -212,6 +212,61 @@ func TestPaymentCallback_GecersizFAILDoner(t *testing.T) {
 	assert.NotEqual(t, "OK", string(bodyBytes))
 }
 
+// TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir GÜVENLİK/regresyon
+// testi: guest checkout'un tek ve en önemli değişmezi (invariant #2) —
+// bozuk/geçersiz bir customer_token cookie'si checkout'u ASLA kırmamalı.
+// customer.ParseToken hata dönerse handler'daki customerID nil kalıp
+// misafir siparişine düşmeli (order_handler.go:56-60), 401/500 DEĞİL.
+func TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir(t *testing.T) {
+	pool := database.NewTestDB(t)
+
+	var productID int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	cfg := order.DeliveryConfig{
+		Fee: "50", Slots: []string{"12:00-15:00"},
+		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş"},
+	}
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
+
+	f := fiber.New()
+	oh := &orderHandler{svc: svc, cfg: cfg, jwtSecret: "test-secret-siparis-testi-32-karakter"}
+	f.Post("/orders", oh.create)
+
+	body := fmt.Sprintf(`{
+		"items": [{"product_id": %d, "quantity": 1}],
+		"buyer": {"name": "Ahmet", "phone": "05551112233"},
+		"recipient": {"name": "Ayşe", "phone": "05554445566"},
+		"delivery": {"address": "Test Cad. 1", "district": "Ödemiş", "date": "%s", "slot": "12:00-15:00"}
+	}`, productID, time.Now().AddDate(0, 0, 2).Format("2006-01-02"))
+
+	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	// Garbage/malformed customer_token cookie — imza doğrulaması başarısız olur.
+	req.AddCookie(&http.Cookie{Name: "customer_token", Value: "bu-gecerli-bir-jwt-degil"})
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusCreated, resp.StatusCode,
+		"bozuk customer_token checkout'u kırmamalı — misafir siparişine düşmeli")
+
+	var out createOrderResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
+	assert.NotEmpty(t, out.OrderNo)
+
+	// customer_id gerçekten NULL yazılmış mı — DB'den doğrudan doğrula.
+	var customerID *int64
+	err = pool.QueryRow(context.Background(),
+		`SELECT customer_id FROM orders WHERE order_no = $1`, out.OrderNo).Scan(&customerID)
+	require.NoError(t, err)
+	assert.Nil(t, customerID, "bozuk cookie ile oluşan sipariş customer_id NULL (misafir) olmalı")
+}
+
 func TestDeliveryConfig(t *testing.T) {
 	cfg := order.DeliveryConfig{
 		Fee: "50", Slots: []string{"09:00-12:00", "12:00-15:00"},
