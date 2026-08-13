@@ -20,8 +20,10 @@ import (
 	"github.com/omerkoc/cicekci/internal/api/idare"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/config"
@@ -62,7 +64,28 @@ func main() {
 		Districts:     cfg.DeliveryDistricts,
 		DistrictFees:  cfg.DeliveryFees,
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
+	var payProvider order.PaymentStarter
+	if cfg.PayTRConfigured() {
+		payProvider = payment.NewPayTR(payment.PayTRConfig{
+			MerchantID:   cfg.PayTRMerchantID,
+			MerchantKey:  cfg.PayTRMerchantKey,
+			MerchantSalt: cfg.PayTRMerchantSalt,
+			TestMode:     cfg.PayTRTestMode,
+		})
+		log.Println("ödeme: PayTR provider aktif (test_mode:", cfg.PayTRTestMode, ")")
+	} else {
+		payProvider = payment.NewMockProvider()
+		log.Println("ödeme: MOCK provider (PayTR anahtarları yok)")
+	}
+
+	// Public site ödeme sonrası buralara döner.
+	okURL := cfg.SiteURL + "/siparis/tamam"
+	failURL := cfg.SiteURL + "/siparis/hata"
+
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+		deliveryCfg, payProvider, okURL, failURL)
+
+	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
 
 	isProduction := cfg.IsProduction()
 
@@ -97,7 +120,8 @@ func main() {
 
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
-	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg)
+	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
+		custSvc, cfg.JWTSecret, isProduction)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
@@ -105,6 +129,7 @@ func main() {
 		ImgSvc:       imgSvc,
 		SliderSvc:    sliderSvc,
 		OrderSvc:     orderSvc,
+		CustSvc:      custSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})

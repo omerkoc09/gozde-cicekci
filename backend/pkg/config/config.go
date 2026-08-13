@@ -45,6 +45,12 @@ type Config struct {
 	// olmayan ilçe genel DeliveryFee'ye düşer — ilçeye özel ücret esnaftan
 	// öğrenildikçe eklenir, önceden hepsini girmek zorunluluğu yok.
 	DeliveryFees map[string]string
+
+	// PayTR ödeme (Faz 3). Anahtarlar boşsa mock provider kullanılır.
+	PayTRMerchantID   string
+	PayTRMerchantKey  string
+	PayTRMerchantSalt string
+	PayTRTestMode     bool
 }
 
 // envSearchDepth yukarı doğru kaç dizin taranacak. 4 fazlasıyla yeterli:
@@ -119,6 +125,7 @@ func Load() (*Config, error) {
 	}
 
 	loadDelivery(cfg)
+	loadPayment(cfg)
 
 	if err := loadStorage(cfg); err != nil {
 		return nil, err
@@ -234,4 +241,20 @@ func loadDelivery(cfg *Config) {
 
 		cfg.DeliveryFees[strings.TrimSpace(ilce)] = strings.TrimSpace(ucret)
 	}
+}
+
+// loadPayment PayTR ödeme ayarlarını okur. Anahtarlar boşsa PayTRConfigured
+// false döner ve main.go mock provider'a düşer — geliştirmede gerçek PayTR
+// hesabı olmadan da sistem çalışır.
+func loadPayment(cfg *Config) {
+	cfg.PayTRMerchantID = os.Getenv("PAYTR_MERCHANT_ID")
+	cfg.PayTRMerchantKey = os.Getenv("PAYTR_MERCHANT_KEY")
+	cfg.PayTRMerchantSalt = os.Getenv("PAYTR_MERCHANT_SALT")
+	cfg.PayTRTestMode = os.Getenv("PAYTR_TEST_MODE") != "0" // varsayılan test modu açık
+}
+
+// PayTRConfigured gerçek PayTR anahtarları var mı. false ise main.go mock
+// provider kullanır — geliştirme/test ortamında gerçek PayTR hesabı gerekmez.
+func (c *Config) PayTRConfigured() bool {
+	return c.PayTRMerchantID != "" && c.PayTRMerchantKey != "" && c.PayTRMerchantSalt != ""
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
@@ -17,6 +18,7 @@ type Deps struct {
 	ImgSvc       *image.Service
 	SliderSvc    *slider.Service
 	OrderSvc     *order.Service
+	CustSvc      *customer.Service
 	JWTSecret    string
 	SecureCookie bool
 }
@@ -30,6 +32,7 @@ func Register(router fiber.Router, d Deps) {
 	ih := &imageHandler{svc: d.ImgSvc, prodSvc: d.ProdSvc}
 	sh := &sliderHandler{svc: d.SliderSvc, imgSvc: d.ImgSvc}
 	oh := &orderHandler{svc: d.OrderSvc}
+	cuh := &customerHandler{svc: d.CustSvc, orderSvc: d.OrderSvc}
 
 	router.Post("/login", ah.login)
 
@@ -71,4 +74,10 @@ func Register(router fiber.Router, d Deps) {
 	protected.Get("/orders", oh.list)
 	protected.Get("/orders/:id", oh.get)
 	protected.Patch("/orders/:id", oh.update)
+	protected.Post("/orders/:id/refund", oh.refund)
+
+	// Müşteriler — salt okunur (spec: admin müşteri yönetimi). Oluşturma,
+	// düzenleme, silme YOK; kapsam kesinlikle bununla sınırlı.
+	protected.Get("/customers", cuh.list)
+	protected.Get("/customers/:id", cuh.get)
 }

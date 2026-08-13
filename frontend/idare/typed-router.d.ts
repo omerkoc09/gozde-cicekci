@@ -24,6 +24,8 @@ declare module 'vue-router/auto-routes' {
     'auth-login': RouteRecordInfo<'auth-login', '/auth/login', Record<never, never>, Record<never, never>>,
     'kategoriler': RouteRecordInfo<'kategoriler', '/kategoriler', Record<never, never>, Record<never, never>>,
     'kullanicilar': RouteRecordInfo<'kullanicilar', '/kullanicilar', Record<never, never>, Record<never, never>>,
+    'musteriler': RouteRecordInfo<'musteriler', '/musteriler', Record<never, never>, Record<never, never>>,
+    'musteriler-id': RouteRecordInfo<'musteriler-id', '/musteriler/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'siparisler': RouteRecordInfo<'siparisler', '/siparisler', Record<never, never>, Record<never, never>>,
     'siparisler-id': RouteRecordInfo<'siparisler-id', '/siparisler/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'slider': RouteRecordInfo<'slider', '/slider', Record<never, never>, Record<never, never>>,

@@ -3,7 +3,7 @@ import { useOrders } from '@/composables/useOrders'
 import type { Order, OrderStatus } from '@/model/order'
 import { STATUS_COLORS, STATUS_LABELS } from '@/model/order'
 import { formatTutar as tutar } from '@/utils/Currency'
-import { ErrorPopup, SuccessToast } from '@/utils/Popup'
+import { ConfirmPopup, ErrorPopup, SuccessToast } from '@/utils/Popup'
 
 const route = useRoute('siparisler-id')
 const api = useOrders()
@@ -54,6 +54,39 @@ const saveNote = async () => {
     return ErrorPopup(err.message)
 
   SuccessToast('Not kaydedildi')
+}
+
+const iadeEt = async () => {
+  const ok = await ConfirmPopup(
+    'Bu sipariş iade edilecek. Devam edilsin mi?',
+    'İade Et',
+    'Vazgeç',
+  )
+
+  if (!ok)
+    return
+
+  saving.value = true
+
+  const [err] = await api.refund(Number(route.params.id))
+
+  saving.value = false
+
+  if (err)
+    return ErrorPopup(err.message)
+
+  SuccessToast('Sipariş iade edildi')
+  await load()
+}
+
+const tarihSaat = (d: string | null) => {
+  if (!d)
+    return ''
+
+  return new Date(d).toLocaleString('tr-TR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 }
 
 </script>
@@ -147,32 +180,54 @@ const saveNote = async () => {
 
         <VCard class="mb-6">
           <VCardItem>
+            <VCardTitle>Ödeme</VCardTitle>
+          </VCardItem>
+          <VCardText>
+            <p>
+              <strong>Durum:</strong>
+              <VChip
+                :color="STATUS_COLORS[order.status]"
+                size="small"
+                class="ml-2"
+              >
+                {{ STATUS_LABELS[order.status] }}
+              </VChip>
+            </p>
+            <p v-if="order.paid_at">
+              <strong>Ödeme Tarihi:</strong> {{ tarihSaat(order.paid_at) }}
+            </p>
+            <p v-if="order.refunded_at">
+              <strong>İade Tarihi:</strong> {{ tarihSaat(order.refunded_at) }}
+            </p>
+            <p v-if="order.payment_ref">
+              <strong>Ödeme Referansı:</strong> {{ order.payment_ref }}
+            </p>
+          </VCardText>
+        </VCard>
+
+        <VCard class="mb-6">
+          <VCardItem>
             <VCardTitle>Durum</VCardTitle>
           </VCardItem>
           <VCardText class="d-flex flex-column gap-2">
             <VBtn
-              v-if="order.status === 'pending'"
+              v-if="order.status === 'paid'"
               :loading="saving"
-              @click="setStatus('confirmed')"
-            >
-              Onayla
-            </VBtn>
-            <VBtn
-              v-if="order.status === 'confirmed'"
-              :loading="saving"
+              :disabled="saving"
               color="success"
               @click="setStatus('delivered')"
             >
               Teslim Edildi
             </VBtn>
             <VBtn
-              v-if="order.status !== 'cancelled' && order.status !== 'delivered'"
+              v-if="order.status === 'paid' || order.status === 'delivered'"
               :loading="saving"
+              :disabled="saving"
               color="error"
               variant="outlined"
-              @click="setStatus('cancelled')"
+              @click="iadeEt"
             >
-              İptal Et
+              İade Et
             </VBtn>
           </VCardText>
         </VCard>
@@ -189,6 +244,7 @@ const saveNote = async () => {
             />
             <VBtn
               :loading="saving"
+              :disabled="saving"
               class="mt-2"
               @click="saveNote"
             >

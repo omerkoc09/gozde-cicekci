@@ -1,4 +1,4 @@
-export type OrderStatus = 'pending' | 'confirmed' | 'delivered' | 'cancelled'
+export type OrderStatus = 'awaiting_payment' | 'paid' | 'delivered' | 'refunded'
 
 export interface OrderItem {
   product_id: number | null
@@ -31,6 +31,10 @@ export interface Order {
   note: string
   items: OrderItem[]
   created_at: string
+
+  paid_at: string | null
+  refunded_at: string | null
+  payment_ref: string
 }
 
 export interface OrderUpdate {
@@ -39,15 +43,15 @@ export interface OrderUpdate {
 }
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Yeni',
-  confirmed: 'Onaylandı',
+  awaiting_payment: 'Ödeme Bekliyor',
+  paid: 'Ödendi',
   delivered: 'Teslim Edildi',
-  cancelled: 'İptal',
+  refunded: 'İade Edildi',
 }
 
 export const STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: 'warning',
-  confirmed: 'info',
+  awaiting_payment: 'warning',
+  paid: 'info',
   delivered: 'success',
-  cancelled: 'error',
+  refunded: 'error',
 }

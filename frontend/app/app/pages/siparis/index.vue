@@ -1,16 +1,62 @@
 <script setup lang="ts">
+import type { RecentAddress } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 import { apiErrorMessage } from '~/composables/useOrders'
 
 const { items, itemsTotal, clear } = useCart()
 const { data: cfg } = await useDeliveryConfig()
 const router = useRouter()
+const { me, myAddresses } = useCustomer()
 
 // Sepet boşken bu sayfanın anlamı yok (spec §5 kenar durumlar)
 onMounted(() => {
   if (!items.value.length)
     router.replace('/urunler')
 })
+
+// Oturum durumu: null = henüz bilinmiyor (ilk render), false = misafir,
+// true = giriş yapmış. Üçlü durum lazım çünkü me() bir ağ çağrısı — cevap
+// gelmeden "giriş yapın" çubuğunu göstermek, giriş yapmış kullanıcıya bir
+// an yanlış mesaj gösterir (flash).
+const girisYapildi = ref<boolean | null>(null)
+
+// Giriş yapmış ziyaretçi için sipariş veren alanları önceden doldurulur —
+// müşteri isterse değiştirebilir. Giriş yoksa (misafir) form boş kalır,
+// bu MEVCUT davranış — üyelik opsiyonel, checkout akışını bozmamalı.
+// Geçmiş siparişlerden türetilen adres önerileri (adres defteri değil).
+// Misafirde boş kalır — checkout akışı üyelikten bağımsız çalışmalı.
+const gecmisAdresler = ref<RecentAddress[]>([])
+
+onMounted(async () => {
+  const musteri = await me()
+  girisYapildi.value = !!musteri
+  if (musteri) {
+    form.buyerName = musteri.name
+    form.buyerPhone = musteri.phone
+    // Adresler ikinci bir çağrı; başarısız olursa (myAddresses boş dizi
+    // döner) form normal şekilde çalışmaya devam eder.
+    gecmisAdresler.value = await myAddresses()
+  }
+})
+
+// Öneriye tıklanınca alıcı + teslimat alanlarını doldur. Müşteri sonrasında
+// istediği alanı düzenleyebilir — bu bir kısayol, kilit değil.
+function adresiUygula(a: RecentAddress) {
+  form.recipientName = a.recipient_name
+  form.recipientPhone = a.recipient_phone
+  form.address = a.delivery_address
+
+  // İlçe teslimat ücretini belirliyor ve bir <select>. Eski siparişteki ilçe
+  // bugün hizmet listesinde olmayabilir (işletme kapsamı değişmiş olabilir);
+  // öyleyse boş bırakılır ve müşteri seçmek zorunda kalır — sessizce geçersiz
+  // bir ilçeyle devam edip ücreti bozmaktansa bu daha güvenli.
+  form.district = (cfg.value?.districts ?? []).includes(a.delivery_district)
+    ? a.delivery_district
+    : ''
+
+  // Adres seçildiyse alıcı artık müşterinin kendisi değil.
+  form.aliciBenim = false
+}
 
 const form = reactive({
   buyerName: '',
@@ -36,6 +82,8 @@ watch(() => form.aliciBenim, (v) => {
 
 const gonderiliyor = ref(false)
 const hata = ref('')
+const odemeAcik = ref(false)
+const odemeToken = ref('')
 
 // Hazır tarih çipleri: bugün + sonraki 2 gün, dördüncü çip takvim açar.
 const GUN_ADLARI = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
@@ -137,9 +185,10 @@ async function gonder() {
       card_message: cardMessage || undefined,
     })
 
-    // Başarılı → sepeti temizle, yoksa müşteri aynı siparişi tekrar verebilir
-    clear()
-    await router.push(`/siparis/tamam?no=${sonuc.order_no}`)
+    // Sepet burada TEMİZLENMEZ — ödeme henüz yapılmadı. Müşteri iframe'de
+    // öderse PayTR merchant_ok_url ile /siparis/tamam'a döner; orada temizlenir.
+    // İframe'i token ile aç:
+    await odemeIframiAc(sonuc.paytr_token, sonuc.order_no)
   }
   catch (e) {
     // Başarısız → sepet KORUNUR, müşterinin emeği silinmesin (spec §5)
@@ -148,6 +197,33 @@ async function gonder() {
   finally {
     gonderiliyor.value = false
   }
+}
+
+// PayTR iframe'ini token ile gömer. iframeResizer scriptini bir kez yükler.
+async function odemeIframiAc(token: string, orderNo: string) {
+  // order_no'yu tamam sayfası için sakla — PayTR redirect'inde query taşımıyoruz.
+  sessionStorage.setItem('bekleyen_siparis_no', orderNo)
+
+  await yukleIframeResizer()
+  odemeToken.value = token
+  odemeAcik.value = true
+  await nextTick()
+  // @ts-expect-error iFrameResize global (PayTR scripti)
+  window.iFrameResize({}, '#paytriframe')
+}
+
+function yukleIframeResizer(): Promise<void> {
+  return new Promise((resolve) => {
+    if (document.getElementById('paytr-iframe-resizer')) {
+      resolve()
+      return
+    }
+    const s = document.createElement('script')
+    s.id = 'paytr-iframe-resizer'
+    s.src = 'https://www.paytr.com/js/iframeResizer.min.js'
+    s.onload = () => resolve()
+    document.head.appendChild(s)
+  })
 }
 
 useSeoMeta({
@@ -162,7 +238,25 @@ useSeoMeta({
       Siparişi Tamamla
     </h1>
 
-    <form class="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]" @submit.prevent="gonder">
+    <!--
+      Yalnızca misafirlere gösterilen ince kısayol. Ödeme akışına ADIM
+      EKLEMEZ — form hemen altında, kullanıcı bunu tamamen yok sayıp
+      misafir olarak devam edebilir. girisYapildi === false şartı önemli:
+      null iken (me() cevabı beklenirken) göstermeyip, giriş yapmış
+      kullanıcıya bir anlık yanlış mesaj yanıp sönmesini engelliyoruz.
+    -->
+    <div
+      v-if="girisYapildi === false && !odemeAcik"
+      class="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-outline-variant/40 bg-surface-container-low px-4 py-3 text-body-md text-on-surface-variant"
+    >
+      <span>Hesabınız var mı?</span>
+      <NuxtLink to="/giris?donus=/siparis" class="font-medium text-secondary underline underline-offset-2 hover:text-primary">
+        Giriş yapın
+      </NuxtLink>
+      <span class="text-on-surface-variant/70">— bilgileriniz otomatik dolsun. Dilerseniz üye olmadan da devam edebilirsiniz.</span>
+    </div>
+
+    <form v-if="!odemeAcik" class="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]" @submit.prevent="gonder">
       <div class="space-y-10">
         <!-- Sipariş veren -->
         <fieldset>
@@ -191,6 +285,28 @@ useSeoMeta({
             <input v-model="form.aliciBenim" type="checkbox" class="size-4">
             <span class="text-body-md text-on-surface-variant">Alıcı benim</span>
           </label>
+
+          <!--
+            Geçmiş adres önerileri — yalnızca giriş yapmış ve daha önce
+            sipariş vermiş müşteride görünür. Adres defteri DEĞİL: veri
+            geçmiş siparişlerden türetiliyor. Tıklayınca alanlar dolar,
+            müşteri yine de düzenleyebilir.
+          -->
+          <div v-if="gecmisAdresler.length" class="mt-5">
+            <span class="text-label-caps text-secondary">Daha önce buraya göndermiştiniz</span>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-for="(a, i) in gecmisAdresler"
+                :key="i"
+                type="button"
+                class="rounded border border-outline-variant/50 bg-surface-container-low px-3 py-2 text-left text-body-sm text-on-surface-variant transition-colors hover:border-secondary hover:text-on-surface"
+                @click="adresiUygula(a)"
+              >
+                <span class="block font-medium text-on-surface">{{ a.recipient_name }}</span>
+                <span class="block">{{ a.delivery_district }} — {{ a.delivery_address }}</span>
+              </button>
+            </div>
+          </div>
 
           <div class="mt-5 grid gap-5 sm:grid-cols-2">
             <label class="block">
@@ -349,5 +465,15 @@ useSeoMeta({
         </p>
       </aside>
     </form>
+
+    <div v-if="odemeAcik" class="mt-8">
+      <iframe
+        id="paytriframe"
+        :src="`https://www.paytr.com/odeme/guvenli/${odemeToken}`"
+        frameborder="0"
+        scrolling="no"
+        style="width: 100%;"
+      />
+    </div>
   </div>
 </template>

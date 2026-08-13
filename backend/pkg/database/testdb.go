@@ -44,7 +44,7 @@ func truncateAll(t *testing.T, pool *pgxpool.Pool) {
 	_, err := pool.Exec(context.Background(), `
 		TRUNCATE products, product_slugs, product_images,
 		         categories, product_categories, admin_users, slides,
-		         orders, order_items
+		         orders, order_items, customers
 		RESTART IDENTITY CASCADE
 	`)
 	require.NoError(t, err, "test DB temizlenemedi — migration çalıştı mı?")

@@ -61,3 +61,17 @@ func (h *orderHandler) update(c *fiber.Ctx) error {
 
 	return c.JSON(toOrderView(o))
 }
+
+func (h *orderHandler) refund(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return badRequest(c, "Geçersiz id")
+	}
+
+	o, err := h.svc.Refund(c.Context(), int64(id))
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	return c.JSON(toOrderView(o))
+}

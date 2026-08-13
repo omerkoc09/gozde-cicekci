@@ -9,9 +9,12 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omerkoc/cicekci/internal/category"
+	"github.com/omerkoc/cicekci/internal/customer"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -20,16 +23,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// testJWTSecret app paketi testlerinde kullanılan sabit imzalama anahtarı.
+const testJWTSecret = "test-secret-app-paketi"
+
 func newTestAPI(t *testing.T) (*fiber.App, *product.Service, *category.Service) {
 	t.Helper()
-	pool := database.NewTestDB(t)
-	prodSvc := product.NewService(product.NewStore(pool))
+	app, _, prodSvc, catSvc, _, _ := newTestAPIFull(t)
+	return app, prodSvc, catSvc
+}
+
+// newTestAPIFull tam kurulum — müşteri uçlarını da test edebilmek için
+// order.Service, customer.Service ve pool'u da döner (test verisi
+// hazırlamak için doğrudan SQL gerekebiliyor — örn. products insert).
+func newTestAPIFull(t *testing.T) (fiberApp *fiber.App, orderSvc *order.Service, prodSvc *product.Service, catSvc *category.Service, custSvc *customer.Service, pool *pgxpool.Pool) {
+	t.Helper()
+	pool = database.NewTestDB(t)
+	prodSvc = product.NewService(product.NewStore(pool))
 
 	imgStore, err := image.NewLocalStore(t.TempDir(), "http://localhost:8080/uploads")
 	require.NoError(t, err)
 	imgSvc := image.NewService(imgStore, image.NewDB(pool))
 
-	catSvc := category.NewService(category.NewStore(pool), imgSvc)
+	catSvc = category.NewService(category.NewStore(pool), imgSvc)
 	sliderSvc := slider.NewService(slider.NewStore(pool), imgSvc)
 
 	deliveryCfg := order.DeliveryConfig{
@@ -37,11 +52,15 @@ func newTestAPI(t *testing.T) (*fiber.App, *product.Service, *category.Service) 
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg)
+	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
-	app := fiber.New()
-	Register(app.Group("/api"), catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg)
-	return app, prodSvc, catSvc
+	custSvc = customer.NewService(customer.NewStore(pool), testJWTSecret)
+
+	fiberApp = fiber.New()
+	Register(fiberApp.Group("/api"), catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
+		custSvc, testJWTSecret, false)
+	return fiberApp, orderSvc, prodSvc, catSvc, custSvc, pool
 }
 
 func mustPrice(t *testing.T, s string) decimal.Decimal {

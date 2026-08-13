@@ -24,5 +24,10 @@ export default [
     to: { name: 'siparisler' },
     icon: { icon: 'tabler-shopping-cart' },
   },
+  {
+    title: 'Müşteriler',
+    to: { name: 'musteriler' },
+    icon: { icon: 'tabler-users-group' },
+  },
 
 ]

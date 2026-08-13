@@ -292,3 +292,44 @@ func TestLoad_DeliveryFeesIgnoresMalformedEntries(t *testing.T) {
 		"Tire":   "80",
 	}, cfg.DeliveryFees)
 }
+
+// PayTR anahtarları boşsa PayTRConfigured false döner — main.go bu durumda
+// mock provider'a düşer, geliştirme ortamında gerçek PayTR hesabı gerekmez.
+func TestLoad_PayTRDefaultsUnconfigured(t *testing.T) {
+	setBaseEnv(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.False(t, cfg.PayTRConfigured())
+	assert.True(t, cfg.PayTRTestMode, "PAYTR_TEST_MODE ayarlanmamışsa varsayılan test modu açık olmalı")
+}
+
+// Üçü de doluysa PayTRConfigured true döner — main.go gerçek PayTR provider'ı seçer.
+func TestLoad_PayTRConfiguredWhenAllKeysSet(t *testing.T) {
+	setBaseEnv(t)
+	t.Setenv("PAYTR_MERCHANT_ID", "123")
+	t.Setenv("PAYTR_MERCHANT_KEY", "key")
+	t.Setenv("PAYTR_MERCHANT_SALT", "salt")
+	t.Setenv("PAYTR_TEST_MODE", "0")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.True(t, cfg.PayTRConfigured())
+	assert.False(t, cfg.PayTRTestMode)
+}
+
+// Kısmi anahtar seti (biri eksik) hâlâ unconfigured sayılmalı — PayTR'a
+// yarım kimlik bilgisiyle istek atmak anlamsız hata mesajlarına yol açar.
+func TestLoad_PayTRUnconfiguredWhenPartiallySet(t *testing.T) {
+	setBaseEnv(t)
+	t.Setenv("PAYTR_MERCHANT_ID", "123")
+	t.Setenv("PAYTR_MERCHANT_KEY", "key")
+	// PAYTR_MERCHANT_SALT eksik.
+
+	cfg, err := Load()
+	require.NoError(t, err)
+
+	assert.False(t, cfg.PayTRConfigured())
+}

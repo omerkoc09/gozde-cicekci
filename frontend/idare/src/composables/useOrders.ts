@@ -13,5 +13,8 @@ export function useOrders() {
   const update = (id: number, data: OrderUpdate) =>
     ApiService.patch<Order>(`admin/orders/${id}`, data)
 
-  return { list, get, update }
+  const refund = (id: number) =>
+    ApiService.post<Order>(`admin/orders/${id}/refund`)
+
+  return { list, get, update, refund }
 }

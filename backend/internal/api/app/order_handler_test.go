@@ -5,13 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omerkoc/cicekci/internal/order"
+	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +35,8 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg)
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()
 	oh := &orderHandler{svc: svc, cfg: cfg}
@@ -59,6 +63,208 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 	// 1850 × 2 + 50 = 3750 — gövdedeki "1.00" yok sayıldı
 	assert.Equal(t, "3750.00", out.Total)
 	assert.NotEmpty(t, out.OrderNo)
+	assert.NotEmpty(t, out.PaytrToken)
+}
+
+// newCallbackTestOrder callback testleri için MockProvider ile gerçek bir
+// sipariş oluşturur ve PayTR'nin bildirimde göndereceği merchant_oid
+// (Order.PaymentRef — order_no'dan TÜRETİLİR, aynısı DEĞİL) döner.
+// pool ayrıca dönülür — testler payment_events tablosunu doğrudan
+// sorgulayıp denetim izini (idempotency'nin dayandığı temel) kontrol edebilsin.
+func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, merchantOID string, orderID int64, pool *pgxpool.Pool) {
+	t.Helper()
+	pool = database.NewTestDB(t)
+
+	var productID int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	cfg := order.DeliveryConfig{
+		Fee: "50", Slots: []string{"12:00-15:00"},
+		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş"},
+	}
+	svc = order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
+	oh = &orderHandler{svc: svc, cfg: cfg}
+
+	in := order.CreateInput{
+		BuyerName: "Ahmet", BuyerPhone: "05551112233",
+		RecipientName: "Ayşe", RecipientPhone: "05554445566",
+		DeliveryAddress: "Test Cad. 1", DeliveryDistrict: "Ödemiş",
+		DeliveryDate: time.Now().AddDate(0, 0, 2), DeliverySlot: "12:00-15:00",
+		Items: []order.CreateItem{{ProductID: productID, Quantity: 1}},
+	}
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	return svc, oh, o.PaymentRef, o.ID, pool
+}
+
+func TestPaymentCallback_BasariliOKDoner(t *testing.T) {
+	_, oh, merchantOID, _, _ := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	form := fmt.Sprintf("merchant_oid=%s&status=success&total_amount=190000&hash=irrelevant-for-mock",
+		merchantOID)
+	req := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	assert.Equal(t, "OK", string(bodyBytes))
+}
+
+// TestPaymentCallback_IkinciCallbackIdempotentOKDoner PayTR'nin aynı
+// başarılı bildirimi TEKRAR gönderdiği (retry/ağ hatası) senaryoyu test
+// eder. Kök neden: handler denetim izi payload'ı olarak form-encoded ham
+// gövdeyi (c.Body()) geçiyordu — payment_events.raw_payload JSONB olduğu
+// için bu INSERT veritabanı hatasıyla reddediliyor, hata AddPaymentEvent'te
+// yutuluyor, callback_ok HİÇ yazılmıyordu. İkinci callback'te idempotency
+// kontrolü (HasPaymentEvent callback_ok) yanlışlıkla false dönüyor,
+// SetPaid tekrar çağrılıyor ama sipariş zaten paid olduğu için
+// WHERE status='awaiting_payment' 0 satır etkiliyor → ErrNotFound →
+// handler PayTR'ye "FAIL" dönüyordu (olması gereken: idempotent "OK").
+//
+// Bu test gerçek handler'ı form-encoded gövdeyle İKİ KEZ çağırır (mock
+// veya sahte payload değil — gerçek Postgres test DB + gerçek JSONB
+// kısıtı) ve hem ikinci yanıtın OK olduğunu hem de payment_events'te
+// TEK callback_ok kaydı olduğunu doğrular.
+func TestPaymentCallback_IkinciCallbackIdempotentOKDoner(t *testing.T) {
+	svc, oh, merchantOID, orderID, pool := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	form := fmt.Sprintf("merchant_oid=%s&status=success&total_amount=190000&hash=irrelevant-for-mock",
+		merchantOID)
+
+	// Birinci callback (PayTR'nin ilk bildirimi)
+	req1 := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req1.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp1, err := f.Test(req1)
+	require.NoError(t, err)
+	body1, err := io.ReadAll(resp1.Body)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusOK, resp1.StatusCode, "birinci callback OK dönmeli")
+	require.Equal(t, "OK", string(body1))
+
+	// İkinci callback — PayTR aynı bildirimi tekrar gönderiyor (retry).
+	// Idempotent olmalı: sipariş zaten paid, yine de "OK" dönmeli.
+	req2 := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp2, err := f.Test(req2)
+	require.NoError(t, err)
+	body2, err := io.ReadAll(resp2.Body)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp2.StatusCode, "ikinci (retry) callback da OK dönmeli — idempotency")
+	assert.Equal(t, "OK", string(body2))
+
+	// payment_events'te TEK callback_ok kaydı olmalı (idempotency kontrolünün
+	// çalışabilmesi için ÖNCE callback_ok'un başarıyla yazılmış olması gerekir).
+	o, err := svc.Get(context.Background(), orderID)
+	require.NoError(t, err)
+	assert.Equal(t, "paid", string(o.Status))
+
+	var count int
+	err = pool.QueryRow(context.Background(),
+		`SELECT COUNT(*) FROM payment_events WHERE order_id=$1 AND event_type='callback_ok'`,
+		orderID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "callback_ok tam olarak bir kez yazılmalı (JSONB'ye geçerli JSON insert edilebilmeli)")
+
+	// raw_payload gerçekten JSONB'ye uygun geçerli JSON olarak yazılmış mı.
+	var rawPayload []byte
+	err = pool.QueryRow(context.Background(),
+		`SELECT raw_payload FROM payment_events WHERE order_id=$1 AND event_type='callback_ok'`,
+		orderID).Scan(&rawPayload)
+	require.NoError(t, err)
+	assert.True(t, json.Valid(rawPayload), "raw_payload geçerli JSON olmalı (JSONB kolonu)")
+}
+
+func TestPaymentCallback_GecersizFAILDoner(t *testing.T) {
+	_, oh, _, _, _ := newCallbackTestOrder(t)
+
+	f := fiber.New()
+	f.Post("/payment/callback", oh.paymentCallback)
+
+	// Var olmayan merchant_oid → GetByPaymentRef hata verir → accepted=false
+	form := "merchant_oid=siparis-yok-99999&status=success&total_amount=190000&hash=x"
+	req := httptest.NewRequest(http.MethodPost, "/payment/callback", bytes.NewBufferString(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, fiber.StatusOK, resp.StatusCode)
+	assert.NotEqual(t, "OK", string(bodyBytes))
+}
+
+// TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir GÜVENLİK/regresyon
+// testi: guest checkout'un tek ve en önemli değişmezi (invariant #2) —
+// bozuk/geçersiz bir customer_token cookie'si checkout'u ASLA kırmamalı.
+// customer.ParseToken hata dönerse handler'daki customerID nil kalıp
+// misafir siparişine düşmeli (order_handler.go:56-60), 401/500 DEĞİL.
+func TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir(t *testing.T) {
+	pool := database.NewTestDB(t)
+
+	var productID int64
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO products (name, description, price, is_active)
+		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
+	require.NoError(t, err)
+
+	cfg := order.DeliveryConfig{
+		Fee: "50", Slots: []string{"12:00-15:00"},
+		SameDayCutoff: "16:00", MaxDays: 30,
+		Districts: []string{"Ödemiş"},
+	}
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
+
+	f := fiber.New()
+	oh := &orderHandler{svc: svc, cfg: cfg, jwtSecret: "test-secret-siparis-testi-32-karakter"}
+	f.Post("/orders", oh.create)
+
+	body := fmt.Sprintf(`{
+		"items": [{"product_id": %d, "quantity": 1}],
+		"buyer": {"name": "Ahmet", "phone": "05551112233"},
+		"recipient": {"name": "Ayşe", "phone": "05554445566"},
+		"delivery": {"address": "Test Cad. 1", "district": "Ödemiş", "date": "%s", "slot": "12:00-15:00"}
+	}`, productID, time.Now().AddDate(0, 0, 2).Format("2006-01-02"))
+
+	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	// Garbage/malformed customer_token cookie — imza doğrulaması başarısız olur.
+	req.AddCookie(&http.Cookie{Name: "customer_token", Value: "bu-gecerli-bir-jwt-degil"})
+
+	resp, err := f.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, fiber.StatusCreated, resp.StatusCode,
+		"bozuk customer_token checkout'u kırmamalı — misafir siparişine düşmeli")
+
+	var out createOrderResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
+	assert.NotEmpty(t, out.OrderNo)
+
+	// customer_id gerçekten NULL yazılmış mı — DB'den doğrudan doğrula.
+	var customerID *int64
+	err = pool.QueryRow(context.Background(),
+		`SELECT customer_id FROM orders WHERE order_no = $1`, out.OrderNo).Scan(&customerID)
+	require.NoError(t, err)
+	assert.Nil(t, customerID, "bozuk cookie ile oluşan sipariş customer_id NULL (misafir) olmalı")
 }
 
 func TestDeliveryConfig(t *testing.T) {

@@ -62,14 +62,14 @@ function handleRowClick(_: unknown, payload: { item: Order }) {
         <VBtn value="">
           Hepsi
         </VBtn>
-        <VBtn value="pending">
-          Yeni
-        </VBtn>
-        <VBtn value="confirmed">
-          Onaylandı
+        <VBtn value="paid">
+          Ödendi
         </VBtn>
         <VBtn value="delivered">
           Teslim
+        </VBtn>
+        <VBtn value="refunded">
+          İade
         </VBtn>
       </VBtnToggle>
     </div>

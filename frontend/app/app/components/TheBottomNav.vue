@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * Mobil alt navigasyon — referans mockup'taki 4'lü yapı (Mağaza/Favoriler/
+ * Mobil alt navigasyon — referans mockup'taki 4'lü yapı (Mağaza/Koleksiyonlar/
  * Sepet/Hesabım). Sadece mobil/tablette görünür (lg:hidden); masaüstünde
  * header zaten aynı kısayolları içeriyor.
  *
- * Favoriler ve Hesabım header'daki INERT davranışla aynı: backend
- * karşılığı olmayan mevcut /hesabim sayfalarına gider (spec §2.1).
+ * "Favoriler" sekmesi kaldırıldı — favoriler/adresler backend'de yok ve
+ * mock ekranları silindi (üyelik spec'i 2026-08-13). Yerine ürün listesine
+ * giden "Koleksiyonlar" kondu, 4'lü yapı korunuyor.
  */
 defineEmits<{ openCart: [] }>()
 
@@ -33,12 +34,12 @@ function aktifMi(to: string) {
     </NuxtLink>
 
     <NuxtLink
-      to="/hesabim/favoriler"
+      to="/urunler"
       class="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] transition-colors"
-      :class="aktifMi('/hesabim/favoriler') ? 'text-primary' : 'text-on-surface-variant'"
+      :class="aktifMi('/urunler') ? 'text-primary' : 'text-on-surface-variant'"
     >
-      <Icon :name="aktifMi('/hesabim/favoriler') ? 'material-symbols:favorite' : 'material-symbols:favorite-outline'" size="22" />
-      Favoriler
+      <Icon :name="aktifMi('/urunler') ? 'material-symbols:local-florist' : 'material-symbols:local-florist-outline'" size="22" />
+      Koleksiyonlar
     </NuxtLink>
 
     <button
@@ -61,7 +62,7 @@ function aktifMi(to: string) {
     <NuxtLink
       to="/hesabim"
       class="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] transition-colors"
-      :class="aktifMi('/hesabim') && !aktifMi('/hesabim/favoriler') ? 'text-primary' : 'text-on-surface-variant'"
+      :class="aktifMi('/hesabim') ? 'text-primary' : 'text-on-surface-variant'"
     >
       <Icon :name="aktifMi('/hesabim') ? 'material-symbols:person' : 'material-symbols:person-outline'" size="22" />
       Hesabım

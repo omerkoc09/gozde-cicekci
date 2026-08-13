@@ -36,6 +36,10 @@ type orderView struct {
 	DeliveryFee string `json:"delivery_fee"`
 	Total       string `json:"total"`
 
+	PaidAt     *time.Time `json:"paid_at"`
+	RefundedAt *time.Time `json:"refunded_at"`
+	PaymentRef string     `json:"payment_ref"`
+
 	Note      string          `json:"note"`
 	Items     []orderItemView `json:"items"`
 	CreatedAt time.Time       `json:"created_at"`
@@ -69,6 +73,9 @@ func toOrderView(o *order.Order) orderView {
 		ItemsTotal:       o.ItemsTotal.StringFixed(2),
 		DeliveryFee:      o.DeliveryFee.StringFixed(2),
 		Total:            o.Total.StringFixed(2),
+		PaidAt:           o.PaidAt,
+		RefundedAt:       o.RefundedAt,
+		PaymentRef:       o.PaymentRef,
 		Note:             o.Note,
 		Items:            items,
 		CreatedAt:        o.CreatedAt,
