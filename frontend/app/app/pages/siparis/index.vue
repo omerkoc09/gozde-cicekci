@@ -13,11 +13,18 @@ onMounted(() => {
     router.replace('/urunler')
 })
 
+// Oturum durumu: null = henüz bilinmiyor (ilk render), false = misafir,
+// true = giriş yapmış. Üçlü durum lazım çünkü me() bir ağ çağrısı — cevap
+// gelmeden "giriş yapın" çubuğunu göstermek, giriş yapmış kullanıcıya bir
+// an yanlış mesaj gösterir (flash).
+const girisYapildi = ref<boolean | null>(null)
+
 // Giriş yapmış ziyaretçi için sipariş veren alanları önceden doldurulur —
 // müşteri isterse değiştirebilir. Giriş yoksa (misafir) form boş kalır,
 // bu MEVCUT davranış — üyelik opsiyonel, checkout akışını bozmamalı.
 onMounted(async () => {
   const musteri = await me()
+  girisYapildi.value = !!musteri
   if (musteri) {
     form.buyerName = musteri.name
     form.buyerPhone = musteri.phone
@@ -203,6 +210,24 @@ useSeoMeta({
     <h1 class="font-serif text-3xl text-primary md:text-4xl">
       Siparişi Tamamla
     </h1>
+
+    <!--
+      Yalnızca misafirlere gösterilen ince kısayol. Ödeme akışına ADIM
+      EKLEMEZ — form hemen altında, kullanıcı bunu tamamen yok sayıp
+      misafir olarak devam edebilir. girisYapildi === false şartı önemli:
+      null iken (me() cevabı beklenirken) göstermeyip, giriş yapmış
+      kullanıcıya bir anlık yanlış mesaj yanıp sönmesini engelliyoruz.
+    -->
+    <div
+      v-if="girisYapildi === false && !odemeAcik"
+      class="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-outline-variant/40 bg-surface-container-low px-4 py-3 text-body-md text-on-surface-variant"
+    >
+      <span>Hesabınız var mı?</span>
+      <NuxtLink to="/giris?donus=/siparis" class="font-medium text-secondary underline underline-offset-2 hover:text-primary">
+        Giriş yapın
+      </NuxtLink>
+      <span class="text-on-surface-variant/70">— bilgileriniz otomatik dolsun. Dilerseniz üye olmadan da devam edebilirsiniz.</span>
+    </div>
 
     <form v-if="!odemeAcik" class="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]" @submit.prevent="gonder">
       <div class="space-y-10">

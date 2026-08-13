@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
+import { donusYolunuCoz } from '~/utils/authRedirect'
 
 useSeoMeta({
   title: 'Giriş Yap | Gözde Tasarım Çiçekçilik',
@@ -8,12 +9,16 @@ useSeoMeta({
 
 const { login, me } = useCustomer()
 const router = useRouter()
+const route = useRoute()
+
+// Giriş sonrası nereye dönüleceği (?donus=/siparis ile checkout'tan gelinir).
+const donusYolu = computed(() => donusYolunuCoz(route.query.donus))
 
 // Zaten giriş yapılmışsa tekrar giriş formuna gerek yok.
 onMounted(async () => {
   const musteri = await me()
   if (musteri)
-    await router.replace('/hesabim')
+    await router.replace(donusYolu.value)
 })
 
 const form = reactive({
@@ -30,7 +35,7 @@ async function gonder() {
 
   try {
     await login({ email: form.email, password: form.password })
-    await router.push('/hesabim')
+    await router.push(donusYolu.value)
   }
   catch (e) {
     // Giriş ucunda 401 tek bir şey demek: e-posta ya da şifre yanlış.
@@ -83,7 +88,7 @@ async function gonder() {
 
         <p class="text-center text-body-md text-on-surface-variant">
           Hesabınız yok mu?
-          <NuxtLink to="/kayit" class="text-secondary underline">
+          <NuxtLink :to="{ path: '/kayit', query: route.query.donus ? { donus: route.query.donus } : undefined }" class="text-secondary underline">
             Kayıt olun
           </NuxtLink>
         </p>

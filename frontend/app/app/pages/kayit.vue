@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
+import { donusYolunuCoz } from '~/utils/authRedirect'
 
 useSeoMeta({
   title: 'Kayıt Ol | Gözde Tasarım Çiçekçilik',
@@ -8,12 +9,16 @@ useSeoMeta({
 
 const { register, me } = useCustomer()
 const router = useRouter()
+const route = useRoute()
+
+// Kayıt sonrası dönülecek yol (giris.vue ile aynı mantık).
+const donusYolu = computed(() => donusYolunuCoz(route.query.donus))
 
 // Zaten giriş yapılmışsa tekrar kayıt formuna gerek yok.
 onMounted(async () => {
   const musteri = await me()
   if (musteri)
-    await router.replace('/hesabim')
+    await router.replace(donusYolu.value)
 })
 
 const form = reactive({
@@ -37,7 +42,7 @@ async function gonder() {
       name: form.name,
       phone: form.phone,
     })
-    await router.push('/hesabim')
+    await router.push(donusYolu.value)
   }
   catch (e) {
     // Backend kayıt hatalarında zaten açıklayıcı Türkçe mesaj dönüyor
@@ -99,7 +104,7 @@ async function gonder() {
 
         <p class="text-center text-body-md text-on-surface-variant">
           Zaten hesabınız var mı?
-          <NuxtLink to="/giris" class="text-secondary underline">
+          <NuxtLink :to="{ path: '/giris', query: route.query.donus ? { donus: route.query.donus } : undefined }" class="text-secondary underline">
             Giriş yapın
           </NuxtLink>
         </p>
