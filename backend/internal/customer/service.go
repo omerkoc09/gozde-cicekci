@@ -12,6 +12,13 @@ import (
 
 const minPasswordLength = 8
 
+// maxPasswordLength bcrypt'in sert sınırı: 72 BAYT üzeri şifre
+// bcrypt.GenerateFromPassword'ü ErrPasswordTooLong ile başarısız kılar ve bu
+// errorsx sentinel'lerinden hiçbirine uymadığı için api.WriteError'da 500
+// "Sunucu hatası" olarak yüzeye çıkardı. Burada erkenden yakalayıp 400
+// döndürüyoruz. Bayt uzunluğu — rune değil, bcrypt de bayt üzerinden sayıyor.
+const maxPasswordLength = 72
+
 type Service struct {
 	store     *Store
 	jwtSecret string
@@ -32,6 +39,9 @@ func (s *Service) Register(ctx context.Context, email, password, name, phone str
 	}
 	if len(password) < minPasswordLength {
 		return "", nil, fmt.Errorf("%w: şifre en az %d karakter olmalı", errorsx.ErrInvalidInput, minPasswordLength)
+	}
+	if len(password) > maxPasswordLength {
+		return "", nil, fmt.Errorf("%w: şifre en fazla %d karakter olabilir", errorsx.ErrInvalidInput, maxPasswordLength)
 	}
 	if name == "" {
 		return "", nil, fmt.Errorf("%w: ad soyad gerekli", errorsx.ErrInvalidInput)
@@ -108,6 +118,9 @@ func (s *Service) ChangePassword(ctx context.Context, id int64, currentPassword,
 	}
 	if len(newPassword) < minPasswordLength {
 		return fmt.Errorf("%w: şifre en az %d karakter olmalı", errorsx.ErrInvalidInput, minPasswordLength)
+	}
+	if len(newPassword) > maxPasswordLength {
+		return fmt.Errorf("%w: şifre en fazla %d karakter olabilir", errorsx.ErrInvalidInput, maxPasswordLength)
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {

@@ -50,3 +50,35 @@ func TestService_ChangePassword_MevcutSifreYanlisRed(t *testing.T) {
 	// doğru mevcut şifreyle geçer
 	require.NoError(t, s.ChangePassword(context.Background(), c.ID, "sifre1234", "yenisifre1"))
 }
+
+// TestService_Register_UzunSifreGecersizGirdiDoner I5 regresyon testi.
+// bcrypt.GenerateFromPassword 72 bayt üzerinde ErrPasswordTooLong ile sert
+// başarısız olur; bu hata errorsx sentinel'lerinden hiçbirine uymadığı için
+// api.WriteError'ın default dalı 500 "Sunucu hatası" döndürüyordu. Register
+// artık uzunluğu erkenden kontrol edip ErrInvalidInput dönmeli (400).
+func TestService_Register_UzunSifreGecersizGirdiDoner(t *testing.T) {
+	s := newTestService(t)
+	uzunSifre := make([]byte, 73)
+	for i := range uzunSifre {
+		uzunSifre[i] = 'a'
+	}
+	_, _, err := s.Register(context.Background(), "uzun@b.com", string(uzunSifre), "Ali", "555")
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput,
+		"73 baytlık şifre 500 değil ErrInvalidInput dönmeli")
+}
+
+// TestService_ChangePassword_UzunSifreGecersizGirdiDoner Register ile aynı
+// bcrypt sınırı ChangePassword'da da uygulanmalı (I5, ikinci çağrı yeri).
+func TestService_ChangePassword_UzunSifreGecersizGirdiDoner(t *testing.T) {
+	s := newTestService(t)
+	_, c, err := s.Register(context.Background(), "uzun2@b.com", "sifre1234", "Ali", "555")
+	require.NoError(t, err)
+
+	uzunSifre := make([]byte, 73)
+	for i := range uzunSifre {
+		uzunSifre[i] = 'b'
+	}
+	err = s.ChangePassword(context.Background(), c.ID, "sifre1234", string(uzunSifre))
+	require.ErrorIs(t, err, errorsx.ErrInvalidInput,
+		"73 baytlık yeni şifre 500 değil ErrInvalidInput dönmeli")
+}
