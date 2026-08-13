@@ -17,8 +17,40 @@ Son güncelleme: 2026-07-19
 | Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
 | Deployment (Faz B — VPS) | ✅ **CANLI** (2026-07-18) — https://gozdetasarimcicekcilik.com, Hetzner CPX12 |
 | Faz 3 — Ödeme (PayTR) | 🟡 **Kodlandı + mock E2E doğrulandı** (2026-07-19) — 10 task, 306 backend testi; gerçek PayTR sandbox testi (Task 12) ve ETBİS bekliyor |
+| Üyelik / müşteri hesabı | 🟡 **Kodlandı + lokal E2E doğrulandı** (2026-08-13) — 11 task; `uyelik` branch'inde, whole-branch review bekliyor |
 
-Branch: `main` (deploy edilen). Faz 3 geliştirmesi `odeme-sistemi` branch'inde.
+Branch: `main` (deploy edilen). Faz 3 geliştirmesi `odeme-sistemi`, üyelik `uyelik` branch'inde.
+
+## Üyelik / Müşteri Hesabı, 2026-08-13
+
+Opsiyonel e-posta+şifre müşteri üyeliği. Misafir siparişi aynen korunuyor —
+üyelik hiçbir yerde zorunlu değil.
+
+**Mimari:** `internal/customer/` paketi, mevcut `internal/auth/` (admin)
+deseninin ayrı ikizi. Ayrı tablo (`customers`), ayrı cookie (`customer_token`,
+admin'inki `cicekci_token`), ayrı middleware. JWT claim'inde `typ:"customer"` —
+admin token'ı müşteri ucuna geçemiyor.
+
+**Lokal E2E doğrulandı (2026-08-13):**
+
+| Senaryo | Sonuç |
+|---|---|
+| Kayıt → HttpOnly cookie, yanıtta şifre yok | ✅ 201, `SameSite=Strict`, 7 gün |
+| Giriş / yanlış şifre / cookie'siz `/me` | ✅ 200 / 401 / 401 |
+| Giriş yapmışken sipariş → `customer_id` bağlanır | ✅ `1308-0001 → customer_id=1` |
+| Misafir sipariş → `customer_id` NULL | ✅ `1308-0002 → NULL` (akış bozulmadı) |
+| `/customer/orders` yalnız kendi siparişleri | ✅ misafir siparişi görünmüyor |
+| Çıkış sonrası `/me` | ✅ 401 |
+| **Admin token'ı müşteri ucunda** | ✅ **401** — aynı token `/api/admin/orders`'da 200, `/api/customer/me`'de 401 (tip ayrımı kanıtlandı) |
+
+**Bilinen (üyelikle ilgisiz):** `pkg/config` PayTR testleri (
+`TestLoad_PayTRDefaultsUnconfigured`, `TestLoad_PayTRUnconfiguredWhenPartiallySet`)
+kırmızı — `setBaseEnv` PAYTR_* değişkenlerini temizlemiyor, `config.Load()` kök
+`.env`'deki gerçek anahtarlara düşüyor. Bu branch'ten önce de kırıktı.
+
+**Dev ortam notu:** cicekci postgres portu 5433 → **5435** taşındı; 5433'ü başka
+bir projenin container'ı (`backend-db-1`) tutuyordu ve `localhost:5433` yanlış
+veritabanına gidiyordu. Test DB 5434'te değişmedi.
 
 ## Faz 3 — Ödeme Entegrasyonu (PayTR), 2026-07-19
 
