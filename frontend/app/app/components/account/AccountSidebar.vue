@@ -1,26 +1,32 @@
 <script setup lang="ts">
 /**
- * Hesap sidebar'ı — spec §6.2.
+ * Hesap sidebar'ı — üyelik/müşteri hesabı spec'i (2026-08-13).
  *
- * Referans ekranlar tutarsızdı (kimi 4 kimi 5 item, İngilizce/Türkçe karışık,
- * "Wishlist" vs "Favoriler"). Tek yapıya sabitlendi ve Türkçeleştirildi.
- *
- * "Siparişler" BİLEREK yok: sipariş diye bir kavram yok, sayfası da yok —
- * tıklanınca gidecek yeri olmayan link, inert UI'ın bile kabul etmeyeceği
- * kadar kırık olurdu (kullanıcı onayıyla çıkarıldı).
+ * Favoriler ve Adresler kaldırıldı: backend'de karşılıkları yok, mock
+ * ekranları silindi. Kalan 2 item gerçek: Pano (sipariş geçmişi), Hesap
+ * Detayları (profil + şifre) — ikisi de gerçek /customer/* uçlarına bağlı.
  *
  * Mobilde yatay kaydırılabilir sekme olur (spec §8).
  */
 const LINKLER = [
   { to: '/hesabim', label: 'Pano', ikon: 'material-symbols:dashboard-outline' },
-  { to: '/hesabim/adresler', label: 'Adresler', ikon: 'material-symbols:location-on-outline' },
   { to: '/hesabim/hesap-detaylari', label: 'Hesap Detayları', ikon: 'material-symbols:person-outline' },
-  { to: '/hesabim/favoriler', label: 'Favoriler', ikon: 'material-symbols:favorite-outline' },
 ]
 
-// Çıkış inert — oturum diye bir şey yok (spec §2.1). Sahte "çıkış yapıldı"
-// demek yerine durumu açıkça söylüyoruz.
-const cikisMesaji = ref(false)
+const { logout } = useCustomer()
+const router = useRouter()
+const cikisYapiliyor = ref(false)
+
+async function cikisYap() {
+  cikisYapiliyor.value = true
+  try {
+    await logout()
+  }
+  finally {
+    cikisYapiliyor.value = false
+    await router.push('/giris')
+  }
+}
 </script>
 
 <template>
@@ -57,16 +63,13 @@ const cikisMesaji = ref(false)
 
       <button
         type="button"
-        class="text-nav-link flex w-full items-center gap-3 rounded px-4 py-3 text-error transition-colors hover:bg-error-container/40"
-        @click="cikisMesaji = true"
+        :disabled="cikisYapiliyor"
+        class="text-nav-link flex w-full items-center gap-3 rounded px-4 py-3 text-error transition-colors hover:bg-error-container/40 disabled:opacity-60"
+        @click="cikisYap"
       >
         <Icon name="material-symbols:logout" size="18" />
-        Çıkış Yap
+        {{ cikisYapiliyor ? 'Çıkış yapılıyor...' : 'Çıkış Yap' }}
       </button>
-
-      <p v-if="cikisMesaji" class="mt-2 px-4 text-xs text-on-surface-variant" role="status">
-        Üyelik sistemi çok yakında açılıyor.
-      </p>
     </div>
   </nav>
 </template>

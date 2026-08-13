@@ -9,12 +9,20 @@ import type { Category } from '~/types/api'
  * occasion → Özel Günler, type → Çiçekler. İlk link ("Koleksiyonlar")
  * filtresiz /urunler'e gider, ayrı bir kategori ekseni değildir.
  *
- * Favori/hesap ikonları INERT — backend'de karşılıkları yok (spec §2.1).
+ * Hesap ikonu artık gerçek: giriş durumuna göre /giris veya /hesabim'e gider
+ * (üyelik spec'i 2026-08-13). Favori ikonu kaldırıldı — backend'de karşılığı
+ * yok, mock favoriler ekranı silindi.
  * Sepet Faz 2'de gerçek oldu: rozet artık gerçek sayıyı gösterir.
  */
 const emit = defineEmits<{ openCart: [] }>()
 
 const { count: cartCount } = useCart()
+const { me } = useCustomer()
+
+const girisYapilmis = ref(false)
+onMounted(async () => {
+  girisYapilmis.value = !!(await me())
+})
 
 const { data: categories } = await useCategoryList()
 
@@ -124,17 +132,8 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         </NuxtLink>
       </nav>
 
-      <!-- Aksiyonlar — favoriler mobilde bottom nav'da zaten var, burada
-           sadece masaüstünde görünür. -->
+      <!-- Aksiyonlar -->
       <div class="ml-auto flex shrink-0 items-center gap-0.5 text-primary md:gap-2 lg:ml-0">
-        <NuxtLink
-          to="/hesabim/favoriler"
-          class="hidden rounded p-2 transition-colors hover:text-secondary lg:block"
-          aria-label="Favoriler"
-        >
-          <Icon name="material-symbols:favorite-outline" size="22" />
-        </NuxtLink>
-
         <button
           type="button"
           class="relative rounded p-2 transition-colors hover:text-secondary"
@@ -154,9 +153,9 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         </button>
 
         <NuxtLink
-          to="/hesabim"
+          :to="girisYapilmis ? '/hesabim' : '/giris'"
           class="hidden rounded p-2 transition-colors hover:text-secondary sm:block"
-          aria-label="Hesabım"
+          :aria-label="girisYapilmis ? 'Hesabım' : 'Giriş Yap'"
         >
           <Icon name="material-symbols:person-outline" size="22" />
         </NuxtLink>

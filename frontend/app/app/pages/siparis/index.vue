@@ -5,11 +5,23 @@ import { apiErrorMessage } from '~/composables/useOrders'
 const { items, itemsTotal, clear } = useCart()
 const { data: cfg } = await useDeliveryConfig()
 const router = useRouter()
+const { me } = useCustomer()
 
 // Sepet boşken bu sayfanın anlamı yok (spec §5 kenar durumlar)
 onMounted(() => {
   if (!items.value.length)
     router.replace('/urunler')
+})
+
+// Giriş yapmış ziyaretçi için sipariş veren alanları önceden doldurulur —
+// müşteri isterse değiştirebilir. Giriş yoksa (misafir) form boş kalır,
+// bu MEVCUT davranış — üyelik opsiyonel, checkout akışını bozmamalı.
+onMounted(async () => {
+  const musteri = await me()
+  if (musteri) {
+    form.buyerName = musteri.name
+    form.buyerPhone = musteri.phone
+  }
 })
 
 const form = reactive({

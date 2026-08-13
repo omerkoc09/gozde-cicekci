@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import { MOCK_KULLANICI } from '~/utils/mockAccount'
-
 const sepetAcik = ref(false)
 provide('sepetAcik', sepetAcik)
 
-// Hesap sayfaları demo (spec §2.1) — arama motorlarına gitmemeli.
+// Hesap sayfaları giriş gerektirir, arama motorlarına gitmemeli.
 useSeoMeta({ robots: 'noindex, nofollow' })
+
+// Sidebar'daki "Merhaba, {ad}" için — her hesap sayfası zaten kendi
+// onMounted'ında me() çağırıp giriş kontrolü yapıyor (yoksa /giris'e atıyor);
+// burada sadece isim gösterimi için ayrı bir çağrı yapılıyor.
+const { me } = useCustomer()
+const musteriAdi = ref('')
+onMounted(async () => {
+  const musteri = await me()
+  if (musteri)
+    musteriAdi.value = musteri.name
+})
 </script>
 
 <template>
@@ -23,8 +32,8 @@ useSeoMeta({ robots: 'noindex, nofollow' })
               <p class="font-serif text-2xl text-primary">
                 Hesabım
               </p>
-              <p class="mb-7 mt-1 text-body-md text-on-surface-variant">
-                Merhaba, {{ MOCK_KULLANICI.ad }}
+              <p v-if="musteriAdi" class="mb-7 mt-1 text-body-md text-on-surface-variant">
+                Merhaba, {{ musteriAdi }}
               </p>
             </div>
 
