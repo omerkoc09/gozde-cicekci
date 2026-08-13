@@ -49,6 +49,13 @@ func (s *Service) Register(ctx context.Context, email, password, name, phone str
 	if phone == "" {
 		return "", nil, fmt.Errorf("%w: telefon gerekli", errorsx.ErrInvalidInput)
 	}
+	// Telefon tek biçime indirgenir ("0555 111 22 33" → "5551112233").
+	// Geçersizse kayıt reddedilir — teslimat için ulaşılabilir bir cep
+	// numarası şart.
+	phone, ok := normalizePhone(phone)
+	if !ok {
+		return "", nil, fmt.Errorf("%w: geçerli bir cep telefonu girin (örn. 0555 111 22 33)", errorsx.ErrInvalidInput)
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -119,6 +126,12 @@ func (s *Service) UpdateProfile(ctx context.Context, id int64, name, phone strin
 	}
 	if phone == "" {
 		return nil, fmt.Errorf("%w: telefon gerekli", errorsx.ErrInvalidInput)
+	}
+	// Kayıttaki kural profil güncellemede de geçerli — aksi halde kullanıcı
+	// kayıt olduktan sonra numarayı bozabilirdi.
+	phone, ok := normalizePhone(phone)
+	if !ok {
+		return nil, fmt.Errorf("%w: geçerli bir cep telefonu girin (örn. 0555 111 22 33)", errorsx.ErrInvalidInput)
 	}
 	if err := s.store.UpdateProfile(ctx, id, name, phone); err != nil {
 		return nil, err

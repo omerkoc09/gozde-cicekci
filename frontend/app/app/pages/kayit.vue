@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
 import { donusYolunuCoz } from '~/utils/authRedirect'
+import { telefonHatasi } from '~/utils/telefon'
 
 useSeoMeta({
   title: 'Kayıt Ol | Gözde Tasarım Çiçekçilik',
@@ -31,8 +32,26 @@ const form = reactive({
 const gonderiliyor = ref(false)
 const hata = ref('')
 
+// Telefon hatası alan altında anlık gösterilir. Kullanıcı alana dokunana
+// (blur) kadar gösterilmez — daha ilk harfte kırmızı uyarı çıkması rahatsız
+// edici olurdu.
+const telefonDokunuldu = ref(false)
+const telefonHataMesaji = computed(() =>
+  telefonDokunuldu.value ? telefonHatasi(form.phone) : '',
+)
+
 async function gonder() {
   hata.value = ''
+
+  // İstemci tarafı ön kontrol: sunucuya gitmeden anında geri bildirim.
+  // Asıl doğrulama backend'de (istemci kontrolü atlatılabilir).
+  telefonDokunuldu.value = true
+  const telHata = telefonHatasi(form.phone)
+  if (telHata) {
+    hata.value = telHata
+    return
+  }
+
   gonderiliyor.value = true
 
   try {
@@ -82,7 +101,23 @@ async function gonder() {
 
         <label class="block">
           <span class="text-label-caps text-secondary">Telefon *</span>
-          <input v-model="form.phone" required type="tel" autocomplete="tel" class="mt-1.5 w-full rounded border border-outline-variant/50 bg-surface px-3 py-2.5 text-body-md text-on-surface focus:border-secondary focus:outline-none">
+          <input
+            v-model="form.phone"
+            required
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            placeholder="0555 111 22 33"
+            :aria-invalid="!!telefonHataMesaji"
+            class="mt-1.5 w-full rounded border bg-surface px-3 py-2.5 text-body-md text-on-surface focus:outline-none"
+            :class="telefonHataMesaji
+              ? 'border-red-600 focus:border-red-600'
+              : 'border-outline-variant/50 focus:border-secondary'"
+            @blur="telefonDokunuldu = true"
+          >
+          <span v-if="telefonHataMesaji" class="mt-1 block text-body-sm text-red-700">
+            {{ telefonHataMesaji }}
+          </span>
         </label>
 
         <label class="block">

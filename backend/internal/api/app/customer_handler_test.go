@@ -49,7 +49,8 @@ func TestCustomer_RegisterLogin_CookieSet(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&cv))
 	assert.Equal(t, "kayit@example.com", cv.Email)
 	assert.Equal(t, "Ali Veli", cv.Name)
-	assert.Equal(t, "05551112233", cv.Phone)
+	// Telefon tek biçime indirgenerek saklanır: baştaki 0 soyulur.
+	assert.Equal(t, "5551112233", cv.Phone)
 	assert.NotZero(t, cv.ID)
 
 	// Şifre hash'i asla JSON'a çıkmamalı.
@@ -188,7 +189,7 @@ func TestCustomer_UpdateMe_BasariliProfilGuncelleme(t *testing.T) {
 	var cv customerView
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&cv))
 	assert.Equal(t, "Yeni Ad", cv.Name)
-	assert.Equal(t, "05559998877", cv.Phone)
+	assert.Equal(t, "5559998877", cv.Phone) // normalize edilmiş biçim
 }
 
 // TestCustomer_UpdateMe_YanlisMevcutSifreReddedilir current_password yanlışsa

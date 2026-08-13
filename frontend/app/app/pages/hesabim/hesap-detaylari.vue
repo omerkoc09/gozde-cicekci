@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Customer } from '~/types/api'
 import { apiErrorMessage, apiErrorStatus } from '~/composables/useOrders'
+import { telefonHatasi } from '~/utils/telefon'
 
 definePageMeta({ layout: 'account' })
 
@@ -37,6 +38,15 @@ onMounted(async () => {
 async function profilKaydet() {
   profilMesaj.value = ''
   profilHata.value = ''
+
+  // Kayıt formundaki telefon kuralı burada da geçerli — asıl doğrulama
+  // backend'de, bu yalnızca anında geri bildirim.
+  const telHata = telefonHatasi(profil.phone)
+  if (telHata) {
+    profilHata.value = telHata
+    return
+  }
+
   profilKaydediliyor.value = true
 
   try {
