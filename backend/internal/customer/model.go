@@ -1,0 +1,11 @@
+package customer
+
+// Customer bir müşteri hesabını temsil eder.
+type Customer struct {
+	ID    int64  `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
+	// PasswordHash asla JSON'a çıkmaz — kazara serialize edilse bile sızmasın.
+	PasswordHash string `json:"-"`
+}
