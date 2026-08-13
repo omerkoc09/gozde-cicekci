@@ -76,7 +76,7 @@ func NewService(store *Store, prod ProductReader, cfg DeliveryConfig,
 // bir sipariş olabilir (spec §5). Bu sadece 999999999 gibi girdileri eler.
 const maxQuantity = 1000
 
-func (s *Service) Create(ctx context.Context, in CreateInput, userIP string) (*Order, string, error) {
+func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, customerID *int64) (*Order, string, error) {
 	if err := s.validateContact(&in); err != nil {
 		return nil, "", err
 	}
@@ -146,6 +146,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string) (*O
 		ItemsTotal:       itemsTotal,
 		DeliveryFee:      fee,
 		Total:            total,
+		CustomerID:       customerID,
 		Items:            items,
 	})
 	if err != nil {
@@ -380,6 +381,11 @@ func (s *Service) List(ctx context.Context, status string, limit, offset int) ([
 
 func (s *Service) Get(ctx context.Context, id int64) (*Order, error) {
 	return s.store.GetByID(ctx, id)
+}
+
+// ListByCustomer bir müşterinin kendi siparişlerini döner.
+func (s *Service) ListByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
+	return s.store.ListByCustomer(ctx, customerID)
 }
 
 // Update statü ve/veya not günceller. nil alan değişmez (PATCH semantiği).
