@@ -78,3 +78,28 @@ export interface CreateOrderResult {
   total: string
   paytr_token: string
 }
+
+/** Giriş yapmış müşteri — /customer/me, /customer/register, /customer/me (PATCH) yanıtı. */
+export interface Customer {
+  id: number
+  email: string
+  name: string
+  phone: string
+}
+
+/** /customer/orders listesindeki bir kalem — sadeleştirilmiş, minimal görünüm. */
+export interface CustomerOrderItem {
+  product_name: string
+  quantity: number
+}
+
+export type CustomerOrderStatus = 'awaiting_payment' | 'paid' | 'delivered' | 'refunded'
+
+/** /customer/orders — her zaman dizi, boşsa [] (asla null). */
+export interface CustomerOrder {
+  order_no: string
+  status: CustomerOrderStatus
+  total: string
+  delivery_date: string
+  items: CustomerOrderItem[]
+}
