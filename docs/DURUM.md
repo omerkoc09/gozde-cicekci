@@ -16,35 +16,36 @@ Son güncelleme: 2026-07-19
 | Deployment altyapısı (Faz A) | ✅ **Hazır** — Docker Compose + Caddy, lokalde prod moduyla test edildi |
 | Final whole-branch review | ✅ **Yapıldı** (2026-07-18) — 8 açı, 7 bulgu, hepsi düzeltildi (aşağıya bkz) |
 | Deployment (Faz B — VPS) | ✅ **CANLI** (2026-07-18) — https://gozdetasarimcicekcilik.com, Hetzner CPX12 |
-| Faz 3 — Ödeme (PayTR) | 🟡 **Kodlandı + mock E2E doğrulandı** (2026-07-19) — 10 task, 306 backend testi; gerçek PayTR sandbox testi (Task 12) ve ETBİS bekliyor |
-| Üyelik / müşteri hesabı | 🟢 **main'e merge edildi** (2026-08-13) — 11 task + review/fix turları; deploy bekliyor |
+| Faz 3 — Ödeme (PayTR) | 🟡 **CANLIDA — TEST MODUNDA** (2026-08-14) — gerçek PayTR provider aktif, `test_mode: true`. Müşteri ödeme YAPAMAZ; ETBİS tamamlanınca `PAYTR_TEST_MODE=0` yapılacak |
+| Üyelik / müşteri hesabı | ✅ **CANLI** (2026-08-14) — 11 task + review/fix turları; migration 9 uygulandı, tarayıcıda doğrulandı |
+| Yedekleme | ✅ **Doğrulandı + off-site** (2026-08-14) — günlük db+uploads, R2'ye kopya, 30 gün saklama, restore testi geçti |
 
 Branch: `main` (deploy edilen). **2026-08-13:** `uyelik` main'e merge edildi;
 `uyelik` `odeme-sistemi` üstüne kurulduğu için PayTR de aynı merge'le main'e
 geldi (49 commit). Yani main artık HEM üyelik HEM ödeme içeriyor.
 
-### Deploy öncesi kontrol listesi (2026-08-13 kararları)
+### Deploy (2026-08-14 gecesi) — TAMAMLANDI ✅
 
-**1. PayTR TEST MODUNDA kalacak.** Karar: ETBİS kaydı beklediği için canlı
-moda geçilmiyor (PayTR zaten ETBİS'siz canlıya izin vermiyor) ve sitede
-henüz gerçek satış yok.
+Doğrulananlar:
+- `migrate-1 | 9/u customers` — migration 9 uygulandı (`customers` +
+  `orders.customer_id`). Prod'da migration compose'daki `migrate` servisiyle
+  OTOMATİK çalışıyor; `backend` onun başarıyla bitmesini bekliyor
+  (`service_completed_successfully`), yani migration patlarsa backend hiç
+  başlamaz. Elle migrate komutu ÇALIŞTIRMAYA GEREK YOK.
+- `ödeme: PayTR provider aktif (test_mode: true )` — doğru mod.
+- Tarayıcıda uçtan uca doğrulandı (kayıt, giriş, sipariş, hesabım, admin
+  müşteriler sayfası).
 
-Sunucudaki `.env`'de `PAYTR_TEST_MODE` **`0` OLMAMALI**. Kod varsayılanı
-güvenli tarafta: `os.Getenv("PAYTR_TEST_MODE") != "0"` — değişken yoksa,
-boşsa veya `1` ise test modu açık. Canlıya geçmek açıkça `=0` yazmayı
-gerektirir.
-
-Doğrulama: deploy sonrası sunucu logunda şu satır görünmeli →
-`ödeme: PayTR provider aktif (test_mode: true )`
-Eğer `test_mode: false` görürseniz DURUN, `.env`'i düzeltin.
-
-> Test modunda müşteri GERÇEKTEN ödeme yapamaz; sipariş `awaiting_payment`
-> statüsünde kalır. Gerçek satışa başlamadan önce ETBİS tamamlanıp
-> `PAYTR_TEST_MODE=0` yapılmalı.
-
-**2. Migration 9 uygulanmalı** (`customers` + `orders.customer_id`), yoksa
-backend müşteri tablosunu bulamaz:
-`migrate -path backend/migrations -database "$DATABASE_URL" up`
+> ⚠️ **PayTR TEST MODUNDA** — müşteri GERÇEKTEN ödeme yapamaz, sipariş
+> `awaiting_payment` statüsünde kalır. Karar: ETBİS beklediği için (PayTR
+> zaten ETBİS'siz canlı moda izin vermiyor) ve henüz gerçek satış yok.
+>
+> **Gerçek satışa başlarken:** `.env.prod`'da `PAYTR_TEST_MODE=0` yapıp
+> servisi yeniden başlatın, sonra logdan `test_mode: false` olduğunu
+> doğrulayın. Bu adım atlanırsa siparişler sessizce yarım kalır.
+>
+> Kod varsayılanı güvenli tarafta: `os.Getenv("PAYTR_TEST_MODE") != "0"` —
+> değişken yoksa/boşsa test modu. Canlıya geçmek açıkça `=0` yazmayı ister.
 
 ## Üyelik / Müşteri Hesabı, 2026-08-13
 
@@ -76,6 +77,44 @@ kırmızı — `setBaseEnv` PAYTR_* değişkenlerini temizlemiyor, `config.Load(
 **Dev ortam notu:** cicekci postgres portu 5433 → **5435** taşındı; 5433'ü başka
 bir projenin container'ı (`backend-db-1`) tutuyordu ve `localhost:5433` yanlış
 veritabanına gidiyordu. Test DB 5434'te değişmedi.
+
+## Yedekleme, 2026-08-14
+
+`docker-compose.prod.yml`'deki `backup` servisi günde bir kez (`sleep 86400`
+döngüsü) çalışır: `pg_dump -Fc` + `uploads` arşivi → `/backups` (host'ta
+`~/cicekci/backups`), 7 günden eskiler silinir. Ayrıca **R2'ye off-site
+kopyalanır**.
+
+**Rutin kontrol (ayda bir yeter):**
+```bash
+cat ~/cicekci/backups/SON_BASARILI    # son başarılı yedeğin damgası
+cat ~/cicekci/backups/SON_HATA        # yoksa sorun yok
+```
+`SON_BASARILI` güncel değilse veya `SON_HATA` varsa yedekleme bozulmuş.
+Mantık: başarılı turda damga güncellenir + `SON_HATA` silinir; başarısız
+turda damga DOKUNULMAZ (böylece "en son gerçekten ne zaman yedek alındı"
+bilgisi kaybolmaz).
+
+**Off-site:** R2 bucket `cicekci-yedek` — görsellerin bucket'ından AYRI ve
+**private**. Dump'lar müşteri e-postası/telefonu ve bcrypt hash'i içeriyor.
+Lifecycle rule: 30 gün sonra otomatik silinir (~450 MB'da sabitlenir,
+ücretsiz 10 GB kotanın %4.5'i). `R2_BACKUP_BUCKET` tanımsızsa kopyalama
+sessizce atlanır, yerel yedek yine alınır.
+
+> Prod `.env.prod`'da `STORAGE_DRIVER=local` — R2 değişkenleri YALNIZCA
+> yedek servisi için tanımlı, görseller diskte duruyor.
+
+**Restore testi (2026-08-14 yapıldı, geçti — yılda bir tekrarlanmalı):**
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec postgres createdb -U cicekci restore_testi
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec backup pg_restore -d restore_testi -U cicekci -h postgres /backups/<dosya>.dump
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec postgres psql -U cicekci -d restore_testi -c "\dt"
+docker compose -f docker-compose.prod.yml --env-file .env.prod exec postgres dropdb -U cicekci restore_testi
+```
+**Ders:** Yedeğin var olması yetmez — geri yüklenebildiği doğrulanmadıkça
+yedek sayılmaz. Hata görünürlüğü eklendiği ilk turda gerçek bir hatayı
+(boş `R2_ACCOUNT_ID` → rclone DNS hatası) yakaladı; öncesinde bu sessizce
+kaybolurdu.
 
 ## Faz 3 — Ödeme Entegrasyonu (PayTR), 2026-07-19
 
