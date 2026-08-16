@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category } from '~/types/api'
+import type { CartItemOption, Category } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 
 const route = useRoute()
@@ -79,6 +79,32 @@ if (!yonlendiriliyor) {
 const { add } = useCart()
 const sepetAcik = inject<Ref<boolean> | null>('sepetAcik', null)
 
+const secimler = ref<CartItemOption[]>([])
+
+/**
+ * Her grubun İLK değeri otomatik seçili gelir — müşteri hiçbir şeye
+ * dokunmasa bile sipariş "Ambalaj: Pembe" ile gider, esnaf ne
+ * hazırlayacağını bilir. Zorunluluk kavramı bu yüzden kaldırıldı.
+ *
+ * immediate: SSR'da ve ürün değiştiğinde (aynı bileşen farklı slug'a
+ * gezinirse) tekrar çalışır — bu projede "sayfa değişti ama onMounted
+ * tekrar çalışmadı" hatası daha önce yaşandı, watch o tuzağı kapatıyor.
+ */
+watch(() => product.value?.option_groups, gruplar => {
+  secimler.value = (gruplar ?? [])
+    .filter(g => g.values.length > 0)
+    .map(g => {
+      const ilk = g.values[0]!
+
+      return {
+        value_id: ilk.id,
+        group_name: g.name,
+        value_name: ilk.name,
+        swatch_hex: ilk.swatch_hex,
+      }
+    })
+}, { immediate: true })
+
 function sepeteEkle() {
   if (!product.value)
     return
@@ -90,6 +116,7 @@ function sepeteEkle() {
     price: product.value.price,
     image: product.value.images?.[0]?.url_400 ?? '',
     quantity: 1,
+    options: secimler.value,
   })
 
   if (sepetAcik)
@@ -130,10 +157,26 @@ function sepeteEkle() {
             {{ product.description }}
           </p>
 
+          <!-- Özelleştirme: müşteri seçenek gruplarını burada seçer -->
+          <ProductOptionSelector
+            v-if="product.option_groups?.length"
+            v-model="secimler"
+            :groups="product.option_groups"
+            class="my-6"
+          />
+
           <!-- CTA'lar. "Sepete Ekle" gerçek (Faz 2); WhatsApp da hâlâ sitenin
                bir dönüşüm yolu, o yüzden hemen altında (spec §2.3). -->
           <div class="mt-8 space-y-3">
-            <button type="button" class="btn-primary text-label-caps w-full" @click="sepeteEkle">
+            <!--
+              Buton hiç kilitlenmiyor: her grubun ilk değeri otomatik
+              seçili geldiği için "önce seçim yap" durumu oluşmuyor.
+            -->
+            <button
+              type="button"
+              class="btn-primary text-label-caps w-full"
+              @click="sepeteEkle"
+            >
               <Icon name="material-symbols:shopping-cart-outline" size="18" />
               Sepete Ekle
             </button>

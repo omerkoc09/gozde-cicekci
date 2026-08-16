@@ -33,6 +33,25 @@ func (f *fakePay) VerifyCallback(in payment.CallbackInput) payment.CallbackResul
 }
 func (f *fakePay) Refund(_ context.Context, _ payment.RefundInput) error { return f.refundErr }
 
+// fakeOptionReader bu dosyadaki testler için OptionReader test double'ı —
+// gerçek seçenek doğrulaması productoption paketinde, options_test.go
+// (package order_test) içinde test ediliyor. Burada sadece boş seçim
+// listesi geçirilip hiçbir grup zorunlu değilmiş gibi davranılır.
+type fakeOptionReader struct{}
+
+func (fakeOptionReader) ResolveForProduct(_ context.Context, _ int64, valueIDs []int64) ([]OrderItemOption, error) {
+	opts := make([]OrderItemOption, 0, len(valueIDs))
+	for _, id := range valueIDs {
+		opts = append(opts, OrderItemOption{
+			GroupName: "Test Grubu",
+			ValueName: fmt.Sprintf("Değer %d", id),
+			SwatchHex: "#000000",
+			SortOrder: 0,
+		})
+	}
+	return opts, nil
+}
+
 func testDeliveryConfig() DeliveryConfig {
 	return DeliveryConfig{
 		Fee:           "50",
@@ -78,7 +97,7 @@ func setupServiceWithPay(t *testing.T, pay PaymentStarter) (svc *Service, pool *
 		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
 	require.NoError(t, err)
 
-	svc = NewService(NewStore(pool), product.NewStore(pool), testDeliveryConfig(),
+	svc = NewService(NewStore(pool), product.NewStore(pool), fakeOptionReader{}, testDeliveryConfig(),
 		pay, "https://example.com/ok", "https://example.com/fail")
 
 	return svc, pool, productID

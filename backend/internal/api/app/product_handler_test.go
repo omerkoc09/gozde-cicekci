@@ -16,6 +16,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/shopspring/decimal"
@@ -52,14 +53,15 @@ func newTestAPIFull(t *testing.T) (fiberApp *fiber.App, orderSvc *order.Service,
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc, deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	custSvc = customer.NewService(customer.NewStore(pool), testJWTSecret)
 
 	fiberApp = fiber.New()
 	Register(fiberApp.Group("/api"), catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
-		custSvc, testJWTSecret, false)
+		custSvc, optSvc, testJWTSecret, false)
 	return fiberApp, orderSvc, prodSvc, catSvc, custSvc, pool
 }
 
@@ -230,4 +232,115 @@ func TestProductHandler_ListImagesIsEmptyArrayNotNull(t *testing.T) {
 
 	assert.Contains(t, string(body), `"images":[]`)
 	assert.NotContains(t, string(body), `"images":null`)
+}
+
+// Spec: public uç pasif GRUBU hiç göstermez, ama admin (GroupsForProduct
+// onlyActive=false — idare handler'ının kullandığı çağrının aynısı) hâlâ
+// görür. Pasif grubun kendisi aktif olsaydı bile görünecek aktif bir
+// değeri var; filtrelenen tek şey grubun is_active=false olması.
+func TestProductHandler_GetBySlug_PasifGrupGizlenir(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	ctx := context.Background()
+
+	p, err := prodSvc.Create(ctx, product.CreateInput{
+		Name: "Pasif Grup Testi", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	g, err := optSvc.CreateGroup(ctx, productoption.CreateGroupInput{Name: "Ambalaj", Kind: productoption.KindColor})
+	require.NoError(t, err)
+	_, err = optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Pembe", SwatchHex: "#F0A6CA"})
+	require.NoError(t, err)
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
+
+	// Grubun kendisini pasifle.
+	inactive := false
+	_, err = optSvc.UpdateGroup(ctx, g.ID, productoption.UpdateGroupInput{IsActive: &inactive})
+	require.NoError(t, err)
+
+	// Admin görüşü (idare handler'ının kullandığı aynı çağrı, onlyActive=false):
+	// pasif grup hâlâ dönmeli.
+	adminGroups, err := optSvc.GroupsForProduct(ctx, p.ID, false)
+	require.NoError(t, err)
+	require.Len(t, adminGroups, 1, "admin pasif grubu da görmeli")
+	assert.False(t, adminGroups[0].IsActive)
+
+	// Public uç: pasif grup hiç görünmemeli.
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products/pasif-grup-testi", nil))
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	assert.Empty(t, view.OptionGroups, "pasif grup public yanıtta görünmemeli")
+}
+
+// Spec: aynı grubun aktif değerleri public'te görünürken pasif değerleri
+// görünmez.
+func TestProductHandler_GetBySlug_PasifDegerGizlenirAktifKalir(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	ctx := context.Background()
+
+	p, err := prodSvc.Create(ctx, product.CreateInput{
+		Name: "Karma Deger Testi", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	g, err := optSvc.CreateGroup(ctx, productoption.CreateGroupInput{Name: "Kurdele", Kind: productoption.KindColor})
+	require.NoError(t, err)
+	vAktif, err := optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Kırmızı", SwatchHex: "#FF0000"})
+	require.NoError(t, err)
+	vPasif, err := optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Mavi", SwatchHex: "#0000FF"})
+	require.NoError(t, err)
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
+
+	inactive := false
+	_, err = optSvc.UpdateValue(ctx, vPasif.ID, productoption.UpdateValueInput{IsActive: &inactive})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products/karma-deger-testi", nil))
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+
+	require.Len(t, view.OptionGroups, 1, "grup hâlâ görünmeli (en az bir aktif değeri var)")
+	require.Len(t, view.OptionGroups[0].Values, 1, "yalnızca aktif değer görünmeli")
+	assert.Equal(t, vAktif.ID, view.OptionGroups[0].Values[0].ID)
+	assert.Equal(t, "Kırmızı", view.OptionGroups[0].Values[0].Name)
+}
+
+// Spec: bir grubun TÜM değerleri pasifse (len(g.Values)==0 filtresi
+// devreye girer), grup public yanıtta hiç görünmemeli — seçenek sunmayan
+// bir başlık müşteriyi kafa karıştırır.
+func TestProductHandler_GetBySlug_TumDegerleriPasifGrupHicGorunmez(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	ctx := context.Background()
+
+	p, err := prodSvc.Create(ctx, product.CreateInput{
+		Name: "Tum Degerler Pasif", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	g, err := optSvc.CreateGroup(ctx, productoption.CreateGroupInput{Name: "Boyut", Kind: productoption.KindText})
+	require.NoError(t, err)
+	v, err := optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Büyük"})
+	require.NoError(t, err)
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
+
+	inactive := false
+	_, err = optSvc.UpdateValue(ctx, v.ID, productoption.UpdateValueInput{IsActive: &inactive})
+	require.NoError(t, err)
+
+	// Grubun kendisi hâlâ aktif — yalnızca tek değeri pasif.
+	adminGroups, err := optSvc.GroupsForProduct(ctx, p.ID, false)
+	require.NoError(t, err)
+	require.Len(t, adminGroups, 1, "admin grubu hâlâ görmeli (değerleri pasif de olsa)")
+	assert.True(t, adminGroups[0].IsActive, "grubun kendisi aktif kalmalı, yalnız değeri pasif")
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products/tum-degerler-pasif", nil))
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	assert.Empty(t, view.OptionGroups, "değeri kalmamış grup public yanıtta hiç görünmemeli")
 }

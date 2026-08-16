@@ -88,7 +88,6 @@ const tarihSaat = (d: string | null) => {
     timeStyle: 'short',
   })
 }
-
 </script>
 
 <template>
@@ -117,13 +116,37 @@ const tarihSaat = (d: string | null) => {
             <VCardTitle>Ürünler</VCardTitle>
           </VCardItem>
           <VCardText>
+            <!--
+              key product_name DEĞİL: aynı ürün farklı seçimlerle (pembe /
+              beyaz ambalaj) birden fazla kalem olabiliyor, ad tekil değil.
+            -->
             <div
-              v-for="item in order.items"
-              :key="item.product_name"
-              class="d-flex justify-space-between py-2 border-b"
+              v-for="(item, i) in order.items"
+              :key="i"
+              class="py-2 border-b"
             >
-              <span>{{ item.product_name }} × {{ item.quantity }}</span>
-              <span>{{ tutar(item.price_at_order) }}</span>
+              <div class="d-flex justify-space-between">
+                <span>{{ item.product_name }} × {{ item.quantity }}</span>
+                <span>{{ tutar(item.price_at_order) }}</span>
+              </div>
+
+              <div
+                v-if="item.options?.length"
+                class="d-flex flex-wrap ga-3 mt-1"
+              >
+                <span
+                  v-for="(o, i) in item.options"
+                  :key="i"
+                  class="d-inline-flex align-center ga-1 text-caption text-medium-emphasis"
+                >
+                  <span
+                    v-if="o.swatch_hex"
+                    class="d-inline-block rounded-circle border"
+                    :style="{ background: o.swatch_hex, inlineSize: '12px', blockSize: '12px' }"
+                  />
+                  {{ o.group_name }}: {{ o.value_name }}
+                </span>
+              </div>
             </div>
 
             <div class="d-flex justify-space-between pt-4">

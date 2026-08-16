@@ -40,17 +40,18 @@ func toCustomerView(c *customer.Customer) customerView {
 // sadeleştirilmiş görünüm. idare/order_view.go'daki toOrderView'ın fiyat
 // formatlama desenini (StringFixed(2)) izler.
 type createOrderCustomerOrderItemView struct {
-	ProductName string `json:"product_name"`
-	Quantity    int    `json:"quantity"`
+	ProductName string                `json:"product_name"`
+	Quantity    int                   `json:"quantity"`
+	Options     []OrderItemOptionView `json:"options"`
 }
 
 // createOrderCustomerView müşterinin kendi sipariş geçmişi görünümü.
 // Buyer/recipient iç detayları YOK — müşteri zaten kendi bilgilerini bilir.
 type createOrderCustomerView struct {
-	OrderNo      string                              `json:"order_no"`
-	Status       string                              `json:"status"`
-	Total        string                              `json:"total"`
-	DeliveryDate string                              `json:"delivery_date"`
+	OrderNo      string                             `json:"order_no"`
+	Status       string                             `json:"status"`
+	Total        string                             `json:"total"`
+	DeliveryDate string                             `json:"delivery_date"`
 	Items        []createOrderCustomerOrderItemView `json:"items"`
 }
 
@@ -60,6 +61,7 @@ func toCreateOrderCustomerView(o *order.Order) createOrderCustomerView {
 		items = append(items, createOrderCustomerOrderItemView{
 			ProductName: it.ProductName,
 			Quantity:    it.Quantity,
+			Options:     toOrderItemOptionViews(it.Options),
 		})
 	}
 	return createOrderCustomerView{

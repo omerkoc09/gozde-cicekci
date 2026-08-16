@@ -25,6 +25,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/config"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -82,7 +83,9 @@ func main() {
 	okURL := cfg.SiteURL + "/siparis/tamam"
 	failURL := cfg.SiteURL + "/siparis/hata"
 
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
 		deliveryCfg, payProvider, okURL, failURL)
 
 	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
@@ -121,7 +124,7 @@ func main() {
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
 	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
-		custSvc, cfg.JWTSecret, isProduction)
+		custSvc, optSvc, cfg.JWTSecret, isProduction)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
@@ -130,6 +133,7 @@ func main() {
 		SliderSvc:    sliderSvc,
 		OrderSvc:     orderSvc,
 		CustSvc:      custSvc,
+		OptSvc:       optSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})

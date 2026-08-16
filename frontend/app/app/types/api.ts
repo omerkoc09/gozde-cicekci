@@ -15,6 +15,7 @@ export interface Product {
   price: string
   category_ids: number[]
   images: ProductImage[]
+  option_groups?: ProductOptionGroup[]
 }
 
 /** Ana sayfa slider'ında bir slayt. Pasif slaytlar bu uçtan hiç gelmez. */
@@ -44,6 +45,15 @@ export const AXIS_LABELS: Record<Axis, string> = {
   type: 'Ürün Tipine Göre',
 }
 
+/** Sepet kalemindeki tek seçim. value_id sunucuya gider; isim ve renk
+ *  yalnızca GÖSTERİM için — sipariş anında sunucu DB'den okur. */
+export interface CartItemOption {
+  value_id: number
+  group_name: string
+  value_name: string
+  swatch_hex: string
+}
+
 /** Sepet kalemi — localStorage'da yaşar. Fiyat GÖSTERİM için; sipariş
  *  anında sunucu DB'den okur, buradaki fiyata güvenilmez (spec §2.2). */
 export interface CartItem {
@@ -53,6 +63,24 @@ export interface CartItem {
   price: string
   image: string
   quantity: number
+  /** Seçim yoksa boş dizi. Bu alandan ÖNCE kurulmuş sepetlerde
+   *  undefined gelir — okuyan taraf boş dizi kabul eder. */
+  options?: CartItemOption[]
+}
+
+export interface ProductOptionValue {
+  id: number
+  name: string
+  swatch_hex: string
+}
+
+// is_required YOK: her grubun ilk değeri sayfa açılınca otomatik seçili
+// geliyor, "seçmeden geçilemez" kuralına gerek kalmadı.
+export interface ProductOptionGroup {
+  id: number
+  name: string
+  kind: 'color' | 'text'
+  values: ProductOptionValue[]
 }
 
 export interface DeliveryConfig {
@@ -66,7 +94,7 @@ export interface DeliveryConfig {
 }
 
 export interface CreateOrderInput {
-  items: { product_id: number, quantity: number }[]
+  items: { product_id: number, quantity: number, option_value_ids: number[] }[]
   buyer: { name: string, phone: string }
   recipient: { name: string, phone: string }
   delivery: { address: string, district: string, date: string, slot: string }

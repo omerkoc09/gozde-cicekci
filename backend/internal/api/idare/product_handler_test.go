@@ -16,6 +16,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +42,8 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc, deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	app := fiber.New()
@@ -52,6 +54,7 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 		ImgSvc:       imgSvc,
 		SliderSvc:    slider.NewService(slider.NewStore(pool), imgSvc),
 		OrderSvc:     orderSvc,
+		OptSvc:       productoption.NewService(productoption.NewStore(pool)),
 		JWTSecret:    testSecret,
 		SecureCookie: false,
 	})
@@ -250,4 +253,66 @@ func TestAdmin_UpdateProduct_EmptyCategoryIDsRemovesAll(t *testing.T) {
 	var updated ProductView
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&updated))
 	assert.Empty(t, updated.CategoryIDs, "category_ids boş olmalı")
+}
+
+// createTestProduct verilen body ile POST /api/admin/products çağırır ve
+// oluşan ürünün ID'sini döner.
+func createTestProduct(t *testing.T, app *fiber.App, token string, body map[string]any) int64 {
+	t.Helper()
+	raw, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	resp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products", string(raw), token))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	return view.ID
+}
+
+// getProduct GET /api/admin/products/:id çağırır ve view'ı döner.
+func getProduct(t *testing.T, app *fiber.App, token string, id int64) ProductView {
+	t.Helper()
+	resp, err := app.Test(authedRequest(http.MethodGet, "/api/admin/products/"+itoa(id), "", token))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	return view
+}
+
+// option_groups nil gönderilirse mevcut bağlar KORUNUR (PATCH semantiği).
+// Boş dizi gönderilirse hepsi kaldırılır.
+func TestProduct_OptionGroups_PatchSemantigi(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+
+	gid := createTestGroup(t, app, token, "Ambalaj", "color")
+	pid := createTestProduct(t, app, token, map[string]any{
+		"name":  "Buket",
+		"price": "100.00",
+		"option_groups": []map[string]any{
+			{"group_id": gid},
+		},
+	})
+
+	// option_groups GÖNDERİLMEDEN isim güncelle → bağ korunmalı
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(pid), `{"name":"Yeni Buket"}`, token))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	urun := getProduct(t, app, token, pid)
+	require.Len(t, urun.OptionGroups, 1, "option_groups gönderilmediyse bağ korunmalı")
+	assert.Equal(t, gid, urun.OptionGroups[0].ID, "korunan bağ aynı grup olmalı")
+
+	// Boş dizi → hepsi kalkmalı
+	resp2, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(pid), `{"option_groups":[]}`, token))
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp2.StatusCode)
+
+	urun2 := getProduct(t, app, token, pid)
+	assert.Empty(t, urun2.OptionGroups, "boş dizi tüm bağları kaldırmalı")
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +36,8 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+		productoption.NewService(productoption.NewStore(pool)), cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()
@@ -86,7 +88,8 @@ func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, m
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc = order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+	svc = order.NewService(order.NewStore(pool), product.NewStore(pool),
+		productoption.NewService(productoption.NewStore(pool)), cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 	oh = &orderHandler{svc: svc, cfg: cfg}
 
@@ -231,7 +234,8 @@ func TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), cfg,
+	svc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+		productoption.NewService(productoption.NewStore(pool)), cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()

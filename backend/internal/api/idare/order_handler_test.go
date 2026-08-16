@@ -14,6 +14,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,8 @@ func newTestOrderAdminAPI(t *testing.T) (app *fiber.App, token string, svc *orde
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	svc = order.NewService(order.NewStore(pool), prodStore, deliveryCfg,
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	svc = order.NewService(order.NewStore(pool), prodStore, optSvc, deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	app = fiber.New()

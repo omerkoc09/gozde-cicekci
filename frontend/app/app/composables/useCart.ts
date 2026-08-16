@@ -1,5 +1,7 @@
 import type { CartItem } from '~/types/api'
-import { addItem, cartTotal, removeItem, setItemQuantity } from './cartLogic'
+import { addItem, cartLineKey, cartTotal, removeItem, setItemQuantity } from './cartLogic'
+
+export { cartLineKey }
 
 const STORAGE_KEY = 'cicekci_sepet'
 
@@ -42,13 +44,13 @@ export function useCart() {
     kaydet()
   }
 
-  function remove(productId: number) {
-    items.value = removeItem(items.value, productId)
+  function remove(lineKey: string) {
+    items.value = removeItem(items.value, lineKey)
     kaydet()
   }
 
-  function setQuantity(productId: number, qty: number) {
-    items.value = setItemQuantity(items.value, productId, qty)
+  function setQuantity(lineKey: string, qty: number) {
+    items.value = setItemQuantity(items.value, lineKey, qty)
     kaydet()
   }
 

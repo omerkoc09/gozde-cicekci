@@ -19,11 +19,25 @@ export function cartTotal(items: CartItem[]): string {
   return (kurus / 100).toFixed(2)
 }
 
+/**
+ * Sepet satırının kimliği: ürün + seçilen değerler.
+ *
+ * Seçimler SIRALANIR — müşteri renkleri hangi sırayla seçerse seçsin aynı
+ * satır olmalı. Bu alandan önce kurulmuş sepetlerde options undefined
+ * gelir; boş dizi kabul edilir, sepet sıfırlanmaz.
+ */
+export function cartLineKey(item: CartItem): string {
+  const ids = (item.options ?? []).map(o => o.value_id).sort((a, b) => a - b)
+
+  return `${item.product_id}:${ids.join(',')}`
+}
+
 export function addItem(items: CartItem[], yeni: CartItem): CartItem[] {
-  const mevcut = items.find(i => i.product_id === yeni.product_id)
+  const key = cartLineKey(yeni)
+  const mevcut = items.find(i => cartLineKey(i) === key)
   if (mevcut) {
     return items.map(i =>
-      i.product_id === yeni.product_id
+      cartLineKey(i) === key
         ? { ...i, quantity: i.quantity + yeni.quantity }
         : i)
   }
@@ -31,13 +45,13 @@ export function addItem(items: CartItem[], yeni: CartItem): CartItem[] {
   return [...items, yeni]
 }
 
-export function removeItem(items: CartItem[], productId: number): CartItem[] {
-  return items.filter(i => i.product_id !== productId)
+export function removeItem(items: CartItem[], lineKey: string): CartItem[] {
+  return items.filter(i => cartLineKey(i) !== lineKey)
 }
 
-export function setItemQuantity(items: CartItem[], productId: number, qty: number): CartItem[] {
+export function setItemQuantity(items: CartItem[], lineKey: string, qty: number): CartItem[] {
   if (qty <= 0)
-    return removeItem(items, productId)
+    return removeItem(items, lineKey)
 
-  return items.map(i => (i.product_id === productId ? { ...i, quantity: qty } : i))
+  return items.map(i => (cartLineKey(i) === lineKey ? { ...i, quantity: qty } : i))
 }

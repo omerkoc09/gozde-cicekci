@@ -7,6 +7,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 )
 
@@ -15,9 +16,10 @@ import (
 func Register(router fiber.Router, catSvc *category.Service,
 	prodSvc *product.Service, imgSvc *image.Service, sliderSvc *slider.Service,
 	orderSvc *order.Service, deliveryCfg order.DeliveryConfig,
-	custSvc *customer.Service, jwtSecret string, secureCookie bool) {
+	custSvc *customer.Service, optSvc *productoption.Service,
+	jwtSecret string, secureCookie bool) {
 	ch := &categoryHandler{svc: catSvc, imgSvc: imgSvc}
-	ph := &productHandler{svc: prodSvc, imgSvc: imgSvc}
+	ph := &productHandler{svc: prodSvc, imgSvc: imgSvc, optSvc: optSvc}
 	sh := &sliderHandler{svc: sliderSvc, imgSvc: imgSvc}
 	oh := &orderHandler{svc: orderSvc, cfg: deliveryCfg, jwtSecret: jwtSecret}
 	custH := &customerHandler{svc: custSvc, orderSvc: orderSvc, secureCookie: secureCookie}

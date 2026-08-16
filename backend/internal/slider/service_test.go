@@ -142,35 +142,40 @@ func TestCreate_TrimsWhitespace(t *testing.T) {
 	assert.Equal(t, "Yeni sezon", slide.Subtitle)
 }
 
-func TestNextSortOrder_StartsAtZeroThenAppends(t *testing.T) {
+// Sıra sunucunun işi: ilk slayt 0'dan başlar, çağıranın gönderdiği
+// SortOrder yok sayılır (panel artık sıra sormuyor).
+func TestCreate_SiraSunucudanGelir(t *testing.T) {
 	svc, _, ctx := newTestService(t)
 
-	first, err := svc.NextSortOrder(ctx)
+	ilk, err := svc.Create(ctx, validInput(), makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
-	assert.Equal(t, 0, first, "hiç slayt yokken 0'dan başlamalı")
+	assert.Equal(t, 0, ilk.SortOrder, "hiç slayt yokken 0'dan başlamalı")
 
 	in := validInput()
-	in.SortOrder = 5
-	_, err = svc.Create(ctx, in, makeJPEG(t, 2400, 1200))
+	in.SortOrder = 99 // yok sayılmalı
+	ikinci, err := svc.Create(ctx, in, makeJPEG(t, 2400, 1200))
 	require.NoError(t, err)
-
-	next, err := svc.NextSortOrder(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 6, next, "mevcut en büyük sıranın bir fazlası olmalı")
+	assert.Equal(t, 1, ikinci.SortOrder, "sona eklenmeli, gönderilen 99 yok sayılmalı")
 }
 
 func TestListPublic_OnlyActiveInSortOrder(t *testing.T) {
 	svc, _, ctx := newTestService(t)
 
-	mk := func(title string, active bool, order int) {
-		_, err := svc.Create(ctx, CreateInput{
-			Title: title, IsActive: active, SortOrder: order,
+	// Sıra Create'te değil Reorder'da kuruluyor — Create hep sona ekler.
+	mk := func(title string, active bool) int64 {
+		s, err := svc.Create(ctx, CreateInput{
+			Title: title, IsActive: active,
 		}, makeJPEG(t, 2400, 1200))
 		require.NoError(t, err)
+		return s.ID
 	}
-	mk("Ikinci", true, 1)
-	mk("Pasif", false, 0)
-	mk("Birinci", true, 0)
+	ikinci := mk("Ikinci", true)
+	pasif := mk("Pasif", false)
+	birinci := mk("Birinci", true)
+
+	// Ekleme sırasının tersine dizip sıralamanın gerçekten uygulandığını
+	// görelim; ekleme sırası tesadüfen doğru olsaydı test bir şey kanıtlamazdı.
+	require.NoError(t, svc.Reorder(ctx, []int64{birinci, pasif, ikinci}))
 
 	list, err := svc.ListPublic(ctx)
 

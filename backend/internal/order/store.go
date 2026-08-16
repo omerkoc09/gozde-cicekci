@@ -124,12 +124,23 @@ func (s *Store) createOnce(ctx context.Context, in NewOrder) (*Order, error) {
 	}
 
 	for _, it := range in.Items {
-		_, err = tx.Exec(ctx, `
+		var itemID int64
+		err = tx.QueryRow(ctx, `
 			INSERT INTO order_items (order_id, product_id, product_name, price_at_order, quantity)
-			VALUES ($1,$2,$3,$4,$5)`,
-			id, it.ProductID, it.ProductName, it.PriceAtOrder, it.Quantity)
+			VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+			id, it.ProductID, it.ProductName, it.PriceAtOrder, it.Quantity).Scan(&itemID)
 		if err != nil {
 			return nil, err
+		}
+
+		for _, o := range it.Options {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO order_item_options
+					(order_item_id, group_name, value_name, swatch_hex, sort_order)
+				VALUES ($1,$2,$3,$4,$5)`,
+				itemID, o.GroupName, o.ValueName, o.SwatchHex, o.SortOrder); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -182,8 +193,67 @@ func (s *Store) itemsOf(ctx context.Context, orderID int64) ([]OrderItem, error)
 		}
 		items = append(items, it)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
-	return items, rows.Err()
+	if err := s.attachOptions(ctx, items); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+// optionsOfMany kalem seçimlerini tek sorguda çeker. Kalem başına ayrı
+// sorgu N+1 olurdu — Store.List'te aynı ders alınmıştı.
+func (s *Store) optionsOfMany(ctx context.Context, itemIDs []int64) (map[int64][]OrderItemOption, error) {
+	if len(itemIDs) == 0 {
+		return map[int64][]OrderItemOption{}, nil
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT order_item_id, group_name, value_name, swatch_hex, sort_order
+		FROM order_item_options
+		WHERE order_item_id = ANY($1)
+		ORDER BY order_item_id, sort_order, id`, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[int64][]OrderItemOption, len(itemIDs))
+	for rows.Next() {
+		var itemID int64
+		var o OrderItemOption
+		if err := rows.Scan(&itemID, &o.GroupName, &o.ValueName, &o.SwatchHex, &o.SortOrder); err != nil {
+			return nil, err
+		}
+		out[itemID] = append(out[itemID], o)
+	}
+	return out, rows.Err()
+}
+
+// attachOptions kalemlere seçimlerini bağlar. Seçimi olmayan kalem boş
+// slice alır (nil değil) — JSON'da null yerine [] çıksın.
+func (s *Store) attachOptions(ctx context.Context, items []OrderItem) error {
+	ids := make([]int64, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.ID)
+	}
+
+	byItem, err := s.optionsOfMany(ctx, ids)
+	if err != nil {
+		return err
+	}
+
+	for i := range items {
+		if o, ok := byItem[items[i].ID]; ok {
+			items[i].Options = o
+		} else {
+			items[i].Options = []OrderItemOption{}
+		}
+	}
+	return nil
 }
 
 // List siparişleri en yeniden eskiye listeler. status boşsa hepsi.
@@ -256,6 +326,8 @@ func (s *Store) itemsOfMany(ctx context.Context, orderIDs []int64) (map[int64][]
 	defer rows.Close()
 
 	itemsByOrder := make(map[int64][]OrderItem, len(orderIDs))
+	all := make([]OrderItem, 0)
+	itemOrder := make([]int64, 0)
 	for rows.Next() {
 		var it OrderItem
 		var orderID int64
@@ -263,9 +335,25 @@ func (s *Store) itemsOfMany(ctx context.Context, orderIDs []int64) (map[int64][]
 			return nil, err
 		}
 		itemsByOrder[orderID] = append(itemsByOrder[orderID], it)
+		all = append(all, it)
+		itemOrder = append(itemOrder, orderID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	return itemsByOrder, rows.Err()
+	// Seçimler TÜM siparişlerin kalemleri için tek batch sorguyla çekilir —
+	// sipariş başına ayrı sorgu N+1 olurdu (aynı ders itemsOfMany'nin
+	// kendisinde List için önceden alınmıştı).
+	if err := s.attachOptions(ctx, all); err != nil {
+		return nil, err
+	}
+	itemsByOrder = make(map[int64][]OrderItem, len(orderIDs))
+	for i, it := range all {
+		itemsByOrder[itemOrder[i]] = append(itemsByOrder[itemOrder[i]], it)
+	}
+
+	return itemsByOrder, nil
 }
 
 // Update status ve/veya note günceller. nil olan alan değişmez (PATCH semantiği).

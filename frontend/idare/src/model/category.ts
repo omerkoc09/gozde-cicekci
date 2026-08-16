@@ -13,12 +13,13 @@ export interface Category {
   url_900: string
 }
 
+// sort_order YOK: yeni kategori kendi ekseninin sonuna eklenir, sıra
+// yalnızca reorder ucundan (listedeki ok butonları) değişir.
 export interface CategoryCreate {
   name: string
   axis: Axis
   is_active?: boolean
   is_featured?: boolean
-  sort_order?: number
 }
 
 // PATCH semantiği: undefined alan değişmez. axis DEĞİŞTİRİLEMEZ —
@@ -27,7 +28,6 @@ export interface CategoryUpdate {
   name?: string
   is_active?: boolean
   is_featured?: boolean
-  sort_order?: number
 }
 
 export const AXIS_LABELS: Record<Axis, string> = {

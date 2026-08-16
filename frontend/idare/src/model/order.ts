@@ -1,10 +1,19 @@
 export type OrderStatus = 'awaiting_payment' | 'paid' | 'delivered' | 'refunded'
 
+export interface OrderItemOption {
+  group_name: string
+  value_name: string
+
+  /** kind='text' seçimde boş — o zaman nokta gösterilmez. */
+  swatch_hex: string
+}
+
 export interface OrderItem {
   product_id: number | null
   product_name: string
   price_at_order: string
   quantity: number
+  options: OrderItemOption[]
 }
 
 export interface Order {

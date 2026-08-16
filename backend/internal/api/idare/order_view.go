@@ -6,12 +6,33 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 )
 
+// OrderItemOptionView sipariş kalemindeki seçim — sipariş anındaki
+// kopyadan gelir, güncel gruba bakılmaz.
+type OrderItemOptionView struct {
+	GroupName string `json:"group_name"`
+	ValueName string `json:"value_name"`
+	SwatchHex string `json:"swatch_hex"`
+}
+
+func toOrderItemOptionViews(opts []order.OrderItemOption) []OrderItemOptionView {
+	out := make([]OrderItemOptionView, 0, len(opts))
+	for _, o := range opts {
+		out = append(out, OrderItemOptionView{
+			GroupName: o.GroupName,
+			ValueName: o.ValueName,
+			SwatchHex: o.SwatchHex,
+		})
+	}
+	return out
+}
+
 // orderItemView admin görünümü — esnaf ne göndereceğini görmeli.
 type orderItemView struct {
-	ProductID    *int64 `json:"product_id"`
-	ProductName  string `json:"product_name"`
-	PriceAtOrder string `json:"price_at_order"`
-	Quantity     int    `json:"quantity"`
+	ProductID    *int64                `json:"product_id"`
+	ProductName  string                `json:"product_name"`
+	PriceAtOrder string                `json:"price_at_order"`
+	Quantity     int                   `json:"quantity"`
+	Options      []OrderItemOptionView `json:"options"`
 }
 
 // orderView admin tam görünüm — public'ten farklı: her şey görünür.
@@ -53,6 +74,7 @@ func toOrderView(o *order.Order) orderView {
 			ProductName:  it.ProductName,
 			PriceAtOrder: it.PriceAtOrder.StringFixed(2),
 			Quantity:     it.Quantity,
+			Options:      toOrderItemOptionViews(it.Options),
 		})
 	}
 

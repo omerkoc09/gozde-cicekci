@@ -21,6 +21,20 @@ type ProductReader interface {
 	GetByID(ctx context.Context, id int64) (*product.Product, error)
 }
 
+// OptionReader order paketinin seçenek doğrulaması için ihtiyaç duyduğu
+// tek şey. Dar arayüz: order paketi productoption'ın tamamına bağlanmasın
+// (ProductReader ile aynı gerekçe).
+//
+// Dönüş tipi OrderItemOption — order'ın KENDİ tipi. Böylece productoption
+// order'ı import etmek zorunda kalmaz: bağımlılık tek yönlü kalır
+// (main.go somut servisi arayüze bağlar).
+type OptionReader interface {
+	// ResolveForProduct valueIDs'i doğrular ve isimleriyle döner.
+	// Hata verir: değer yok, pasif, bu ürüne kapalı gruba ait, aynı
+	// gruptan birden çok değer, zorunlu grup eksik.
+	ResolveForProduct(ctx context.Context, productID int64, valueIDs []int64) ([]OrderItemOption, error)
+}
+
 // DeliveryConfig teslimat kuralları — config'den gelir (spec §4).
 type DeliveryConfig struct {
 	Fee           string
@@ -39,6 +53,11 @@ type DeliveryConfig struct {
 type CreateItem struct {
 	ProductID int64
 	Quantity  int
+
+	// OptionValueIDs müşterinin seçtiği değerlerin id'leri. YALNIZCA ID —
+	// isim ve renk sunucuda DB'den okunur, tarayıcıdan gelene güvenilmez
+	// (fiyatla aynı kural).
+	OptionValueIDs []int64
 }
 
 // CreateInput handler'dan gelen ham girdi. FİYAT YOK — sunucu DB'den okur.
@@ -61,15 +80,16 @@ type CreateInput struct {
 type Service struct {
 	store   *Store
 	prod    ProductReader
+	opt     OptionReader
 	cfg     DeliveryConfig
 	pay     PaymentStarter
 	okURL   string
 	failURL string
 }
 
-func NewService(store *Store, prod ProductReader, cfg DeliveryConfig,
+func NewService(store *Store, prod ProductReader, opt OptionReader, cfg DeliveryConfig,
 	pay PaymentStarter, okURL, failURL string) *Service {
-	return &Service{store: store, prod: prod, cfg: cfg, pay: pay, okURL: okURL, failURL: failURL}
+	return &Service{store: store, prod: prod, opt: opt, cfg: cfg, pay: pay, okURL: okURL, failURL: failURL}
 }
 
 // maxQuantity absürt girdiye karşı duvar. UI'da limit YOK — 50 buket gerçek
@@ -105,6 +125,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, cus
 			return nil, "", fmt.Errorf("%w: %q artık satışta değil", errorsx.ErrInvalidInput, p.Name)
 		}
 
+		// Seçimler DB'den doğrulanır — tarayıcıdan gelen isim/renk
+		// kullanılmaz. Ürüne kapalı grup, pasif değer, aynı gruptan iki
+		// değer veya eksik zorunlu grup burada reddedilir.
+		opts, err := s.opt.ResolveForProduct(ctx, p.ID, ci.OptionValueIDs)
+		if err != nil {
+			return nil, "", err
+		}
+
 		// p.Price zaten decimal.Decimal — dönüşüm gerekmez
 		itemsTotal = itemsTotal.Add(p.Price.Mul(decimal.NewFromInt(int64(ci.Quantity))))
 		items = append(items, NewOrderItem{
@@ -112,6 +140,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, cus
 			ProductName:  p.Name,
 			PriceAtOrder: p.Price,
 			Quantity:     ci.Quantity,
+			Options:      opts,
 		})
 		basket = append(basket, payment.BasketItem{
 			Name: p.Name, PriceKurus: payment.KurusFromDecimal(p.Price), Quantity: ci.Quantity,

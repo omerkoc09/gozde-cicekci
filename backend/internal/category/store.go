@@ -151,6 +151,65 @@ func (s *Store) ListAdmin(ctx context.Context) ([]Category, error) {
 	return s.list(ctx, ``)
 }
 
+// MaxSortOrder eksendeki en büyük sırayı döner. Hiç kategori yoksa -1 ki
+// çağıran +1 ile 0'dan başlasın. İki eksen bağımsız sıralanıyor.
+func (s *Store) MaxSortOrder(ctx context.Context, axis Axis) (int, error) {
+	var max int
+	err := s.pool.QueryRow(ctx,
+		`SELECT COALESCE(max(sort_order), -1) FROM categories WHERE axis = $1`,
+		axis,
+	).Scan(&max)
+	if err != nil {
+		return 0, fmt.Errorf("sıra oku: %w", err)
+	}
+	return max, nil
+}
+
+// IDsOfAxis eksendeki tüm kategori ID'lerini döner — Reorder'ın gelen listeyi
+// eksenin tamamıyla karşılaştırması için.
+func (s *Store) IDsOfAxis(ctx context.Context, axis Axis) ([]int64, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id FROM categories WHERE axis = $1`, axis)
+	if err != nil {
+		return nil, fmt.Errorf("kategori id listele: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("kategori id scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// Reorder ids sırasına göre sort_order'ı 0,1,2... olarak yeniden yazar.
+// Tek transaction: yarım kalırsa hiçbiri uygulanmaz, aksi halde liste
+// tutarsız bir ara duruma düşerdi.
+func (s *Store) Reorder(ctx context.Context, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("sıralama tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for i, id := range ids {
+		if _, err := tx.Exec(ctx,
+			`UPDATE categories SET sort_order = $2 WHERE id = $1`, id, i,
+		); err != nil {
+			return fmt.Errorf("sıra yaz: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("sıralama commit: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ProductCount(ctx context.Context, id int64) (int, error) {
 	var count int
 	err := s.pool.QueryRow(ctx,

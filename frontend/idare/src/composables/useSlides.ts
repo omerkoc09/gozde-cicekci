@@ -6,13 +6,12 @@ export function useSlides() {
 
   /**
    * Görsel ve metin tek istekte gider (multipart) — görselsiz slayt
-   * oluşturulamaz. sort_order gönderilmezse backend sona ekler.
+   * oluşturulamaz. Sıra gönderilmiyor: backend sona ekler.
    */
   const create = (data: {
     title: string
     subtitle: string
     is_active: boolean
-    sort_order?: number
     image: File
   }) => {
     const fd = new FormData()
@@ -20,9 +19,6 @@ export function useSlides() {
     fd.append('title', data.title)
     fd.append('subtitle', data.subtitle)
     fd.append('is_active', String(data.is_active))
-    if (data.sort_order !== undefined)
-      fd.append('sort_order', String(data.sort_order))
-
     fd.append('image', data.image)
 
     return ApiService.post<Slide>('admin/slides', fd, {
@@ -46,5 +42,12 @@ export function useSlides() {
 
   const remove = (id: number) => ApiService.delete<void>(`admin/slides/${id}`)
 
-  return { list, create, update, replaceImage, remove }
+  /**
+   * Sırayı yeniden yazar. ids TÜM slaytları içermeli — backend eksik
+   * listeyi reddediyor. Güncel liste döner.
+   */
+  const reorder = (ids: number[]) =>
+    ApiService.put<Slide[]>('admin/slides/reorder', { ids })
+
+  return { list, create, update, replaceImage, remove, reorder }
 }

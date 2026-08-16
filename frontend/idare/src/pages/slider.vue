@@ -17,11 +17,11 @@ const formRef = ref<VForm>()
 // Düzenlenen slayt; null ise yeni kayıt.
 const editing = ref<Slide | null>(null)
 
+// sort_order YOK: sıra formdan değil, listedeki ok butonlarından değişir.
 const form = ref({
   title: '',
   subtitle: '',
   is_active: true,
-  sort_order: 0,
 })
 
 // Seçilen dosya. Yeni kayıtta zorunlu, düzenlemede boş bırakılırsa
@@ -49,14 +49,45 @@ onBeforeUnmount(() => {
 const sirali = computed(() =>
   [...slides.value].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id))
 
+// Kolon sıralaması kapalı: ok butonları satır index'ine dayanıyor, tablo
+// yeniden sıralanırsa yanlış çift takas edilir. TÜM kolonlarda sortable:
+// false olmalı — tek bir sıralanabilir başlık bile move()'u bozar.
 const headers = [
   { title: 'Görsel', key: 'image', sortable: false, width: 120 },
-  { title: 'Başlık', key: 'title' },
+  { title: 'Başlık', key: 'title', sortable: false },
   { title: 'Alt Başlık', key: 'subtitle', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
-  { title: 'Sıra', key: 'sort_order', width: 90 },
+  { title: 'Sıra', key: 'sira', sortable: false, width: 110 },
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 110 },
 ]
+
+const siralaniyor = ref(false)
+
+/**
+ * Slaytı bir sıra kaydırır. Backend TÜM slaytların id'sini istiyor —
+ * yeni sıralamanın tamamı gönderiliyor.
+ */
+const move = async (index: number, direction: -1 | 1) => {
+  const next = index + direction
+  if (next < 0 || next >= sirali.value.length)
+    return
+
+  const ids = sirali.value.map(s => s.id)
+
+  ;[ids[index], ids[next]] = [ids[next], ids[index]]
+
+  siralaniyor.value = true
+
+  const [err, guncel] = await api.reorder(ids)
+
+  siralaniyor.value = false
+
+  if (err)
+    return ErrorPopup(err.message)
+
+  // Uç güncel listenin tamamını dönüyor — yeniden yüklemeye gerek yok.
+  slides.value = guncel ?? []
+}
 
 const load = async () => {
   loading.value = true
@@ -75,7 +106,7 @@ onMounted(load)
 
 const openCreate = () => {
   editing.value = null
-  form.value = { title: '', subtitle: '', is_active: true, sort_order: 0 }
+  form.value = { title: '', subtitle: '', is_active: true }
   imageFile.value = []
   dialog.value = true
 }
@@ -86,7 +117,6 @@ const openEdit = (s: Slide) => {
     title: s.title,
     subtitle: s.subtitle,
     is_active: s.is_active,
-    sort_order: s.sort_order,
   }
   imageFile.value = []
   dialog.value = true
@@ -186,9 +216,10 @@ const remove = async (s: Slide) => {
       variant="tonal"
       class="mb-6"
     >
-      Ana sayfadaki büyük görsel alanı. Slaytlar sıra numarasına göre gösterilir,
+      Ana sayfadaki büyük görsel alanı. Slaytlar listedeki sırayla gösterilir,
       otomatik olarak geçer; ziyaretçi oklarla da gezebilir. Pasif slayt
       görünmez. Hiç aktif slayt yoksa ana sayfa varsayılan görsele döner.
+      Sırayı değiştirmek için satırdaki yukarı/aşağı oklarını kullanın.
       <br>
       Önerilen görsel: en az 1920px genişlik, yatay (JPEG, PNG veya WebP; 25MB'a kadar).
       Küçük görsel yüklenirse büyütülmez — hero'da bulanık görünür.
@@ -233,8 +264,27 @@ const remove = async (s: Slide) => {
           />
         </template>
 
-        <template #item.sort_order="{ item }">
-          <span :class="{ 'text-disabled': !item.is_active }">{{ item.sort_order }}</span>
+        <!--
+          Sıra sayı olarak girilmiyor: esnaf ok butonlarıyla taşıyor,
+          sunucu sort_order'ı kendisi hesaplıyor.
+        -->
+        <template #item.sira="{ index }">
+          <VBtn
+            icon="tabler-chevron-up"
+            variant="text"
+            size="x-small"
+            title="Yukarı taşı"
+            :disabled="siralaniyor || index === 0"
+            @click="move(index, -1)"
+          />
+          <VBtn
+            icon="tabler-chevron-down"
+            variant="text"
+            size="x-small"
+            title="Aşağı taşı"
+            :disabled="siralaniyor || index === sirali.length - 1"
+            @click="move(index, 1)"
+          />
         </template>
 
         <template #item.actions="{ item }">
@@ -301,8 +351,10 @@ const remove = async (s: Slide) => {
                 />
               </VCol>
 
-              <!-- Önizleme: yeni dosya seçildiyse onu, düzenlemede
-                   seçilmediyse mevcut görseli göster. -->
+              <!--
+                Önizleme: yeni dosya seçildiyse onu, düzenlemede
+                seçilmediyse mevcut görseli göster.
+              -->
               <VCol
                 v-if="preview || editing"
                 cols="12"
@@ -315,23 +367,7 @@ const remove = async (s: Slide) => {
                 />
               </VCol>
 
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VTextField
-                  v-model.number="form.sort_order"
-                  label="Sıra"
-                  type="number"
-                  hint="Küçük olan önce gösterilir"
-                  persistent-hint
-                />
-              </VCol>
-
-              <VCol
-                cols="12"
-                sm="6"
-              >
+              <VCol cols="12">
                 <VSwitch
                   v-model="form.is_active"
                   label="Aktif"

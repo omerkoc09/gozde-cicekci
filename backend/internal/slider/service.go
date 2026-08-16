@@ -40,6 +40,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput, imageData []byte) 
 		return nil, fmt.Errorf("%w: slayt görseli zorunlu", errorsx.ErrInvalidInput)
 	}
 
+	// Sıra artık panelden sorulmuyor — yeni slayt sona eklenir, esnaf
+	// listeden ok butonlarıyla taşır.
+	max, err := s.store.MaxSortOrder(ctx)
+	if err != nil {
+		return nil, err
+	}
+	in.SortOrder = max + 1
+
 	key, err := s.img.PutRaw(ctx, image.PrefixSlider, image.SliderSizes, imageData)
 	if err != nil {
 		return nil, err
@@ -57,13 +65,37 @@ func (s *Service) Create(ctx context.Context, in CreateInput, imageData []byte) 
 	return slide, nil
 }
 
-// NextSortOrder yeni slaytın varsayılan sırası — mevcutların sonuna.
-func (s *Service) NextSortOrder(ctx context.Context) (int, error) {
-	max, err := s.store.MaxSortOrder(ctx)
+// Reorder slaytları ids sırasına dizer. ids TÜM slaytları içermeli —
+// eksik/fazla/tekrarlı liste reddedilir, çünkü kısmi sıralama listede
+// olmayan slaytları sessizce 0'a düşürüp sırayı bozar.
+func (s *Service) Reorder(ctx context.Context, ids []int64) error {
+	mevcut, err := s.store.AllIDs(ctx)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return max + 1, nil
+
+	if len(ids) != len(mevcut) {
+		return fmt.Errorf("%w: sıralama listesi tüm slaytları içermeli (%d bekleniyordu, %d geldi)",
+			errorsx.ErrInvalidInput, len(mevcut), len(ids))
+	}
+
+	beklenen := make(map[int64]bool, len(mevcut))
+	for _, id := range mevcut {
+		beklenen[id] = true
+	}
+
+	gorulen := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		if gorulen[id] {
+			return fmt.Errorf("%w: sıralama listesinde tekrar eden slayt", errorsx.ErrInvalidInput)
+		}
+		if !beklenen[id] {
+			return fmt.Errorf("%w: sıralama listesinde olmayan slayt", errorsx.ErrInvalidInput)
+		}
+		gorulen[id] = true
+	}
+
+	return s.store.Reorder(ctx, ids)
 }
 
 func (s *Service) Update(ctx context.Context, id int64, in UpdateInput) (*Slide, error) {
