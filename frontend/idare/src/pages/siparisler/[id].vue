@@ -116,9 +116,13 @@ const tarihSaat = (d: string | null) => {
             <VCardTitle>Ürünler</VCardTitle>
           </VCardItem>
           <VCardText>
+            <!--
+              key product_name DEĞİL: aynı ürün farklı seçimlerle (pembe /
+              beyaz ambalaj) birden fazla kalem olabiliyor, ad tekil değil.
+            -->
             <div
-              v-for="item in order.items"
-              :key="item.product_name"
+              v-for="(item, i) in order.items"
+              :key="i"
               class="py-2 border-b"
             >
               <div class="d-flex justify-space-between">

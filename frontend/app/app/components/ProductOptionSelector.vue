@@ -40,11 +40,10 @@ const sec = (group: ProductOptionGroup, valueId: number) => {
   }])
 }
 
-/** Doldurulmamış zorunlu grupların adları — sepete ekle butonu bunu kullanır. */
-const eksikZorunlular = computed(() =>
-  props.groups.filter(g => g.is_required && secilenId(g.id) === undefined).map(g => g.name))
-
-defineExpose({ eksikZorunlular })
+// Eksik zorunlu grupların hesabı BİLEREK burada değil: "Sepete Ekle"
+// butonu ve uyarı metni ürün sayfasında, hesap da orada yapılıyor
+// (urun/[slug].vue). Bileşene ref'le erişip expose edilen bir computed
+// okumak gereksiz dolaylılık olurdu.
 </script>
 
 <template>

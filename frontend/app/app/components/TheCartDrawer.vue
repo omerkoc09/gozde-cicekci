@@ -91,7 +91,7 @@ onBeforeUnmount(() => {
           <ul class="flex-1 overflow-y-auto px-6 py-4">
             <li
               v-for="item in items"
-              :key="item.product_id"
+              :key="cartLineKey(item)"
               class="flex gap-4 border-b border-outline-variant/30 py-4"
             >
               <img

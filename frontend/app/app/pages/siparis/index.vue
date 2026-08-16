@@ -432,8 +432,37 @@ useSeoMeta({
         </h2>
 
         <ul class="mt-5 space-y-3">
-          <li v-for="item in items" :key="item.product_id" class="flex justify-between gap-3 text-body-md">
-            <span class="text-on-surface-variant">{{ item.name }} × {{ item.quantity }}</span>
+          <!--
+            key product_id DEĞİL: aynı ürün farklı seçimlerle birden fazla
+            satır olabiliyor, product_id artık tekil değil.
+          -->
+          <li v-for="item in items" :key="cartLineKey(item)" class="flex justify-between gap-3 text-body-md">
+            <span class="text-on-surface-variant">
+              {{ item.name }} × {{ item.quantity }}
+              <!--
+                Seçimler burada da görünmeli: aynı ürünün iki farklı rengi
+                iki ayrı satır oluyor, seçim yazılmazsa müşteri ödemeden
+                önce hangisinin hangisi olduğunu ayırt edemez.
+              -->
+              <span
+                v-if="item.options?.length"
+                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-body-sm text-on-surface-variant/80"
+              >
+                <span
+                  v-for="o in item.options"
+                  :key="o.value_id"
+                  class="inline-flex items-center gap-1"
+                >
+                  <span
+                    v-if="o.swatch_hex"
+                    class="inline-block size-2.5 rounded-full ring-1 ring-black/10"
+                    :style="{ background: o.swatch_hex }"
+                    aria-hidden="true"
+                  />
+                  {{ o.value_name }}
+                </span>
+              </span>
+            </span>
             <span class="shrink-0 text-primary">{{ formatPrice(item.price) }}</span>
           </li>
         </ul>
