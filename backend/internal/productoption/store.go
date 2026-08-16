@@ -237,3 +237,149 @@ func (s *Store) DeleteValue(ctx context.Context, id int64) error {
 	}
 	return nil
 }
+
+// GroupIDs tüm grup ID'lerini döner — ReorderGroups'un gelen listeyi
+// mevcutların tamamıyla karşılaştırması için.
+func (s *Store) GroupIDs(ctx context.Context) ([]int64, error) {
+	return s.scanIDs(ctx, `SELECT id FROM option_groups`)
+}
+
+// ValueIDsOfGroup gruptaki tüm değer ID'lerini döner.
+func (s *Store) ValueIDsOfGroup(ctx context.Context, groupID int64) ([]int64, error) {
+	return s.scanIDs(ctx, `SELECT id FROM option_values WHERE group_id = $1`, groupID)
+}
+
+func (s *Store) scanIDs(ctx context.Context, query string, args ...any) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("id listele: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("id scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// ReorderGroups ids sırasına göre sort_order'ı 0,1,2... yazar.
+// Tek transaction: yarım kalırsa hiçbiri uygulanmaz.
+func (s *Store) ReorderGroups(ctx context.Context, ids []int64) error {
+	return s.reorder(ctx, `UPDATE option_groups SET sort_order = $2 WHERE id = $1`, ids)
+}
+
+func (s *Store) ReorderValues(ctx context.Context, ids []int64) error {
+	return s.reorder(ctx, `UPDATE option_values SET sort_order = $2 WHERE id = $1`, ids)
+}
+
+func (s *Store) reorder(ctx context.Context, query string, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("sıralama tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for i, id := range ids {
+		if _, err := tx.Exec(ctx, query, id, i); err != nil {
+			return fmt.Errorf("sıra yaz: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("sıralama commit: %w", err)
+	}
+	return nil
+}
+
+// GroupProductCount grubu kaç ürünün kullandığı — silme öncesi uyarı için.
+func (s *Store) GroupProductCount(ctx context.Context, groupID int64) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM product_option_groups WHERE group_id = $1`, groupID).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("ürün say: %w", err)
+	}
+	return n, nil
+}
+
+// SetProductGroups ürünün seçenek gruplarını KOMPLE değiştirir (önce siler,
+// sonra yazar) — tek transaction. Boş links tüm bağları kaldırır.
+func (s *Store) SetProductGroups(ctx context.Context, productID int64, links []ProductGroupLink) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("ürün seçenek tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM product_option_groups WHERE product_id = $1`, productID); err != nil {
+		return fmt.Errorf("ürün seçenek sil: %w", err)
+	}
+
+	for _, l := range links {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO product_option_groups (product_id, group_id, is_required)
+			 VALUES ($1, $2, $3)`, productID, l.GroupID, l.IsRequired); err != nil {
+			return fmt.Errorf("ürün seçenek ekle: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("ürün seçenek commit: %w", err)
+	}
+	return nil
+}
+
+// GroupsForProduct ürüne açık grupları değerleriyle döner.
+// onlyActive true ise pasif grup/değer elenir (public akış).
+func (s *Store) GroupsForProduct(ctx context.Context, productID int64, onlyActive bool) ([]ProductGroup, error) {
+	where := `WHERE pog.product_id = $1`
+	if onlyActive {
+		where += ` AND g.is_active`
+	}
+
+	rows, err := s.pool.Query(ctx,
+		`SELECT g.id, g.name, g.slug, g.kind, g.sort_order, g.is_active, pog.is_required
+		 FROM product_option_groups pog
+		 JOIN option_groups g ON g.id = pog.group_id `+where+`
+		 ORDER BY g.sort_order, g.id`, productID)
+	if err != nil {
+		return nil, fmt.Errorf("ürün seçenek grupları: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]ProductGroup, 0)
+	ids := make([]int64, 0)
+	for rows.Next() {
+		var pg ProductGroup
+		if err := rows.Scan(&pg.ID, &pg.Name, &pg.Slug, &pg.Kind,
+			&pg.SortOrder, &pg.IsActive, &pg.IsRequired); err != nil {
+			return nil, fmt.Errorf("ürün seçenek grubu scan: %w", err)
+		}
+		pg.Values = []Value{}
+		out = append(out, pg)
+		ids = append(ids, pg.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+
+	byGroup, err := s.valuesOfMany(ctx, ids, onlyActive)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if v, ok := byGroup[out[i].ID]; ok {
+			out[i].Values = v
+		}
+	}
+	return out, nil
+}

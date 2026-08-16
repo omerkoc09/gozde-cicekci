@@ -60,3 +60,15 @@ type UpdateValueInput struct {
 	SwatchHex *string
 	IsActive  *bool
 }
+
+// ProductGroupLink ürün formundan gelen bağ — hangi grup, zorunlu mu.
+type ProductGroupLink struct {
+	GroupID    int64
+	IsRequired bool
+}
+
+// ProductGroup ürüne açık bir grup; Group'a is_required eklenmiş hali.
+type ProductGroup struct {
+	Group
+	IsRequired bool
+}
