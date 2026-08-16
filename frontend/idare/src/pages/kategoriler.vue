@@ -18,12 +18,12 @@ const formRef = ref<VForm>()
 // Düzenlenen kategori; null ise yeni kayıt.
 const editing = ref<Category | null>(null)
 
+// sort_order YOK: sıra formdan değil, listedeki ok butonlarından değişir.
 const form = ref({
   name: '',
   axis: 'occasion' as Axis,
   is_active: true,
   is_featured: false,
-  sort_order: 0,
 })
 
 // Kart görseli. Boş bırakılırsa mevcut görsel korunur; yeni kategoride
@@ -59,11 +59,44 @@ const headers = [
   { title: 'Ad', key: 'name' },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Öne Çıkan', key: 'is_featured', sortable: false, width: 130 },
-  { title: 'Sıra', key: 'sort_order', width: 90 },
+  { title: 'Sıra', key: 'sira', sortable: false, width: 110 },
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 150 },
 ]
 
 const arama = ref('')
+
+const siralaniyor = ref(false)
+
+/**
+ * Kategoriyi bir sıra kaydırır. Backend eksenin TÜM id'lerini istiyor;
+ * gönderilen liste ekrandaki (filtresiz) sıranın tamamı.
+ *
+ * Arama doluyken kilitli: kullanıcı filtrelenmiş listede komşu görünen iki
+ * satırı takas ettiğini sanır ama gerçek listede aralarında başka
+ * kategoriler vardır — sonuç şaşırtıcı olur.
+ */
+const move = async (axis: Axis, index: number, direction: -1 | 1) => {
+  const liste = byAxis(axis)
+  const next = index + direction
+  if (next < 0 || next >= liste.length)
+    return
+
+  const ids = liste.map(c => c.id)
+
+  ;[ids[index], ids[next]] = [ids[next], ids[index]]
+
+  siralaniyor.value = true
+
+  const [err, guncel] = await api.reorder(axis, ids)
+
+  siralaniyor.value = false
+
+  if (err)
+    return ErrorPopup(err.message)
+
+  // Uç güncel listenin tamamını dönüyor — yeniden yüklemeye gerek yok.
+  categories.value = guncel ?? []
+}
 
 const load = async () => {
   loading.value = true
@@ -82,7 +115,7 @@ onMounted(load)
 
 const openCreate = () => {
   editing.value = null
-  form.value = { name: '', axis: 'occasion', is_active: true, is_featured: false, sort_order: 0 }
+  form.value = { name: '', axis: 'occasion', is_active: true, is_featured: false }
   imageFile.value = []
   dialog.value = true
 }
@@ -94,7 +127,6 @@ const openEdit = (c: Category) => {
     axis: c.axis,
     is_active: c.is_active,
     is_featured: c.is_featured,
-    sort_order: c.sort_order,
   }
   imageFile.value = []
   dialog.value = true
@@ -113,7 +145,6 @@ const save = async () => {
       name: form.value.name,
       is_active: form.value.is_active,
       is_featured: form.value.is_featured,
-      sort_order: form.value.sort_order,
     })
     : await api.create({ ...form.value })
 
@@ -220,6 +251,7 @@ const remove = async (c: Category) => {
     >
       Pasif kategori ana sayfada görünmez — öne çıkarılmış olsa bile.
       Kategori linki (slug) oluşturulduktan sonra değişmez.
+      Sitedeki sırayı değiştirmek için satırdaki yukarı/aşağı oklarını kullanın.
     </VAlert>
 
     <VTextField
@@ -316,8 +348,30 @@ const remove = async (c: Category) => {
           </VTooltip>
         </template>
 
-        <template #item.sort_order="{ item }">
-          <span :class="{ 'text-disabled': !item.is_active }">{{ item.sort_order }}</span>
+        <!--
+          Sıra artık sayı olarak girilmiyor: esnaf ok butonlarıyla taşıyor,
+          sunucu sort_order'ı kendisi hesaplıyor. index sıralı listedeki
+          konum — VDataTable items'ı byAxis() ile aynı sırada aldığı için
+          move() de aynı diziyi kullanabiliyor.
+        -->
+        <template #item.sira="{ index }">
+          <VBtn
+            icon="tabler-chevron-up"
+            variant="text"
+            size="x-small"
+            :disabled="siralaniyor || !!arama || index === 0"
+            :title="arama ? 'Sıralamak için aramayı temizleyin' : 'Yukarı taşı'"
+            @click="move(axis, index, -1)"
+          />
+          <VBtn
+            icon="tabler-chevron-down"
+            variant="text"
+            size="x-small"
+            :disabled="siralaniyor || !!arama
+              || index === (axis === 'occasion' ? occasionCategories : typeCategories).length - 1"
+            :title="arama ? 'Sıralamak için aramayı temizleyin' : 'Aşağı taşı'"
+            @click="move(axis, index, 1)"
+          />
         </template>
 
         <template #item.actions="{ item }">
@@ -431,21 +485,7 @@ const remove = async (c: Category) => {
                 />
               </VCol>
 
-              <VCol
-                cols="12"
-                sm="6"
-              >
-                <VTextField
-                  v-model.number="form.sort_order"
-                  label="Sıra"
-                  type="number"
-                />
-              </VCol>
-
-              <VCol
-                cols="12"
-                sm="6"
-              >
+              <VCol cols="12">
                 <VSwitch
                   v-model="form.is_active"
                   label="Aktif"

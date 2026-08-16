@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/omerkoc/cicekci/internal/api"
@@ -71,22 +70,8 @@ func (h *sliderHandler) create(c *fiber.Ctx) error {
 		in.IsActive = v == "true" || v == "1"
 	}
 
-	// sort_order verilmezse sona eklenir — panelde her yeni slayt için
-	// sıra düşünmek zorunda kalmasın.
-	if v := c.FormValue("sort_order"); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return badRequest(c, "Geçersiz sıra")
-		}
-		in.SortOrder = n
-	} else {
-		next, err := h.svc.NextSortOrder(c.Context())
-		if err != nil {
-			return api.WriteError(c, err)
-		}
-		in.SortOrder = next
-	}
-
+	// Sıra alınmıyor — servis yeni slaytı sona ekler. Sıra değişikliği
+	// yalnızca reorder ucundan yapılır.
 	slide, err := h.svc.Create(c.Context(), in, data)
 	if err != nil {
 		return api.WriteError(c, err)
@@ -94,11 +79,36 @@ func (h *sliderHandler) create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(toSlideView(h.imgSvc, *slide))
 }
 
+// updateSlideRequest — sort_order YOK. Sıra reorder ucundan değişir;
+// tek slaytın sırasını elle yazmak listeyi tutarsız bırakırdı.
 type updateSlideRequest struct {
-	Title     *string `json:"title"`
-	Subtitle  *string `json:"subtitle"`
-	IsActive  *bool   `json:"is_active"`
-	SortOrder *int    `json:"sort_order"`
+	Title    *string `json:"title"`
+	Subtitle *string `json:"subtitle"`
+	IsActive *bool   `json:"is_active"`
+}
+
+// slideReorderRequest yeni sıradaki slayt ID'leri.
+type slideReorderRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
+// reorder PUT /api/admin/slides/reorder
+// Body: {"ids": [3, 1, 2]} — TÜM slaytları içermeli, eksik liste reddedilir.
+func (h *sliderHandler) reorder(c *fiber.Ctx) error {
+	var req slideReorderRequest
+	if err := c.BodyParser(&req); err != nil {
+		return badRequest(c, "Geçersiz istek")
+	}
+
+	if err := h.svc.Reorder(c.Context(), req.IDs); err != nil {
+		return api.WriteError(c, err)
+	}
+
+	list, err := h.svc.ListAdmin(c.Context())
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	return c.JSON(toSlideViews(h.imgSvc, list))
 }
 
 // update PATCH /api/admin/slides/:id — yalnızca metin alanları.
@@ -115,10 +125,9 @@ func (h *sliderHandler) update(c *fiber.Ctx) error {
 	}
 
 	slide, err := h.svc.Update(c.Context(), int64(id), slider.UpdateInput{
-		Title:     req.Title,
-		Subtitle:  req.Subtitle,
-		IsActive:  req.IsActive,
-		SortOrder: req.SortOrder,
+		Title:    req.Title,
+		Subtitle: req.Subtitle,
+		IsActive: req.IsActive,
 	})
 	if err != nil {
 		return api.WriteError(c, err)

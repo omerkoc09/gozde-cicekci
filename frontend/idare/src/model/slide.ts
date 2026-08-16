@@ -10,10 +10,10 @@ export interface Slide {
 
 // PATCH semantiği: undefined alan değişmez. Görsel BURADA YOK —
 // değişimi ayrı uçta (useSlides().replaceImage), çünkü eski dosyanın
-// saklamadan silinmesi gerekiyor.
+// saklamadan silinmesi gerekiyor. sort_order da yok: sıra reorder
+// ucundan (listedeki ok butonları) değişir.
 export interface SlideUpdate {
   title?: string
   subtitle?: string
   is_active?: boolean
-  sort_order?: number
 }

@@ -59,6 +59,10 @@ func Register(router fiber.Router, d Deps) {
 
 	protected.Get("/categories", ch.list)
 	protected.Post("/categories", ch.create)
+	// reorder ":id" kalıplarından ÖNCE — Fiber sıralı eşleştirir, sonra
+	// gelseydi "/categories/reorder" isteği ":id" route'una düşer ve
+	// "reorder" geçersiz id olarak reddedilirdi.
+	protected.Put("/categories/reorder", ch.reorder)
 	protected.Patch("/categories/:id", ch.update)
 	protected.Get("/categories/:id/product-count", ch.productCount)
 	protected.Put("/categories/:id/image", ch.replaceImage)
@@ -67,6 +71,7 @@ func Register(router fiber.Router, d Deps) {
 
 	protected.Get("/slides", sh.list)
 	protected.Post("/slides", sh.create)
+	protected.Put("/slides/reorder", sh.reorder) // ":id" kalıplarından önce
 	protected.Patch("/slides/:id", sh.update)
 	protected.Put("/slides/:id/image", sh.replaceImage)
 	protected.Delete("/slides/:id", sh.delete)

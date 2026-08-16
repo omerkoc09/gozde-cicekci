@@ -12,19 +12,26 @@ type categoryHandler struct {
 	imgSvc *image.Service
 }
 
+// sort_order alanı YOK: yeni kategori kendi ekseninin sonuna eklenir ve sıra
+// yalnızca reorder ucundan değişir. Tek kategorinin sırasını elle yazmak
+// listeyi tutarsız bırakırdı.
 type createCategoryRequest struct {
 	Name       string `json:"name"`
 	Axis       string `json:"axis"`
 	IsActive   *bool  `json:"is_active"`
 	IsFeatured *bool  `json:"is_featured"`
-	SortOrder  *int   `json:"sort_order"`
 }
 
 type updateCategoryRequest struct {
 	Name       *string `json:"name"`
 	IsActive   *bool   `json:"is_active"`
 	IsFeatured *bool   `json:"is_featured"`
-	SortOrder  *int    `json:"sort_order"`
+}
+
+// categoryReorderRequest bir eksenin yeni sırası.
+type categoryReorderRequest struct {
+	Axis string  `json:"axis"`
+	IDs  []int64 `json:"ids"`
 }
 
 // list GET /api/admin/categories — pasifler dahil
@@ -54,15 +61,32 @@ func (h *categoryHandler) create(c *fiber.Ctx) error {
 	if req.IsFeatured != nil {
 		in.IsFeatured = *req.IsFeatured
 	}
-	if req.SortOrder != nil {
-		in.SortOrder = *req.SortOrder
-	}
 
 	cat, err := h.svc.Create(c.Context(), in)
 	if err != nil {
 		return api.WriteError(c, err)
 	}
 	return c.Status(fiber.StatusCreated).JSON(toCategoryView(h.imgSvc, *cat))
+}
+
+// reorder PUT /api/admin/categories/reorder
+// Body: {"axis": "occasion", "ids": [3, 1, 2]} — o EKSENİN tüm kategorilerini
+// içermeli. İki eksen bağımsız sıralanır.
+func (h *categoryHandler) reorder(c *fiber.Ctx) error {
+	var req categoryReorderRequest
+	if err := c.BodyParser(&req); err != nil {
+		return badRequest(c, "Geçersiz istek")
+	}
+
+	if err := h.svc.Reorder(c.Context(), category.Axis(req.Axis), req.IDs); err != nil {
+		return api.WriteError(c, err)
+	}
+
+	list, err := h.svc.ListAdmin(c.Context())
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	return c.JSON(toCategoryViews(h.imgSvc, list))
 }
 
 // update PATCH /api/admin/categories/:id
@@ -81,7 +105,6 @@ func (h *categoryHandler) update(c *fiber.Ctx) error {
 		Name:       req.Name,
 		IsActive:   req.IsActive,
 		IsFeatured: req.IsFeatured,
-		SortOrder:  req.SortOrder,
 	})
 	if err != nil {
 		return api.WriteError(c, err)

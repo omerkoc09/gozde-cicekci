@@ -37,7 +37,52 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (*Category, error)
 		return nil, err
 	}
 
+	// Sıra artık panelden sorulmuyor — yeni kategori kendi ekseninin sonuna
+	// eklenir, esnaf listeden ok butonlarıyla taşır.
+	max, err := s.store.MaxSortOrder(ctx, in.Axis)
+	if err != nil {
+		return nil, err
+	}
+	in.SortOrder = max + 1
+
 	return s.store.Create(ctx, in, slug)
+}
+
+// Reorder eksendeki kategorileri ids sırasına dizer. ids EKSENİN TAMAMINI
+// içermeli — eksik/fazla/tekrarlı liste reddedilir, çünkü kısmi sıralama
+// listede olmayan kategorileri sessizce 0'a düşürüp sırayı bozar.
+func (s *Service) Reorder(ctx context.Context, axis Axis, ids []int64) error {
+	if !axis.Valid() {
+		return fmt.Errorf("%w: geçersiz eksen %q", errorsx.ErrInvalidInput, axis)
+	}
+
+	mevcut, err := s.store.IDsOfAxis(ctx, axis)
+	if err != nil {
+		return err
+	}
+
+	if len(ids) != len(mevcut) {
+		return fmt.Errorf("%w: sıralama listesi eksendeki kategorilerin tamamını içermeli (%d bekleniyordu, %d geldi)",
+			errorsx.ErrInvalidInput, len(mevcut), len(ids))
+	}
+
+	beklenen := make(map[int64]bool, len(mevcut))
+	for _, id := range mevcut {
+		beklenen[id] = true
+	}
+
+	gorulen := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		if gorulen[id] {
+			return fmt.Errorf("%w: sıralama listesinde tekrar eden kategori", errorsx.ErrInvalidInput)
+		}
+		if !beklenen[id] {
+			return fmt.Errorf("%w: sıralama listesinde bu eksene ait olmayan kategori", errorsx.ErrInvalidInput)
+		}
+		gorulen[id] = true
+	}
+
+	return s.store.Reorder(ctx, ids)
 }
 
 // uniqueSlug çakışma varsa -2, -3 ... ekler.

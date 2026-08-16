@@ -46,6 +46,22 @@ const yil = new Date().getFullYear()
                 Çiçekler
               </NuxtLink>
             </li>
+            <li>
+              <!--
+                Esnafın panele girişi. Nuxt route'u değil, Caddy'nin admin
+                SPA'ya yönlendirdiği ayrı bir yol — NuxtLink client-side
+                gezinmeye çalışıp 404 vereceği için düz <a> kullanılıyor.
+                nofollow: gizlilik değil (panel şifreli), gereksiz indeksleme
+                engellensin diye.
+              -->
+              <a
+                href="/idare"
+                rel="nofollow"
+                class="text-body-md text-on-surface-variant underline-offset-4 hover:text-primary hover:underline"
+              >
+                Yönetim
+              </a>
+            </li>
           </ul>
         </div>
 

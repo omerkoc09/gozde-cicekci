@@ -1,5 +1,5 @@
 import ApiService from '@/services/ApiService'
-import type { Category, CategoryCreate, CategoryUpdate } from '@/model/category'
+import type { Axis, Category, CategoryCreate, CategoryUpdate } from '@/model/category'
 
 export function useCategories() {
   const list = () => ApiService.get<Category[]>('admin/categories')
@@ -32,5 +32,12 @@ export function useCategories() {
   const removeImage = (id: number) =>
     ApiService.delete<Category>(`admin/categories/${id}/image`)
 
-  return { list, create, update, remove, productCount, replaceImage, removeImage }
+  /**
+   * Eksenin sırasını yeniden yazar. ids O EKSENİN tüm kategorilerini
+   * içermeli — backend eksik listeyi reddediyor. Güncel tüm liste döner.
+   */
+  const reorder = (axis: Axis, ids: number[]) =>
+    ApiService.put<Category[]>('admin/categories/reorder', { axis, ids })
+
+  return { list, create, update, remove, productCount, replaceImage, removeImage, reorder }
 }

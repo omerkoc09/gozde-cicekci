@@ -112,6 +112,49 @@ func (s *Store) ListAdmin(ctx context.Context) ([]Slide, error) {
 	return s.list(ctx, ``)
 }
 
+// AllIDs tüm slayt ID'lerini döner — Reorder'ın gelen listeyi mevcutların
+// tamamıyla karşılaştırması için.
+func (s *Store) AllIDs(ctx context.Context) ([]int64, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id FROM slides`)
+	if err != nil {
+		return nil, fmt.Errorf("slayt id listele: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("slayt id scan: %w", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// Reorder ids sırasına göre sort_order'ı 0,1,2... olarak yeniden yazar.
+// Tek transaction: yarım kalırsa hiçbiri uygulanmaz.
+func (s *Store) Reorder(ctx context.Context, ids []int64) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("sıralama tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for i, id := range ids {
+		if _, err := tx.Exec(ctx,
+			`UPDATE slides SET sort_order = $2, updated_at = now() WHERE id = $1`, id, i,
+		); err != nil {
+			return fmt.Errorf("sıra yaz: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("sıralama commit: %w", err)
+	}
+	return nil
+}
+
 // MaxSortOrder yeni slaytı sona eklemek için. Hiç slayt yoksa -1 döner ki
 // çağıran +1 ile 0'dan başlasın.
 func (s *Store) MaxSortOrder(ctx context.Context) (int, error) {
