@@ -6,6 +6,7 @@
  * DESIGN.md §Elevation: yalnızca drawer/modal gölge kullanabilir (%2 opacity).
  */
 import { formatPrice } from '~/utils/price'
+import { cartLineKey } from '~/composables/useCart'
 
 const acik = defineModel<boolean>({ required: true })
 
@@ -120,22 +121,42 @@ onBeforeUnmount(() => {
                   {{ formatPrice(item.price) }}
                 </p>
 
+                <!-- Seçimler: renk noktası + isim -->
+                <div
+                  v-if="item.options?.length"
+                  class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1"
+                >
+                  <span
+                    v-for="o in item.options"
+                    :key="o.value_id"
+                    class="inline-flex items-center gap-1 text-body-sm text-on-surface-variant"
+                  >
+                    <span
+                      v-if="o.swatch_hex"
+                      class="inline-block size-3 rounded-full border border-outline-variant/50"
+                      :style="{ background: o.swatch_hex }"
+                      aria-hidden="true"
+                    />
+                    {{ o.value_name }}
+                  </span>
+                </div>
+
                 <div class="mt-2 flex items-center gap-3">
                   <div class="flex items-center rounded border border-outline-variant/50">
                     <button
                       type="button"
                       class="px-2.5 py-1 text-on-surface-variant hover:text-primary"
                       :aria-label="`${item.name} adedini azalt`"
-                      @click="setQuantity(item.product_id, item.quantity - 1)"
+                      @click="setQuantity(cartLineKey(item), item.quantity - 1)"
                     >
-                      −
+                      &minus;
                     </button>
                     <span class="min-w-8 text-center text-body-md">{{ item.quantity }}</span>
                     <button
                       type="button"
                       class="px-2.5 py-1 text-on-surface-variant hover:text-primary"
                       :aria-label="`${item.name} adedini artır`"
-                      @click="setQuantity(item.product_id, item.quantity + 1)"
+                      @click="setQuantity(cartLineKey(item), item.quantity + 1)"
                     >
                       +
                     </button>
@@ -144,7 +165,7 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     class="text-xs text-on-surface-variant underline-offset-4 hover:text-primary hover:underline"
-                    @click="remove(item.product_id)"
+                    @click="remove(cartLineKey(item))"
                   >
                     Kaldır
                   </button>

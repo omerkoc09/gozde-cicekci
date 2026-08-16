@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { VForm } from 'vuetify/lib/components/VForm/index.mjs'
 import ProductImageManager from '@/components/ProductImageManager.vue'
+import ProductOptionPicker from '@/components/ProductOptionPicker.vue'
 import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
-import type { Product } from '@/model/product'
+import type { Product, ProductOptionGroupLink } from '@/model/product'
 import type { Axis, Category } from '@/model/category'
 import { AXIS_LABELS } from '@/model/category'
 import { ErrorPopup, SuccessToast } from '@/utils/Popup'
@@ -33,6 +34,7 @@ const form = ref({
   is_active: true,
   is_featured: false,
   category_ids: [] as number[],
+  option_groups: [] as ProductOptionGroupLink[],
 })
 
 const byAxis = (axis: Axis) =>
@@ -102,6 +104,10 @@ const loadProduct = async () => {
     is_active: data.is_active,
     is_featured: data.is_featured,
     category_ids: data.category_ids ?? [],
+    option_groups: (data.option_groups ?? []).map(g => ({
+      group_id: g.id,
+      is_required: g.is_required,
+    })),
   }
 }
 
@@ -128,6 +134,7 @@ const save = async () => {
     is_active: form.value.is_active,
     is_featured: form.value.is_featured,
     category_ids: form.value.category_ids,
+    option_groups: form.value.option_groups,
   }
 
   saving.value = true
@@ -253,8 +260,10 @@ const save = async () => {
                     hide-details
                   />
 
-                  <!-- Pasif ürün ana sayfada görünmez — öne çıkarmanın
-                       anlamı kalmaz (kategorilerdeki kuralın aynısı). -->
+                  <!--
+                    Pasif ürün ana sayfada görünmez — öne çıkarmanın
+                    anlamı kalmaz (kategorilerdeki kuralın aynısı).
+                  -->
                   <VTooltip
                     :disabled="form.is_active"
                     text="Pasif ürün öne çıkarılamaz"
@@ -295,6 +304,10 @@ const save = async () => {
                     closable-chips
                     no-data-text="Bu eksende kategori yok"
                   />
+                </VCol>
+
+                <VCol cols="12">
+                  <ProductOptionPicker v-model="form.option_groups" />
                 </VCol>
               </VRow>
             </VForm>

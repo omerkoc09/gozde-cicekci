@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Category } from '~/types/api'
+import type { CartItemOption, Category } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 
 const route = useRoute()
@@ -79,6 +79,16 @@ if (!yonlendiriliyor) {
 const { add } = useCart()
 const sepetAcik = inject<Ref<boolean> | null>('sepetAcik', null)
 
+const secimler = ref<CartItemOption[]>([])
+
+const eksikZorunlular = computed(() =>
+  (product.value?.option_groups ?? [])
+    .filter(g => g.is_required && !secimler.value.some(
+      o => g.values.some(v => v.id === o.value_id)))
+    .map(g => g.name))
+
+const sepeteEklenebilir = computed(() => eksikZorunlular.value.length === 0)
+
 function sepeteEkle() {
   if (!product.value)
     return
@@ -90,6 +100,7 @@ function sepeteEkle() {
     price: product.value.price,
     image: product.value.images?.[0]?.url_400 ?? '',
     quantity: 1,
+    options: secimler.value,
   })
 
   if (sepetAcik)
@@ -130,13 +141,34 @@ function sepeteEkle() {
             {{ product.description }}
           </p>
 
+          <!-- Özelleştirme: müşteri seçenek gruplarını burada seçer -->
+          <ProductOptionSelector
+            v-if="product.option_groups?.length"
+            v-model="secimler"
+            :groups="product.option_groups"
+            class="my-6"
+          />
+
           <!-- CTA'lar. "Sepete Ekle" gerçek (Faz 2); WhatsApp da hâlâ sitenin
                bir dönüşüm yolu, o yüzden hemen altında (spec §2.3). -->
           <div class="mt-8 space-y-3">
-            <button type="button" class="btn-primary text-label-caps w-full" @click="sepeteEkle">
+            <button
+              type="button"
+              class="btn-primary text-label-caps w-full"
+              :disabled="!sepeteEklenebilir"
+              :class="{ 'opacity-60 cursor-not-allowed': !sepeteEklenebilir }"
+              @click="sepeteEkle"
+            >
               <Icon name="material-symbols:shopping-cart-outline" size="18" />
               Sepete Ekle
             </button>
+
+            <p
+              v-if="eksikZorunlular.length"
+              class="mt-2 text-body-sm text-error"
+            >
+              {{ eksikZorunlular.join(', ') }} seçiniz.
+            </p>
 
             <WhatsAppButton :product="product" />
           </div>

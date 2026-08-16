@@ -2,6 +2,7 @@
 import type { RecentAddress } from '~/types/api'
 import { formatPrice } from '~/utils/price'
 import { apiErrorMessage } from '~/composables/useOrders'
+import { cartLineKey } from '~/composables/useCart'
 
 const { items, itemsTotal, clear } = useCart()
 const { data: cfg } = await useDeliveryConfig()
@@ -178,7 +179,12 @@ async function gonder() {
 
   try {
     const sonuc = await createOrder({
-      items: items.value.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
+      items: items.value.map(i => ({
+        product_id: i.product_id,
+        quantity: i.quantity,
+        // YALNIZCA id — isim ve renk sunucuda DB'den okunur.
+        option_value_ids: (i.options ?? []).map(o => o.value_id),
+      })),
       buyer: { name: form.buyerName, phone: form.buyerPhone },
       recipient: { name: form.recipientName, phone: form.recipientPhone },
       delivery: { address: form.address, district: form.district, date: form.date, slot: form.slot },
