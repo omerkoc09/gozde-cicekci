@@ -22,17 +22,25 @@ Son güncelleme: 2026-07-19
 | Panel erişimi + sıralama | ✅ **Uygulandı** (2026-08-16) — footer'da "Yönetim" linki, sıra sayısı yerine ok butonları |
 | Ürün özelleştirme (buket tasarla) | ✅ **Uygulandı** (2026-08-16) — migration 10, seçenek grupları panelden yönetiliyor |
 
-### Sıradaki deploy (2026-08-16 çalışması)
+### Deploy (2026-08-16) — TAMAMLANDI ✅
 
-Branch `panel-erisim-ve-siralama` main'e merge edilip deploy edilecek.
-**Migration 10** (`option_groups`, `option_values`, `product_option_groups`,
-`order_item_options` + üç grup × 10 renk seed) compose'daki `migrate`
-servisiyle OTOMATİK uygulanır — elle komut gerekmez. Migration patlarsa
-backend hiç başlamaz (`service_completed_successfully` bağımlılığı).
+`panel-erisim-ve-siralama` main'e merge edildi (20 commit) ve canlıya
+alındı. Deploy öncesi yedek damgası kontrol edildi (`20260816_000458`,
+`SON_HATA` yok).
 
-Deploy sonrası doğrulanacak: `/idare/secenekler` açılıyor mu, bir üründe
-grup aktifleştirilip public sayfada renkler görünüyor mu, sipariş
-detayında seçimler renk noktasıyla listeleniyor mu.
+Doğrulananlar:
+- `migrate-1 | 10/u product_options (77ms)` — **migration 10 uygulandı**,
+  `schema_migrations` 10 / dirty=false, seed geldi (3 grup × 10 renk)
+- 5 servis ayakta, backend 96 handler ile başladı
+- Canlı: ana sayfa 200, `/idare/` 200, `/api/admin/option-groups` **401**
+  (korumalı), footer'da `href="/idare" rel="nofollow"` SSR HTML'inde
+- Public ürün ucunda `option_groups` alanı geliyor (henüz ürüne grup
+  atanmadığı için boş — beklenen)
+
+> **Esnafın yapması gereken:** Seçenek grupları canlıda hazır ama hiçbir
+> ürüne AÇILMADI. Renklerin müşteriye görünmesi için: `/idare/secenekler`
+> sayfasından grupların Aktif olduğunu doğrula, sonra ürün formundaki
+> "Özelleştirme" bölümünden ilgili ürünlerde grupları işaretle.
 
 Branch: `main` (deploy edilen). **2026-08-13:** `uyelik` main'e merge edildi;
 `uyelik` `odeme-sistemi` üstüne kurulduğu için PayTR de aynı merge'le main'e
