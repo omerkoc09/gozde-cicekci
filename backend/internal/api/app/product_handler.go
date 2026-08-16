@@ -5,11 +5,13 @@ import (
 	"github.com/omerkoc/cicekci/internal/api"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 )
 
 type productHandler struct {
 	svc    *product.Service
 	imgSvc *image.Service
+	optSvc *productoption.Service
 }
 
 // list GET /api/products?amac=&tip=&one_cikan=&page=
@@ -70,5 +72,13 @@ func (h *productHandler) getBySlug(c *fiber.Ctx) error {
 		return api.WriteError(c, err)
 	}
 
-	return c.JSON(toProductView(*p, h.imgSvc, imgs))
+	// Yalnızca aktif grup + aktif değerler — pasif olan bu uçtan sızmaz.
+	groups, err := h.optSvc.GroupsForProduct(c.Context(), p.ID, true)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	view := toProductView(*p, h.imgSvc, imgs)
+	view.OptionGroups = toPublicOptionGroupViews(groups)
+	return c.JSON(view)
 }

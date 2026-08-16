@@ -3,19 +3,50 @@ package idare
 import (
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 )
 
 // ProductView admin ürün gösterimi — is_active ve is_featured DAHİL.
 type ProductView struct {
-	ID          int64       `json:"id"`
-	Name        string      `json:"name"`
-	Slug        string      `json:"slug"`
-	Description string      `json:"description"`
-	Price       string      `json:"price"`
-	IsActive    bool        `json:"is_active"`
-	IsFeatured  bool        `json:"is_featured"`
-	CategoryIDs []int64     `json:"category_ids"`
-	Images      []ImageView `json:"images"`
+	ID           int64                    `json:"id"`
+	Name         string                   `json:"name"`
+	Slug         string                   `json:"slug"`
+	Description  string                   `json:"description"`
+	Price        string                   `json:"price"`
+	IsActive     bool                     `json:"is_active"`
+	IsFeatured   bool                     `json:"is_featured"`
+	CategoryIDs  []int64                  `json:"category_ids"`
+	Images       []ImageView              `json:"images"`
+	OptionGroups []ProductOptionGroupView `json:"option_groups"`
+}
+
+// ProductOptionGroupView ürüne açık bir seçenek grubu — is_required ile.
+type ProductOptionGroupView struct {
+	ID         int64             `json:"id"`
+	Name       string            `json:"name"`
+	Kind       string            `json:"kind"`
+	IsRequired bool              `json:"is_required"`
+	IsActive   bool              `json:"is_active"`
+	Values     []OptionValueView `json:"values"`
+}
+
+func toProductOptionGroupViews(list []productoption.ProductGroup) []ProductOptionGroupView {
+	out := make([]ProductOptionGroupView, 0, len(list))
+	for _, g := range list {
+		values := make([]OptionValueView, 0, len(g.Values))
+		for _, v := range g.Values {
+			values = append(values, toOptionValueView(v))
+		}
+		out = append(out, ProductOptionGroupView{
+			ID:         g.ID,
+			Name:       g.Name,
+			Kind:       string(g.Kind),
+			IsRequired: g.IsRequired,
+			IsActive:   g.IsActive,
+			Values:     values,
+		})
+	}
+	return out
 }
 
 func toProductView(p product.Product, imgSvc *image.Service, imgs []image.ProductImage) ProductView {

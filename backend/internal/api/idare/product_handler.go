@@ -5,12 +5,29 @@ import (
 	"github.com/omerkoc/cicekci/internal/api"
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/shopspring/decimal"
 )
 
 type productHandler struct {
 	svc    *product.Service
 	imgSvc *image.Service
+	optSvc *productoption.Service
+}
+
+type optionGroupLinkRequest struct {
+	GroupID    int64 `json:"group_id"`
+	IsRequired bool  `json:"is_required"`
+}
+
+func toGroupLinks(reqs []optionGroupLinkRequest) []productoption.ProductGroupLink {
+	out := make([]productoption.ProductGroupLink, 0, len(reqs))
+	for _, r := range reqs {
+		out = append(out, productoption.ProductGroupLink{
+			GroupID: r.GroupID, IsRequired: r.IsRequired,
+		})
+	}
+	return out
 }
 
 type createProductRequest struct {
@@ -20,6 +37,9 @@ type createProductRequest struct {
 	IsActive    *bool   `json:"is_active"`
 	IsFeatured  *bool   `json:"is_featured"`
 	CategoryIDs []int64 `json:"category_ids"`
+	// OptionGroups nil ise gruplar DEĞİŞMEZ; boş dizi hepsini kaldırır
+	// (CategoryIDs ile aynı PATCH semantiği).
+	OptionGroups []optionGroupLinkRequest `json:"option_groups"`
 }
 
 type updateProductRequest struct {
@@ -29,6 +49,9 @@ type updateProductRequest struct {
 	IsActive    *bool   `json:"is_active"`
 	IsFeatured  *bool   `json:"is_featured"`
 	CategoryIDs []int64 `json:"category_ids"`
+	// OptionGroups nil ise gruplar DEĞİŞMEZ; boş dizi hepsini kaldırır
+	// (CategoryIDs ile aynı PATCH semantiği).
+	OptionGroups []optionGroupLinkRequest `json:"option_groups"`
 }
 
 // list GET /api/admin/products — pasifler dahil
@@ -73,7 +96,15 @@ func (h *productHandler) get(c *fiber.Ctx) error {
 		return api.WriteError(c, err)
 	}
 
-	return c.JSON(toProductView(*p, h.imgSvc, imgs))
+	// Panelde pasif gruplar da görünmeli ki esnaf durumu anlasın.
+	groups, err := h.optSvc.GroupsForProduct(c.Context(), p.ID, false)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	view := toProductView(*p, h.imgSvc, imgs)
+	view.OptionGroups = toProductOptionGroupViews(groups)
+	return c.JSON(view)
 }
 
 // create POST /api/admin/products
@@ -107,8 +138,23 @@ func (h *productHandler) create(c *fiber.Ctx) error {
 		return api.WriteError(c, err)
 	}
 
+	// Gruplar ürün kaydedildikten sonra bağlanır — ürün id'si gerekiyor.
+	// nil ise dokunulmaz (PATCH semantiği).
+	if req.OptionGroups != nil {
+		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, toGroupLinks(req.OptionGroups)); err != nil {
+			return api.WriteError(c, err)
+		}
+	}
+
+	groups, err := h.optSvc.GroupsForProduct(c.Context(), p.ID, false)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
 	// Yeni ürünün henüz görseli yok.
-	return c.Status(fiber.StatusCreated).JSON(toProductView(*p, h.imgSvc, nil))
+	view := toProductView(*p, h.imgSvc, nil)
+	view.OptionGroups = toProductOptionGroupViews(groups)
+	return c.Status(fiber.StatusCreated).JSON(view)
 }
 
 // update PATCH /api/admin/products/:id
@@ -144,12 +190,27 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 		return api.WriteError(c, err)
 	}
 
+	// Gruplar ürün kaydedildikten sonra bağlanır — ürün id'si gerekiyor.
+	// nil ise dokunulmaz (PATCH semantiği).
+	if req.OptionGroups != nil {
+		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, toGroupLinks(req.OptionGroups)); err != nil {
+			return api.WriteError(c, err)
+		}
+	}
+
 	imgs, err := h.imgSvc.ListByProduct(c.Context(), p.ID)
 	if err != nil {
 		return api.WriteError(c, err)
 	}
 
-	return c.JSON(toProductView(*p, h.imgSvc, imgs))
+	groups, err := h.optSvc.GroupsForProduct(c.Context(), p.ID, false)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	view := toProductView(*p, h.imgSvc, imgs)
+	view.OptionGroups = toProductOptionGroupViews(groups)
+	return c.JSON(view)
 }
 
 // delete DELETE /api/admin/products/:id

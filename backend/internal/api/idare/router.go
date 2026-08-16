@@ -30,7 +30,7 @@ func Register(router fiber.Router, d Deps) {
 	ah := &authHandler{svc: d.AuthSvc, secureCookie: d.SecureCookie}
 	uh := &userHandler{svc: d.AuthSvc}
 	ch := &categoryHandler{svc: d.CatSvc, imgSvc: d.ImgSvc}
-	ph := &productHandler{svc: d.ProdSvc, imgSvc: d.ImgSvc}
+	ph := &productHandler{svc: d.ProdSvc, imgSvc: d.ImgSvc, optSvc: d.OptSvc}
 	ih := &imageHandler{svc: d.ImgSvc, prodSvc: d.ProdSvc}
 	sh := &sliderHandler{svc: d.SliderSvc, imgSvc: d.ImgSvc}
 	oh := &orderHandler{svc: d.OrderSvc}

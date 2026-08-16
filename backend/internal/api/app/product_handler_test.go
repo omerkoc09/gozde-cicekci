@@ -16,6 +16,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/database"
 	"github.com/shopspring/decimal"
@@ -56,10 +57,11 @@ func newTestAPIFull(t *testing.T) (fiberApp *fiber.App, orderSvc *order.Service,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	custSvc = customer.NewService(customer.NewStore(pool), testJWTSecret)
+	optSvc := productoption.NewService(productoption.NewStore(pool))
 
 	fiberApp = fiber.New()
 	Register(fiberApp.Group("/api"), catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
-		custSvc, testJWTSecret, false)
+		custSvc, optSvc, testJWTSecret, false)
 	return fiberApp, orderSvc, prodSvc, catSvc, custSvc, pool
 }
 

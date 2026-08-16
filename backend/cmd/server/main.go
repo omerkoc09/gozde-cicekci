@@ -123,7 +123,7 @@ func main() {
 	// apiGroup — "api" adı internal/api paketiyle çakışırdı.
 	apiGroup := f.Group("/api")
 	app.Register(apiGroup, catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,
-		custSvc, cfg.JWTSecret, isProduction)
+		custSvc, optSvc, cfg.JWTSecret, isProduction)
 	idare.Register(apiGroup.Group("/admin"), idare.Deps{
 		AuthSvc:      authSvc,
 		CatSvc:       catSvc,
