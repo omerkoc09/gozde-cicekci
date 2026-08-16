@@ -307,6 +307,32 @@ func (s *Store) GroupProductCount(ctx context.Context, groupID int64) (int, erro
 	return n, nil
 }
 
+// ProductsUsingGroup grubu kullanan ürünleri ada göre sıralı döner.
+// Pasif ürünler DE gelir (IsActive ile işaretli): esnaf "bu grubu silersem
+// nereler etkilenir" sorusunun tam cevabını görmeli.
+func (s *Store) ProductsUsingGroup(ctx context.Context, groupID int64) ([]GroupProduct, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT p.id, p.name, p.is_active
+		 FROM product_option_groups pog
+		 JOIN products p ON p.id = pog.product_id
+		 WHERE pog.group_id = $1
+		 ORDER BY p.name`, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("grubu kullanan ürünler: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]GroupProduct, 0)
+	for rows.Next() {
+		var p GroupProduct
+		if err := rows.Scan(&p.ID, &p.Name, &p.IsActive); err != nil {
+			return nil, fmt.Errorf("ürün scan: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
 // SetProductGroups ürünün seçenek gruplarını KOMPLE değiştirir (önce siler,
 // sonra yazar) — tek transaction. Boş links tüm bağları kaldırır.
 func (s *Store) SetProductGroups(ctx context.Context, productID int64, links []ProductGroupLink) error {

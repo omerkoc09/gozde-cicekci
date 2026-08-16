@@ -117,6 +117,34 @@ func (h *optionHandler) productCount(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"product_count": n})
 }
 
+// GroupProductView grubu kullanan ürün — panelde liste için.
+type GroupProductView struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+}
+
+// products GET /api/admin/option-groups/:id/products
+// Bu grubun hangi ürünlerde sorulduğu. Pasif ürünler de gelir (is_active
+// ile işaretli) — esnaf silmeden önce tam listeyi görmeli.
+func (h *optionHandler) products(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return badRequest(c, "Geçersiz id")
+	}
+
+	list, err := h.svc.ProductsUsingGroup(c.Context(), int64(id))
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	out := make([]GroupProductView, 0, len(list))
+	for _, p := range list {
+		out = append(out, GroupProductView{ID: p.ID, Name: p.Name, IsActive: p.IsActive})
+	}
+	return c.JSON(out)
+}
+
 // reorderGroups PUT /api/admin/option-groups/reorder
 // Body: {"ids":[3,1,2]} — TÜM grupları içermeli.
 func (h *optionHandler) reorderGroups(c *fiber.Ctx) error {

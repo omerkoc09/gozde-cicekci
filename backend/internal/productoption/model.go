@@ -76,3 +76,11 @@ type ProductGroupLink struct {
 type ProductGroup struct {
 	Group
 }
+
+// GroupProduct bir seçenek grubunu kullanan ürün — panelde "bu grup nerede
+// soruluyor" listesi için. Ürünün tamamı değil, listelemeye yetecek kadarı.
+type GroupProduct struct {
+	ID       int64
+	Name     string
+	IsActive bool
+}

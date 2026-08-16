@@ -96,6 +96,7 @@ func Register(router fiber.Router, d Deps) {
 	protected.Patch("/option-groups/:id", oph.updateGroup)
 	protected.Delete("/option-groups/:id", oph.deleteGroup)
 	protected.Get("/option-groups/:id/product-count", oph.productCount)
+	protected.Get("/option-groups/:id/products", oph.products)
 	protected.Post("/option-groups/:id/values", oph.createValue)
 	protected.Put("/option-groups/:id/values/reorder", oph.reorderValues)
 	protected.Patch("/option-values/:id", oph.updateValue)

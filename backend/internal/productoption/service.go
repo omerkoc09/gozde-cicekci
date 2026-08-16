@@ -86,6 +86,16 @@ func (s *Service) GroupProductCount(ctx context.Context, groupID int64) (int, er
 	return s.store.GroupProductCount(ctx, groupID)
 }
 
+// ProductsUsingGroup grubu kullanan ürünleri döner — panelde "bu grup
+// hangi ürünlerde soruluyor" listesi. Grup yoksa ErrNotFound: boş liste
+// ile "grup yok" durumunu ayırt edebilmek için.
+func (s *Service) ProductsUsingGroup(ctx context.Context, groupID int64) ([]GroupProduct, error) {
+	if _, err := s.store.GetGroup(ctx, groupID); err != nil {
+		return nil, err
+	}
+	return s.store.ProductsUsingGroup(ctx, groupID)
+}
+
 // CreateValue değeri gruba ekler. Renk grubunda hex zorunlu ve
 // "#RRGGBB" formatında; metin grubunda hex temizlenir.
 func (s *Service) CreateValue(ctx context.Context, in CreateValueInput) (*Value, error) {

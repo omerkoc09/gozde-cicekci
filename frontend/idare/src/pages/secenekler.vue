@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { VForm } from 'vuetify/lib/components/VForm/index.mjs'
 import { useOptions } from '@/composables/useOptions'
-import type { OptionGroup, OptionKind, OptionValue } from '@/model/option'
+import type { GroupProduct, OptionGroup, OptionKind, OptionValue } from '@/model/option'
 import { KIND_LABELS } from '@/model/option'
 import { ConfirmPopup, ErrorPopup, SuccessToast } from '@/utils/Popup'
 import { requiredValidator } from '@validators'
@@ -232,6 +232,36 @@ const valueFormRef = ref<VForm>()
 watch(seciliGrupId, () => {
   valueForm.value = { name: '', swatch_hex: '#000000' }
 })
+
+// --- Sağ sütun: bu grubu kullanan ürünler ---
+
+const kullananUrunler = ref<GroupProduct[]>([])
+const urunlerYukleniyor = ref(false)
+
+/**
+ * Grup değişince listeyi tazeler. Ayrı uçtan geliyor çünkü grup listesi
+ * (list()) ürün bilgisini taşımıyor — her grup için ürünleri de çekmek
+ * sayfa açılışında N+1 olurdu.
+ */
+watch(seciliGrupId, async id => {
+  kullananUrunler.value = []
+  if (id === null)
+    return
+
+  urunlerYukleniyor.value = true
+
+  const [err, data] = await api.groupProducts(id)
+
+  urunlerYukleniyor.value = false
+
+  if (err)
+    return ErrorPopup(err.message)
+
+  // Yanıt geldiğinde kullanıcı başka gruba geçmiş olabilir — geç gelen
+  // yanıt yanlış grubun listesini yazmasın.
+  if (seciliGrupId.value === id)
+    kullananUrunler.value = data ?? []
+}, { immediate: true })
 
 const addValue = async () => {
   if (!seciliGrup.value)
@@ -559,6 +589,69 @@ const removeValue = async (v: OptionValue) => {
               </VForm>
             </VCardText>
           </template>
+        </VCard>
+
+        <!--
+          Bu grup hangi ürünlerde soruluyor. Esnaf "Ambalaj Rengi'ni
+          nerelerde kullanıyorum?" sorusunu ürünleri tek tek açmadan
+          cevaplayabilsin diye. Pasif ürünler de listeleniyor (soluk) —
+          silmeden önce tam tablo görünmeli.
+        -->
+        <VCard
+          v-if="seciliGrup"
+          class="mt-6"
+        >
+          <VCardItem>
+            <VCardTitle class="text-body-1">
+              Bu grubu kullanan ürünler
+              <VChip
+                v-if="!urunlerYukleniyor"
+                size="x-small"
+                class="ms-2"
+              >
+                {{ kullananUrunler.length }}
+              </VChip>
+            </VCardTitle>
+          </VCardItem>
+
+          <VProgressLinear
+            v-if="urunlerYukleniyor"
+            indeterminate
+          />
+
+          <VCardText v-else-if="!kullananUrunler.length">
+            <span class="text-medium-emphasis text-body-2">
+              Bu grup henüz hiçbir üründe açık değil. Ürün formundaki
+              "Özelleştirme" bölümünden aktifleştirebilirsiniz.
+            </span>
+          </VCardText>
+
+          <VList
+            v-else
+            density="compact"
+            class="py-0"
+          >
+            <VListItem
+              v-for="u in kullananUrunler"
+              :key="u.id"
+              :to="{ name: 'urunler-id', params: { id: u.id } }"
+              :class="{ 'text-disabled': !u.is_active }"
+            >
+              <VListItemTitle class="text-body-2">
+                {{ u.name }}
+              </VListItemTitle>
+
+              <template #append>
+                <VChip
+                  v-if="!u.is_active"
+                  size="x-small"
+                  variant="tonal"
+                >
+                  Pasif
+                </VChip>
+              </template>
+            </VListItem>
+          </VList>
         </VCard>
       </VCol>
     </VRow>

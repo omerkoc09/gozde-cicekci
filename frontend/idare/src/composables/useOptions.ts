@@ -1,5 +1,6 @@
 import ApiService from '@/services/ApiService'
 import type {
+  GroupProduct,
   OptionGroup, OptionGroupCreate, OptionGroupUpdate,
   OptionValue, OptionValueCreate, OptionValueUpdate,
 } from '@/model/option'
@@ -19,6 +20,13 @@ export function useOptions() {
   /** Silme öncesi uyarı için: "Bu grup N üründe kullanılıyor". */
   const groupProductCount = (id: number) =>
     ApiService.get<{ product_count: number }>(`admin/option-groups/${id}/product-count`)
+
+  /**
+   * Grubun hangi ürünlerde sorulduğu. Pasif ürünler de gelir (is_active
+   * ile işaretli) — esnaf tam listeyi görmeli.
+   */
+  const groupProducts = (id: number) =>
+    ApiService.get<GroupProduct[]>(`admin/option-groups/${id}/products`)
 
   /** ids TÜM grupları içermeli — backend eksik listeyi reddediyor. */
   const reorderGroups = (ids: number[]) =>
@@ -43,6 +51,7 @@ export function useOptions() {
     updateGroup,
     removeGroup,
     groupProductCount,
+    groupProducts,
     reorderGroups,
     createValue,
     updateValue,

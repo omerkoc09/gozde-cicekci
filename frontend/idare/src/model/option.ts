@@ -37,6 +37,13 @@ export interface OptionGroup {
   values: OptionValue[]
 }
 
+/** Bir seçenek grubunu kullanan ürün — "bu grup nerede soruluyor" listesi. */
+export interface GroupProduct {
+  id: number
+  name: string
+  is_active: boolean
+}
+
 export interface OptionValueCreate {
   name: string
   swatch_hex: string
