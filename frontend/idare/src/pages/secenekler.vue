@@ -238,6 +238,13 @@ watch(seciliGrupId, () => {
 const kullananUrunler = ref<GroupProduct[]>([])
 const urunlerYukleniyor = ref(false)
 
+/** Sağ paneldeki aktif sekme. Grup değişince "Seçenekler"e döner. */
+const sagSekme = ref<'degerler' | 'urunler'>('degerler')
+
+watch(seciliGrupId, () => {
+  sagSekme.value = 'degerler'
+})
+
 /**
  * Grup değişince listeyi tazeler. Ayrı uçtan geliyor çünkü grup listesi
  * (list()) ürün bilgisini taşımıyor — her grup için ürünleri de çekmek
@@ -452,9 +459,44 @@ const removeValue = async (v: OptionValue) => {
         <VCard>
           <VCardItem>
             <VCardTitle>
-              {{ seciliGrup ? `Seçenekler — ${seciliGrup.name}` : 'Seçenekler' }}
+              {{ seciliGrup ? seciliGrup.name : 'Seçenekler' }}
             </VCardTitle>
           </VCardItem>
+
+          <!--
+            İki sekme: grubun değerleri ve grubu kullanan ürünler. Sekme
+            olarak duruyorlar çünkü ikisi de aynı grubun iki ayrı yüzü —
+            alt alta konsaydı sağ sütun çok uzar, ürün listesi ekranın
+            dışında kalırdı.
+          -->
+          <VTabs
+            v-if="seciliGrup"
+            v-model="sagSekme"
+            density="compact"
+            class="px-4"
+          >
+            <VTab value="degerler">
+              Seçenekler
+              <VChip
+                size="x-small"
+                class="ms-2"
+              >
+                {{ seciliGrup.values.length }}
+              </VChip>
+            </VTab>
+            <VTab value="urunler">
+              Kullanan Ürünler
+              <VChip
+                v-if="!urunlerYukleniyor"
+                size="x-small"
+                class="ms-2"
+              >
+                {{ kullananUrunler.length }}
+              </VChip>
+            </VTab>
+          </VTabs>
+
+          <VDivider v-if="seciliGrup" />
 
           <VCardText v-if="!seciliGrup">
             <VAlert
@@ -465,7 +507,7 @@ const removeValue = async (v: OptionValue) => {
             </VAlert>
           </VCardText>
 
-          <template v-else>
+          <template v-else-if="sagSekme === 'degerler'">
             <VDataTable
               :headers="valueHeaders"
               :items="siraliDegerler"
@@ -589,69 +631,53 @@ const removeValue = async (v: OptionValue) => {
               </VForm>
             </VCardText>
           </template>
-        </VCard>
 
-        <!--
-          Bu grup hangi ürünlerde soruluyor. Esnaf "Ambalaj Rengi'ni
-          nerelerde kullanıyorum?" sorusunu ürünleri tek tek açmadan
-          cevaplayabilsin diye. Pasif ürünler de listeleniyor (soluk) —
-          silmeden önce tam tablo görünmeli.
-        -->
-        <VCard
-          v-if="seciliGrup"
-          class="mt-6"
-        >
-          <VCardItem>
-            <VCardTitle class="text-body-1">
-              Bu grubu kullanan ürünler
-              <VChip
-                v-if="!urunlerYukleniyor"
-                size="x-small"
-                class="ms-2"
-              >
-                {{ kullananUrunler.length }}
-              </VChip>
-            </VCardTitle>
-          </VCardItem>
+          <!--
+            Bu grup hangi ürünlerde soruluyor. Esnaf "Ambalaj Rengi'ni
+            nerelerde kullanıyorum?" sorusunu ürünleri tek tek açmadan
+            cevaplayabilsin diye. Pasif ürünler de listeleniyor (soluk) —
+            silmeden önce tam tablo görünmeli.
+          -->
+          <template v-else>
+            <VProgressLinear
+              v-if="urunlerYukleniyor"
+              indeterminate
+            />
 
-          <VProgressLinear
-            v-if="urunlerYukleniyor"
-            indeterminate
-          />
+            <VCardText v-else-if="!kullananUrunler.length">
+              <span class="text-medium-emphasis text-body-2">
+                Bu grup henüz hiçbir üründe açık değil. Ürün formundaki
+                "Özelleştirme" bölümünden aktifleştirebilirsiniz.
+              </span>
+            </VCardText>
 
-          <VCardText v-else-if="!kullananUrunler.length">
-            <span class="text-medium-emphasis text-body-2">
-              Bu grup henüz hiçbir üründe açık değil. Ürün formundaki
-              "Özelleştirme" bölümünden aktifleştirebilirsiniz.
-            </span>
-          </VCardText>
-
-          <VList
-            v-else
-            density="compact"
-            class="py-0"
-          >
-            <VListItem
-              v-for="u in kullananUrunler"
-              :key="u.id"
-              :to="{ name: 'urunler-id', params: { id: u.id } }"
-              :class="{ 'text-disabled': !u.is_active }"
+            <VList
+              v-else
+              density="compact"
+              class="py-0"
             >
-              <VListItemTitle class="text-body-2">
-                {{ u.name }}
-              </VListItemTitle>
+              <VListItem
+                v-for="u in kullananUrunler"
+                :key="u.id"
+                :to="{ name: 'urunler-id', params: { id: u.id } }"
+                :class="{ 'text-disabled': !u.is_active }"
+              >
+                <VListItemTitle class="text-body-2">
+                  {{ u.name }}
+                </VListItemTitle>
 
-              <template #append>
-                <VChip
-                  v-if="!u.is_active"
-                  size="x-small"
-                  variant="tonal"
-                >
-                  Pasif
-                </VChip>
-              </template>
-            </VListItem>
-          </VList>
+                <template #append>
+                  <VChip
+                    v-if="!u.is_active"
+                    size="x-small"
+                    variant="tonal"
+                  >
+                    Pasif
+                  </VChip>
+                </template>
+              </VListItem>
+            </VList>
+          </template>
         </VCard>
       </VCol>
     </VRow>
