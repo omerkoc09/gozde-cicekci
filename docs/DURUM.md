@@ -19,6 +19,20 @@ Son güncelleme: 2026-07-19
 | Faz 3 — Ödeme (PayTR) | 🟡 **CANLIDA — TEST MODUNDA** (2026-08-14) — gerçek PayTR provider aktif, `test_mode: true`. Müşteri ödeme YAPAMAZ; ETBİS tamamlanınca `PAYTR_TEST_MODE=0` yapılacak |
 | Üyelik / müşteri hesabı | ✅ **CANLI** (2026-08-14) — 11 task + review/fix turları; migration 9 uygulandı, tarayıcıda doğrulandı |
 | Yedekleme | ✅ **Doğrulandı + off-site** (2026-08-14) — günlük db+uploads, R2'ye kopya, 30 gün saklama, restore testi geçti |
+| Panel erişimi + sıralama | ✅ **Uygulandı** (2026-08-16) — footer'da "Yönetim" linki, sıra sayısı yerine ok butonları |
+| Ürün özelleştirme (buket tasarla) | ✅ **Uygulandı** (2026-08-16) — migration 10, seçenek grupları panelden yönetiliyor |
+
+### Sıradaki deploy (2026-08-16 çalışması)
+
+Branch `panel-erisim-ve-siralama` main'e merge edilip deploy edilecek.
+**Migration 10** (`option_groups`, `option_values`, `product_option_groups`,
+`order_item_options` + üç grup × 10 renk seed) compose'daki `migrate`
+servisiyle OTOMATİK uygulanır — elle komut gerekmez. Migration patlarsa
+backend hiç başlamaz (`service_completed_successfully` bağımlılığı).
+
+Deploy sonrası doğrulanacak: `/idare/secenekler` açılıyor mu, bir üründe
+grup aktifleştirilip public sayfada renkler görünüyor mu, sipariş
+detayında seçimler renk noktasıyla listeleniyor mu.
 
 Branch: `main` (deploy edilen). **2026-08-13:** `uyelik` main'e merge edildi;
 `uyelik` `odeme-sistemi` üstüne kurulduğu için PayTR de aynı merge'le main'e
@@ -77,6 +91,79 @@ kırmızı — `setBaseEnv` PAYTR_* değişkenlerini temizlemiyor, `config.Load(
 **Dev ortam notu:** cicekci postgres portu 5433 → **5435** taşındı; 5433'ü başka
 bir projenin container'ı (`backend-db-1`) tutuyordu ve `localhost:5433` yanlış
 veritabanına gidiyordu. Test DB 5434'te değişmedi.
+
+## Ürün Özelleştirme ("Buket Tasarla"), 2026-08-16
+
+Spec: `docs/superpowers/specs/2026-08-16-urun-ozellestirme-design.md`
+Plan: `docs/superpowers/plans/2026-08-16-urun-ozellestirme.md`
+
+Müşteri sipariş ederken ambalaj/kurdele/kutu rengi seçebiliyor. Seçenek
+grupları **panelden** yönetiliyor (`/idare/secenekler`) — yeni bir grup
+("Çiçek Rengi" vb.) eklemek kod değişikliği veya migration GEREKTİRMİYOR.
+Migration 10'daki üç grup yalnızca başlangıç verisi; silinebilir,
+yeniden adlandırılabilir.
+
+**Kararlar:** merkezi seçenek havuzu + ürün başına aç/kapa, grup başına
+tip (`color`/`text`), **fiyat farkı YOK**, zorunluluk ürün başına,
+farklı seçim = ayrı sepet kalemi.
+
+### Kritik tasarım noktaları (sonradan "neden böyle?" diye sorulacak)
+
+**Seçim siparişe KOPYALANIR.** `order_item_options` gruba/değere referans
+tutmaz — `group_name`, `value_name`, `swatch_hex` kopyalanır. Esnaf
+sonradan "Pembe"yi silerse eski siparişin ne olduğu bilgisi bozulmaz.
+`order_items.product_name`/`price_at_order` deseninin aynısı. Şema
+seviyesinde garanti: o tabloda `option_values`/`option_groups` FK'si YOK.
+Regresyon testi var (`TestCreate_DegerSilininceEskiSiparisBozulmaz`).
+
+**Sunucu tarayıcıya güvenmez.** İstemci YALNIZCA `option_value_ids`
+gönderir; isim ve renk DB'den okunur. Reddedilenler: değer yok/pasif,
+değerin grubu bu ürüne kapalı, aynı gruptan birden fazla değer, zorunlu
+grup eksik. Fiyattaki *"FİYAT YOK — sunucu DB'den okur"* kuralının aynısı.
+
+**Sepet birleştirme anahtarı** `product_id` → `product_id + sıralı seçim
+id'leri` oldu (`cartLineKey`). `addItem`/`removeItem`/`setItemQuantity`
+ÜÇÜ BİRDEN değişti — yoksa "pembeyi sil" beyazı da silerdi. Seçim
+id'leri sıralanıyor: müşteri renkleri hangi sırayla seçerse seçsin aynı
+satır olmalı.
+
+**Eski sepetler korundu.** Bu alandan önce kurulmuş sepetlerde `options`
+alanı yok; okuma tarafı `undefined`'ı boş dizi kabul ediyor, kimsenin
+sepeti sıfırlanmadı.
+
+**Ödemeye etkisi yok.** Fiyat farkı olmadığı için `itemsTotal`, PayTR
+sepeti ve callback tutar doğrulaması değişmedi.
+
+**Grup bağlama kısmi başarısı önlendi.** `SetProductGroups` ürün
+create/update transaction'ının içine ALINAMIYOR (`productoption` zaten
+`product`'ı import ediyor, tersi döngü olur). Bunun yerine
+`ValidateGroupLinks` ile gruplar ürün kaydedilmeden ÖNCE doğrulanıyor —
+geçersiz `group_id` artık ürünü hiç oluşturmuyor. Kalan risk: doğrulama
+ile yazma arasındaki çok kısa pencerede grup silinirse (DB arızası
+sınıfı, pratikte yok denecek kadar nadir).
+
+**Renk seçici görünümü.** Nokta 22px, seçilide noktanın DIŞINDAN geçen
+altın halka — halka dışarıda olduğu için seçim değişince satır zıplamıyor.
+Başlık `text-label-caps` (uppercase, secondary rengi), yanında seçilen
+rengin adı: renk tek başına bilgi taşımamalı (erişilebilirlik).
+
+### Sıralama artık elle girilmiyor (aynı turda yapıldı)
+
+Kategori ve slider formlarındaki "Sıra" sayı kutusu kaldırıldı; yerine
+listede ▲▼ ok butonları. Yeni kayıt sunucuda sona ekleniyor
+(`MAX(sort_order)+1`), sıra yalnızca `PUT .../reorder` ucundan değişiyor.
+Uçlar listenin TAMAMINI ister — kısmi liste, listede olmayan kayıtları
+sessizce 0'a düşürüp sırayı bozardı.
+
+> **Tuzak (üç sayfada düzeltildi):** ok butonları satır index'ine
+> dayanıyor. `VDataTable` kolonları varsayılan olarak sıralanabilir
+> olduğu için başlığa tıklandığında ekrandaki sıra değişiyor ve bir
+> sonraki ok tıklaması GÖRÜNMEYEN bir çifti takas ediyordu.
+> `secenekler.vue`, `kategoriler.vue` ve `slider.vue`'da tüm kolonlar
+> artık açıkça `sortable: false` — gerekçesi kodda yorumla yazılı.
+
+Ayrıca public site footer'ına `/idare` linki eklendi ("Yönetim",
+`rel="nofollow"`) — esnafın panele girmek için URL ezberlemesi gerekmiyor.
 
 ## Yedekleme, 2026-08-14
 
