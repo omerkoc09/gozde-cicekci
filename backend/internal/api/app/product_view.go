@@ -18,14 +18,14 @@ type ImageView struct {
 // is_active alanı KASITLI olarak yok — public'e sızmaz (spec §4.6).
 // Price string olarak gider: JSON float precision sorununu önler.
 type ProductView struct {
-	ID           int64                    `json:"id"`
-	Name         string                   `json:"name"`
-	Slug         string                   `json:"slug"`
-	Description  string                   `json:"description"`
-	Price        string                   `json:"price"`
-	CategoryIDs  []int64                  `json:"category_ids"`
-	Images       []ImageView              `json:"images"`
-	OptionGroups []PublicOptionGroupView  `json:"option_groups"`
+	ID           int64                   `json:"id"`
+	Name         string                  `json:"name"`
+	Slug         string                  `json:"slug"`
+	Description  string                  `json:"description"`
+	Price        string                  `json:"price"`
+	CategoryIDs  []int64                 `json:"category_ids"`
+	Images       []ImageView             `json:"images"`
+	OptionGroups []PublicOptionGroupView `json:"option_groups"`
 }
 
 // PublicOptionValueView müşteriye görünen seçenek değeri.

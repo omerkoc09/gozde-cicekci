@@ -126,8 +126,8 @@ func TestCustomer_Orders_YalnizKendisi(t *testing.T) {
 	custBID := custB.ID
 
 	inA := order.CreateInput{
-		Items:            []order.CreateItem{{ProductID: productID, Quantity: 1}},
-		BuyerName:        "Müşteri A", BuyerPhone: "05550000001",
+		Items:     []order.CreateItem{{ProductID: productID, Quantity: 1}},
+		BuyerName: "Müşteri A", BuyerPhone: "05550000001",
 		RecipientName: "Alıcı A", RecipientPhone: "05559999991",
 		DeliveryAddress: "Adres A", DeliveryDistrict: "Ödemiş",
 		DeliveryDate: time.Now().AddDate(0, 0, 2), DeliverySlot: "12:00-15:00",
@@ -136,8 +136,8 @@ func TestCustomer_Orders_YalnizKendisi(t *testing.T) {
 	require.NoError(t, err)
 
 	inB := order.CreateInput{
-		Items:            []order.CreateItem{{ProductID: productID, Quantity: 1}},
-		BuyerName:        "Müşteri B", BuyerPhone: "05550000002",
+		Items:     []order.CreateItem{{ProductID: productID, Quantity: 1}},
+		BuyerName: "Müşteri B", BuyerPhone: "05550000002",
 		RecipientName: "Alıcı B", RecipientPhone: "05559999992",
 		DeliveryAddress: "Adres B", DeliveryDistrict: "Ödemiş",
 		DeliveryDate: time.Now().AddDate(0, 0, 2), DeliverySlot: "12:00-15:00",

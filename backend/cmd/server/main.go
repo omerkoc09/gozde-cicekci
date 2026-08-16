@@ -83,11 +83,12 @@ func main() {
 	okURL := cfg.SiteURL + "/siparis/tamam"
 	failURL := cfg.SiteURL + "/siparis/hata"
 
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool),
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
 		deliveryCfg, payProvider, okURL, failURL)
 
 	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
-	optSvc := productoption.NewService(productoption.NewStore(pool))
 
 	isProduction := cfg.IsProduction()
 

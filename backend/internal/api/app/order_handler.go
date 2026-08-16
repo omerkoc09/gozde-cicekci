@@ -46,8 +46,9 @@ func (h *orderHandler) create(c *fiber.Ctx) error {
 	}
 	for _, it := range req.Items {
 		in.Items = append(in.Items, order.CreateItem{
-			ProductID: it.ProductID,
-			Quantity:  it.Quantity,
+			ProductID:      it.ProductID,
+			Quantity:       it.Quantity,
+			OptionValueIDs: it.OptionValueIDs,
 		})
 	}
 

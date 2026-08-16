@@ -34,8 +34,8 @@ func TestNormalizePhone_GecerliBicimler(t *testing.T) {
 
 func TestNormalizePhone_GecersizReddedilir(t *testing.T) {
 	gecersiz := []struct {
-		girdi  string
-		neden  string
+		girdi string
+		neden string
 	}{
 		{"asdasd", "harf"},
 		{"555111223a", "sonda harf"},

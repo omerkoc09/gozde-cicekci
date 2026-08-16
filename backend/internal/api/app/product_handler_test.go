@@ -53,11 +53,11 @@ func newTestAPIFull(t *testing.T) (fiberApp *fiber.App, orderSvc *order.Service,
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc, deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	custSvc = customer.NewService(customer.NewStore(pool), testJWTSecret)
-	optSvc := productoption.NewService(productoption.NewStore(pool))
 
 	fiberApp = fiber.New()
 	Register(fiberApp.Group("/api"), catSvc, prodSvc, imgSvc, sliderSvc, orderSvc, deliveryCfg,

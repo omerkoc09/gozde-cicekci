@@ -5,8 +5,9 @@ import "github.com/omerkoc/cicekci/internal/order"
 // createOrderRequest — FİYAT ALANI YOK. Sunucu fiyatı DB'den okur (spec §2.2).
 type createOrderRequest struct {
 	Items []struct {
-		ProductID int64 `json:"product_id"`
-		Quantity  int   `json:"quantity"`
+		ProductID      int64   `json:"product_id"`
+		Quantity       int     `json:"quantity"`
+		OptionValueIDs []int64 `json:"option_value_ids"`
 	} `json:"items"`
 
 	Buyer struct {
@@ -44,6 +45,26 @@ func toCreateOrderResponse(o *order.Order, token string) createOrderResponse {
 		Total:      o.Total.StringFixed(2),
 		PaytrToken: token,
 	}
+}
+
+// OrderItemOptionView sipariş kalemindeki seçim — sipariş anındaki
+// kopyadan gelir, güncel gruba bakılmaz.
+type OrderItemOptionView struct {
+	GroupName string `json:"group_name"`
+	ValueName string `json:"value_name"`
+	SwatchHex string `json:"swatch_hex"`
+}
+
+func toOrderItemOptionViews(opts []order.OrderItemOption) []OrderItemOptionView {
+	out := make([]OrderItemOptionView, 0, len(opts))
+	for _, o := range opts {
+		out = append(out, OrderItemOptionView{
+			GroupName: o.GroupName,
+			ValueName: o.ValueName,
+			SwatchHex: o.SwatchHex,
+		})
+	}
+	return out
 }
 
 // deliveryConfigResponse frontend'in saat/ücret hardcode etmemesi için.

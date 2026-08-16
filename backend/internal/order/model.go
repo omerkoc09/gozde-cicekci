@@ -25,12 +25,23 @@ func (s Status) Valid() bool {
 	return false
 }
 
+// OrderItemOption sipariş anındaki seçim — KOPYA. Gruba/değere referans
+// tutulmaz: esnaf sonradan "Pembe"yi silerse veya rengini değiştirirse
+// eski siparişin ne olduğu bilgisi bozulmamalı (ProductName ile aynı kural).
+type OrderItemOption struct {
+	GroupName string `json:"group_name"`
+	ValueName string `json:"value_name"`
+	SwatchHex string `json:"swatch_hex"`
+	SortOrder int    `json:"sort_order"`
+}
+
 type OrderItem struct {
-	ID           int64           `json:"id"`
-	ProductID    *int64          `json:"product_id"` // ürün silinmişse nil
-	ProductName  string          `json:"product_name"`
-	PriceAtOrder decimal.Decimal `json:"price_at_order"`
-	Quantity     int             `json:"quantity"`
+	ID           int64             `json:"id"`
+	ProductID    *int64            `json:"product_id"` // ürün silinmişse nil
+	ProductName  string            `json:"product_name"`
+	PriceAtOrder decimal.Decimal   `json:"price_at_order"`
+	Quantity     int               `json:"quantity"`
+	Options      []OrderItemOption `json:"options"`
 }
 
 type Order struct {
@@ -95,4 +106,5 @@ type NewOrderItem struct {
 	ProductName  string
 	PriceAtOrder decimal.Decimal
 	Quantity     int
+	Options      []OrderItemOption
 }

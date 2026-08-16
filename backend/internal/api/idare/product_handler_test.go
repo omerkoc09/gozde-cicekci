@@ -42,7 +42,8 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), deliveryCfg,
+	optSvc := productoption.NewService(productoption.NewStore(pool))
+	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc, deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	app := fiber.New()
