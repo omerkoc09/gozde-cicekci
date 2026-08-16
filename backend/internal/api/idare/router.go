@@ -8,6 +8,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/image"
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 )
 
@@ -19,6 +20,7 @@ type Deps struct {
 	SliderSvc    *slider.Service
 	OrderSvc     *order.Service
 	CustSvc      *customer.Service
+	OptSvc       *productoption.Service
 	JWTSecret    string
 	SecureCookie bool
 }
@@ -33,6 +35,7 @@ func Register(router fiber.Router, d Deps) {
 	sh := &sliderHandler{svc: d.SliderSvc, imgSvc: d.ImgSvc}
 	oh := &orderHandler{svc: d.OrderSvc}
 	cuh := &customerHandler{svc: d.CustSvc, orderSvc: d.OrderSvc}
+	oph := newOptionHandler(d.OptSvc)
 
 	router.Post("/login", ah.login)
 
@@ -85,4 +88,16 @@ func Register(router fiber.Router, d Deps) {
 	// düzenleme, silme YOK; kapsam kesinlikle bununla sınırlı.
 	protected.Get("/customers", cuh.list)
 	protected.Get("/customers/:id", cuh.get)
+
+	// reorder ":id" kalıplarından ÖNCE — Fiber sıralı eşleştirir.
+	protected.Put("/option-groups/reorder", oph.reorderGroups)
+	protected.Get("/option-groups", oph.list)
+	protected.Post("/option-groups", oph.createGroup)
+	protected.Patch("/option-groups/:id", oph.updateGroup)
+	protected.Delete("/option-groups/:id", oph.deleteGroup)
+	protected.Get("/option-groups/:id/product-count", oph.productCount)
+	protected.Post("/option-groups/:id/values", oph.createValue)
+	protected.Put("/option-groups/:id/values/reorder", oph.reorderValues)
+	protected.Patch("/option-values/:id", oph.updateValue)
+	protected.Delete("/option-values/:id", oph.deleteValue)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/omerkoc/cicekci/internal/order"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
+	"github.com/omerkoc/cicekci/internal/productoption"
 	"github.com/omerkoc/cicekci/internal/slider"
 	"github.com/omerkoc/cicekci/pkg/config"
 	"github.com/omerkoc/cicekci/pkg/database"
@@ -86,6 +87,7 @@ func main() {
 		deliveryCfg, payProvider, okURL, failURL)
 
 	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
+	optSvc := productoption.NewService(productoption.NewStore(pool))
 
 	isProduction := cfg.IsProduction()
 
@@ -130,6 +132,7 @@ func main() {
 		SliderSvc:    sliderSvc,
 		OrderSvc:     orderSvc,
 		CustSvc:      custSvc,
+		OptSvc:       optSvc,
 		JWTSecret:    cfg.JWTSecret,
 		SecureCookie: isProduction,
 	})
