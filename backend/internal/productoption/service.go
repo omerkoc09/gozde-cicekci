@@ -210,8 +210,12 @@ func dogrulaSiralama(mevcut, gelen []int64, ad string) error {
 	return nil
 }
 
-// SetProductGroups ürünün seçenek gruplarını komple değiştirir.
-func (s *Service) SetProductGroups(ctx context.Context, productID int64, links []ProductGroupLink) error {
+// ValidateGroupLinks links listesinin geçerliliğini DB'ye yazmadan kontrol
+// eder: aynı grup iki kez gelmemeli, her grup ID'si var olmalı. Handler'lar
+// ürünü kaydetmeden ÖNCE bunu çağırarak "ürün kaydedildi ama grup bağlama
+// başarısız oldu" kısmi başarısını önleyebilir — SetProductGroups zaten
+// aynı kontrolü yapıyor, kod tekrarını önlemek için oradan da çağrılıyor.
+func (s *Service) ValidateGroupLinks(ctx context.Context, links []ProductGroupLink) error {
 	gorulen := make(map[int64]bool, len(links))
 	for _, l := range links {
 		if gorulen[l.GroupID] {
@@ -222,6 +226,14 @@ func (s *Service) SetProductGroups(ctx context.Context, productID int64, links [
 		if _, err := s.store.GetGroup(ctx, l.GroupID); err != nil {
 			return fmt.Errorf("%w: seçenek grubu bulunamadı", errorsx.ErrInvalidInput)
 		}
+	}
+	return nil
+}
+
+// SetProductGroups ürünün seçenek gruplarını komple değiştirir.
+func (s *Service) SetProductGroups(ctx context.Context, productID int64, links []ProductGroupLink) error {
+	if err := s.ValidateGroupLinks(ctx, links); err != nil {
+		return err
 	}
 	return s.store.SetProductGroups(ctx, productID, links)
 }

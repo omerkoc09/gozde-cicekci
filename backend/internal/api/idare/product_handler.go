@@ -119,6 +119,19 @@ func (h *productHandler) create(c *fiber.Ctx) error {
 		return badRequest(c, "Geçersiz fiyat")
 	}
 
+	// Gruplar ürün kaydedilmeden ÖNCE doğrulanır: geçersiz group_id veya
+	// tekrar eden grup varsa ürün hiç oluşturulmaz. category_ids'in aksine
+	// SetProductGroups ayrı bir çağrı olduğu için (productoption paketi
+	// product paketine bağımlı, tersi import cycle yaratır — tek transaction
+	// mümkün değil), doğrulamayı öne almak "ürün kaydedildi ama grup bağlama
+	// başarısız" kısmi başarısını DB arızası dışındaki tüm durumlarda önler.
+	links := toGroupLinks(req.OptionGroups)
+	if req.OptionGroups != nil {
+		if err := h.optSvc.ValidateGroupLinks(c.Context(), links); err != nil {
+			return api.WriteError(c, err)
+		}
+	}
+
 	in := product.CreateInput{
 		Name:        req.Name,
 		Description: req.Description,
@@ -139,9 +152,11 @@ func (h *productHandler) create(c *fiber.Ctx) error {
 	}
 
 	// Gruplar ürün kaydedildikten sonra bağlanır — ürün id'si gerekiyor.
-	// nil ise dokunulmaz (PATCH semantiği).
+	// nil ise dokunulmaz (PATCH semantiği). Yukarıda doğrulandığı için
+	// buradaki SetProductGroups'ta ErrInvalidInput pratikte beklenmez;
+	// hata kontrolü DB arızası gibi ayrı bir sınıf için korunuyor.
 	if req.OptionGroups != nil {
-		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, toGroupLinks(req.OptionGroups)); err != nil {
+		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, links); err != nil {
 			return api.WriteError(c, err)
 		}
 	}
@@ -169,6 +184,16 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 		return badRequest(c, "Geçersiz istek")
 	}
 
+	// Gruplar ürün güncellenmeden ÖNCE doğrulanır — bkz. create handler'daki
+	// aynı gerekçe: SetProductGroups ayrı bir çağrı, tek transaction'a
+	// alınamıyor (import cycle), doğrulamayı öne almak kısmi başarıyı önler.
+	links := toGroupLinks(req.OptionGroups)
+	if req.OptionGroups != nil {
+		if err := h.optSvc.ValidateGroupLinks(c.Context(), links); err != nil {
+			return api.WriteError(c, err)
+		}
+	}
+
 	in := product.UpdateInput{
 		Name:        req.Name,
 		Description: req.Description,
@@ -191,9 +216,11 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 	}
 
 	// Gruplar ürün kaydedildikten sonra bağlanır — ürün id'si gerekiyor.
-	// nil ise dokunulmaz (PATCH semantiği).
+	// nil ise dokunulmaz (PATCH semantiği). Yukarıda doğrulandığı için
+	// buradaki SetProductGroups'ta ErrInvalidInput pratikte beklenmez;
+	// hata kontrolü DB arızası gibi ayrı bir sınıf için korunuyor.
 	if req.OptionGroups != nil {
-		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, toGroupLinks(req.OptionGroups)); err != nil {
+		if err := h.optSvc.SetProductGroups(c.Context(), p.ID, links); err != nil {
 			return api.WriteError(c, err)
 		}
 	}
