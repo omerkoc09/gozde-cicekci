@@ -321,10 +321,12 @@ func (s *Store) SetProductGroups(ctx context.Context, productID int64, links []P
 		return fmt.Errorf("ürün seçenek sil: %w", err)
 	}
 
+	// is_required yazılmıyor — sütun DB'de duruyor ama kullanılmıyor,
+	// DEFAULT false ile gidiyor (bkz. ProductGroupLink yorumu).
 	for _, l := range links {
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO product_option_groups (product_id, group_id, is_required)
-			 VALUES ($1, $2, $3)`, productID, l.GroupID, l.IsRequired); err != nil {
+			`INSERT INTO product_option_groups (product_id, group_id)
+			 VALUES ($1, $2)`, productID, l.GroupID); err != nil {
 			return fmt.Errorf("ürün seçenek ekle: %w", err)
 		}
 	}
@@ -344,7 +346,7 @@ func (s *Store) GroupsForProduct(ctx context.Context, productID int64, onlyActiv
 	}
 
 	rows, err := s.pool.Query(ctx,
-		`SELECT g.id, g.name, g.slug, g.kind, g.sort_order, g.is_active, pog.is_required
+		`SELECT g.id, g.name, g.slug, g.kind, g.sort_order, g.is_active
 		 FROM product_option_groups pog
 		 JOIN option_groups g ON g.id = pog.group_id `+where+`
 		 ORDER BY g.sort_order, g.id`, productID)
@@ -358,7 +360,7 @@ func (s *Store) GroupsForProduct(ctx context.Context, productID int64, onlyActiv
 	for rows.Next() {
 		var pg ProductGroup
 		if err := rows.Scan(&pg.ID, &pg.Name, &pg.Slug, &pg.Kind,
-			&pg.SortOrder, &pg.IsActive, &pg.IsRequired); err != nil {
+			&pg.SortOrder, &pg.IsActive); err != nil {
 			return nil, fmt.Errorf("ürün seçenek grubu scan: %w", err)
 		}
 		pg.Values = []Value{}

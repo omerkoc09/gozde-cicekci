@@ -252,7 +252,7 @@ func TestProductHandler_GetBySlug_PasifGrupGizlenir(t *testing.T) {
 	require.NoError(t, err)
 	_, err = optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Pembe", SwatchHex: "#F0A6CA"})
 	require.NoError(t, err)
-	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID, IsRequired: true}}))
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
 
 	// Grubun kendisini pasifle.
 	inactive := false
@@ -292,7 +292,7 @@ func TestProductHandler_GetBySlug_PasifDegerGizlenirAktifKalir(t *testing.T) {
 	require.NoError(t, err)
 	vPasif, err := optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Mavi", SwatchHex: "#0000FF"})
 	require.NoError(t, err)
-	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID, IsRequired: false}}))
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
 
 	inactive := false
 	_, err = optSvc.UpdateValue(ctx, vPasif.ID, productoption.UpdateValueInput{IsActive: &inactive})
@@ -326,7 +326,7 @@ func TestProductHandler_GetBySlug_TumDegerleriPasifGrupHicGorunmez(t *testing.T)
 	require.NoError(t, err)
 	v, err := optSvc.CreateValue(ctx, productoption.CreateValueInput{GroupID: g.ID, Name: "Büyük"})
 	require.NoError(t, err)
-	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID, IsRequired: false}}))
+	require.NoError(t, optSvc.SetProductGroups(ctx, p.ID, []productoption.ProductGroupLink{{GroupID: g.ID}}))
 
 	inactive := false
 	_, err = optSvc.UpdateValue(ctx, v.ID, productoption.UpdateValueInput{IsActive: &inactive})

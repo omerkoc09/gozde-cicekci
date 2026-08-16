@@ -68,7 +68,7 @@ func newOptionTestEnv(t *testing.T) *optionTestEnv {
 	require.NoError(t, err)
 
 	require.NoError(t, optSvc.SetProductGroups(ctx, productID, []productoption.ProductGroupLink{
-		{GroupID: grup.ID, IsRequired: true},
+		{GroupID: grup.ID},
 	}))
 
 	// İkinci ürün + ona bağlı ayrı grup/değer — test ürününe hiç açılmadı.
@@ -88,7 +88,7 @@ func newOptionTestEnv(t *testing.T) *optionTestEnv {
 	require.NoError(t, err)
 
 	require.NoError(t, optSvc.SetProductGroups(ctx, otherProductID, []productoption.ProductGroupLink{
-		{GroupID: otherGrup.ID, IsRequired: false},
+		{GroupID: otherGrup.ID},
 	}))
 
 	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
@@ -179,13 +179,17 @@ func TestCreate_DegerSilininceEskiSiparisBozulmaz(t *testing.T) {
 		"seçim kopya olduğu için değer silinse de kalmalı")
 }
 
-func TestCreate_ZorunluGrupEksikReddedilir(t *testing.T) {
-	env := newOptionTestEnv(t) // Ambalaj Rengi is_required=true
+// Zorunluluk kavramı kaldırıldı (2026-08-16): müşteri sayfasında her grubun
+// ilk değeri otomatik seçili geliyor, ama seçimsiz sipariş de reddedilmiyor —
+// esnaf uygun olanı koyar. Eskiden bu senaryo hata veriyordu.
+func TestCreate_SecimsizSiparisKabulEdilir(t *testing.T) {
+	env := newOptionTestEnv(t)
 
-	_, _, err := env.svc.Create(env.ctx, gecerliSiparis(env.productID, nil), "1.2.3.4", nil)
+	o, _, err := env.svc.Create(env.ctx, gecerliSiparis(env.productID, nil), "1.2.3.4", nil)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Ambalaj Rengi")
+	require.NoError(t, err)
+	require.Len(t, o.Items, 1)
+	assert.Empty(t, o.Items[0].Options, "seçim yapılmadıysa kalem seçimsiz kalır")
 }
 
 func TestCreate_UruneKapaliGrubunDegeriReddedilir(t *testing.T) {

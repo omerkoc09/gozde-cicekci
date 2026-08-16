@@ -293,7 +293,7 @@ func TestProduct_OptionGroups_PatchSemantigi(t *testing.T) {
 		"name":  "Buket",
 		"price": "100.00",
 		"option_groups": []map[string]any{
-			{"group_id": gid, "is_required": true},
+			{"group_id": gid},
 		},
 	})
 
@@ -305,7 +305,7 @@ func TestProduct_OptionGroups_PatchSemantigi(t *testing.T) {
 
 	urun := getProduct(t, app, token, pid)
 	require.Len(t, urun.OptionGroups, 1, "option_groups gönderilmediyse bağ korunmalı")
-	assert.True(t, urun.OptionGroups[0].IsRequired)
+	assert.Equal(t, gid, urun.OptionGroups[0].ID, "korunan bağ aynı grup olmalı")
 
 	// Boş dizi → hepsi kalkmalı
 	resp2, err := app.Test(authedRequest(http.MethodPatch,

@@ -61,14 +61,18 @@ type UpdateValueInput struct {
 	IsActive  *bool
 }
 
-// ProductGroupLink ürün formundan gelen bağ — hangi grup, zorunlu mu.
+// ProductGroupLink ürün formundan gelen bağ — hangi grup bu üründe açık.
+//
+// Zorunluluk kavramı YOK (2026-08-16 kararı): müşteri sayfasında her grubun
+// ilk değeri otomatik seçili geliyor, bu yüzden "seçilmeden geçilemez"
+// kuralına gerek kalmadı. DB'deki product_option_groups.is_required sütunu
+// yerinde duruyor ama hiçbir kod okumuyor/yazmıyor — INSERT varsayılanı
+// (false) kullanılıyor.
 type ProductGroupLink struct {
-	GroupID    int64
-	IsRequired bool
+	GroupID int64
 }
 
-// ProductGroup ürüne açık bir grup; Group'a is_required eklenmiş hali.
+// ProductGroup ürüne açık bir grup.
 type ProductGroup struct {
 	Group
-	IsRequired bool
 }

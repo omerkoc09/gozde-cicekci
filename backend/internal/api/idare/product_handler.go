@@ -15,17 +15,16 @@ type productHandler struct {
 	optSvc *productoption.Service
 }
 
+// optionGroupLinkRequest — is_required YOK. Gövdede gönderilse bile
+// yok sayılır (bkz. productoption.ProductGroupLink yorumu).
 type optionGroupLinkRequest struct {
-	GroupID    int64 `json:"group_id"`
-	IsRequired bool  `json:"is_required"`
+	GroupID int64 `json:"group_id"`
 }
 
 func toGroupLinks(reqs []optionGroupLinkRequest) []productoption.ProductGroupLink {
 	out := make([]productoption.ProductGroupLink, 0, len(reqs))
 	for _, r := range reqs {
-		out = append(out, productoption.ProductGroupLink{
-			GroupID: r.GroupID, IsRequired: r.IsRequired,
-		})
+		out = append(out, productoption.ProductGroupLink{GroupID: r.GroupID})
 	}
 	return out
 }

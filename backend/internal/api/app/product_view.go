@@ -38,11 +38,10 @@ type PublicOptionValueView struct {
 
 // PublicOptionGroupView müşteriye görünen seçenek grubu.
 type PublicOptionGroupView struct {
-	ID         int64                   `json:"id"`
-	Name       string                  `json:"name"`
-	Kind       string                  `json:"kind"`
-	IsRequired bool                    `json:"is_required"`
-	Values     []PublicOptionValueView `json:"values"`
+	ID     int64                   `json:"id"`
+	Name   string                  `json:"name"`
+	Kind   string                  `json:"kind"`
+	Values []PublicOptionValueView `json:"values"`
 }
 
 func toPublicOptionGroupViews(list []productoption.ProductGroup) []PublicOptionGroupView {
@@ -60,11 +59,10 @@ func toPublicOptionGroupViews(list []productoption.ProductGroup) []PublicOptionG
 			})
 		}
 		out = append(out, PublicOptionGroupView{
-			ID:         g.ID,
-			Name:       g.Name,
-			Kind:       string(g.Kind),
-			IsRequired: g.IsRequired,
-			Values:     values,
+			ID:     g.ID,
+			Name:   g.Name,
+			Kind:   string(g.Kind),
+			Values: values,
 		})
 	}
 	return out

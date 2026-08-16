@@ -20,14 +20,14 @@ type ProductView struct {
 	OptionGroups []ProductOptionGroupView `json:"option_groups"`
 }
 
-// ProductOptionGroupView ürüne açık bir seçenek grubu — is_required ile.
+// ProductOptionGroupView ürüne açık bir seçenek grubu. Panelde pasif
+// gruplar da görünür (esnaf durumu anlasın).
 type ProductOptionGroupView struct {
-	ID         int64             `json:"id"`
-	Name       string            `json:"name"`
-	Kind       string            `json:"kind"`
-	IsRequired bool              `json:"is_required"`
-	IsActive   bool              `json:"is_active"`
-	Values     []OptionValueView `json:"values"`
+	ID       int64             `json:"id"`
+	Name     string            `json:"name"`
+	Kind     string            `json:"kind"`
+	IsActive bool              `json:"is_active"`
+	Values   []OptionValueView `json:"values"`
 }
 
 func toProductOptionGroupViews(list []productoption.ProductGroup) []ProductOptionGroupView {
@@ -38,12 +38,11 @@ func toProductOptionGroupViews(list []productoption.ProductGroup) []ProductOptio
 			values = append(values, toOptionValueView(v))
 		}
 		out = append(out, ProductOptionGroupView{
-			ID:         g.ID,
-			Name:       g.Name,
-			Kind:       string(g.Kind),
-			IsRequired: g.IsRequired,
-			IsActive:   g.IsActive,
-			Values:     values,
+			ID:       g.ID,
+			Name:     g.Name,
+			Kind:     string(g.Kind),
+			IsActive: g.IsActive,
+			Values:   values,
 		})
 	}
 	return out

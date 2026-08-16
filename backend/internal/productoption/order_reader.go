@@ -56,12 +56,8 @@ func (s *Service) ResolveForProduct(ctx context.Context, productID int64, valueI
 		})
 	}
 
-	// Zorunlu gruplar eksiksiz mi
-	for _, g := range gruplar {
-		if g.IsRequired && !gorulenGrup[g.ID] {
-			return nil, fmt.Errorf("%w: %q seçilmeli", errorsx.ErrInvalidInput, g.Name)
-		}
-	}
-
+	// Zorunluluk kontrolü YOK (2026-08-16 kararı): müşteri sayfasında her
+	// grubun ilk değeri otomatik seçili geliyor, yani seçim zaten hep dolu.
+	// Boş gelirse de reddedilmez — esnaf uygun olanı koyar.
 	return out, nil
 }

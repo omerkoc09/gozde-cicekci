@@ -104,8 +104,19 @@ Migration 10'daki üç grup yalnızca başlangıç verisi; silinebilir,
 yeniden adlandırılabilir.
 
 **Kararlar:** merkezi seçenek havuzu + ürün başına aç/kapa, grup başına
-tip (`color`/`text`), **fiyat farkı YOK**, zorunluluk ürün başına,
-farklı seçim = ayrı sepet kalemi.
+tip (`color`/`text`), **fiyat farkı YOK**, farklı seçim = ayrı sepet kalemi.
+
+**Zorunluluk kaldırıldı, yerine otomatik ilk seçim (2026-08-16).** Önce
+"ürün başına zorunlu grup" vardı; müşteri seçmeden sepete ekleyemiyordu.
+Bunun yerine ürün sayfası açılınca **her grubun ilk değeri otomatik
+seçili** geliyor. Müşteri hiçbir şeye dokunmasa bile sipariş
+"Ambalaj: Pembe" ile gidiyor — esnaf her siparişte ne hazırlayacağını
+görüyor, müşteriye de fazladan adım çıkmıyor. Sunucu artık seçimsiz
+siparişi de reddetmiyor.
+
+> `product_option_groups.is_required` sütunu DB'de DURUYOR ama hiçbir kod
+> okumuyor/yazmıyor (INSERT varsayılanı `false`). Migration yazılmadı:
+> karar geri alınırsa sütun yerinde. Şemada ölü bir sütun olduğunu bilin.
 
 ### Kritik tasarım noktaları (sonradan "neden böyle?" diye sorulacak)
 

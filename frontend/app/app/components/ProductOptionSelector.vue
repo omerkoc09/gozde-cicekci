@@ -59,12 +59,7 @@ const sec = (group: ProductOptionGroup, valueId: number) => {
         küçüldüğü için hangi rengin seçildiği yazıyla da okunmalı.
       -->
       <p class="mb-3 flex items-baseline gap-2">
-        <span class="text-label-caps text-secondary">
-          {{ g.name }}<span
-            v-if="g.is_required"
-            aria-hidden="true"
-          >*</span>
-        </span>
+        <span class="text-label-caps text-secondary">{{ g.name }}</span>
         <span
           v-if="secilenAd(g.id)"
           class="text-body-sm text-on-surface-variant"
@@ -78,7 +73,6 @@ const sec = (group: ProductOptionGroup, valueId: number) => {
       <div
         role="radiogroup"
         :aria-label="g.name"
-        :aria-required="g.is_required"
         class="flex flex-wrap"
         :class="g.kind === 'color' ? 'gap-2.5' : 'gap-2'"
       >

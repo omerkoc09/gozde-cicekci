@@ -74,11 +74,12 @@ export interface ProductOptionValue {
   swatch_hex: string
 }
 
+// is_required YOK: her grubun ilk değeri sayfa açılınca otomatik seçili
+// geliyor, "seçmeden geçilemez" kuralına gerek kalmadı.
 export interface ProductOptionGroup {
   id: number
   name: string
   kind: 'color' | 'text'
-  is_required: boolean
   values: ProductOptionValue[]
 }
 

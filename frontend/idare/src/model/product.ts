@@ -12,15 +12,17 @@ export interface ProductOptionGroup {
   id: number
   name: string
   kind: OptionKind
-  is_required: boolean
   is_active: boolean
   values: OptionValue[]
 }
 
-/** Ürün formundan giden bağ. */
+/**
+ * Ürün formundan giden bağ. Zorunluluk YOK: müşteri sayfasında her grubun
+ * ilk değeri otomatik seçili geliyor, "seçmeden geçilemez" kuralına
+ * gerek kalmadı.
+ */
 export interface ProductOptionGroupLink {
   group_id: number
-  is_required: boolean
 }
 
 export interface Product {

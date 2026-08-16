@@ -42,18 +42,10 @@ onMounted(load)
 const bagliMi = (groupId: number) =>
   props.modelValue.some(l => l.group_id === groupId)
 
-const zorunluMu = (groupId: number) =>
-  props.modelValue.find(l => l.group_id === groupId)?.is_required ?? false
-
 const toggleGrup = (groupId: number, acik: boolean) => {
   emit('update:modelValue', acik
-    ? [...props.modelValue, { group_id: groupId, is_required: false }]
+    ? [...props.modelValue, { group_id: groupId }]
     : props.modelValue.filter(l => l.group_id !== groupId))
-}
-
-const toggleZorunlu = (groupId: number, zorunlu: boolean) => {
-  emit('update:modelValue', props.modelValue.map(l =>
-    l.group_id === groupId ? { ...l, is_required: zorunlu } : l))
 }
 </script>
 
@@ -63,8 +55,9 @@ const toggleZorunlu = (groupId: number, zorunlu: boolean) => {
       Özelleştirme
     </p>
     <p class="text-caption text-medium-emphasis mb-4">
-      İşaretlenen gruplar müşteriye ürün sayfasında sorulur. "Zorunlu"
-      işaretlenirse müşteri seçmeden sepete ekleyemez.
+      İşaretlenen gruplar müşteriye ürün sayfasında sorulur. Müşteri hiçbir
+      şey seçmezse listedeki ilk renk geçerli olur — sipariş her zaman bir
+      seçimle gelir.
     </p>
 
     <VProgressLinear
@@ -97,16 +90,10 @@ const toggleZorunlu = (groupId: number, zorunlu: boolean) => {
         @update:model-value="toggleGrup(g.id, $event as boolean)"
       />
 
-      <VCheckbox
-        :model-value="zorunluMu(g.id)"
-        :disabled="!bagliMi(g.id)"
-        label="Zorunlu"
-        density="compact"
-        hide-details
-        @update:model-value="toggleZorunlu(g.id, $event as boolean)"
-      />
-
-      <!-- Grubun renkleri — salt okunur önizleme, esnaf ne sunulacağını görsün -->
+      <!--
+        Grubun renkleri — salt okunur önizleme, esnaf ne sunulacağını görsün.
+        İlki müşteriye varsayılan olarak seçili gelir.
+      -->
       <div class="d-flex ga-1 flex-wrap">
         <VTooltip
           v-for="v in g.values.filter(x => x.is_active)"

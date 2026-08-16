@@ -81,13 +81,29 @@ const sepetAcik = inject<Ref<boolean> | null>('sepetAcik', null)
 
 const secimler = ref<CartItemOption[]>([])
 
-const eksikZorunlular = computed(() =>
-  (product.value?.option_groups ?? [])
-    .filter(g => g.is_required && !secimler.value.some(
-      o => g.values.some(v => v.id === o.value_id)))
-    .map(g => g.name))
+/**
+ * Her grubun İLK değeri otomatik seçili gelir — müşteri hiçbir şeye
+ * dokunmasa bile sipariş "Ambalaj: Pembe" ile gider, esnaf ne
+ * hazırlayacağını bilir. Zorunluluk kavramı bu yüzden kaldırıldı.
+ *
+ * immediate: SSR'da ve ürün değiştiğinde (aynı bileşen farklı slug'a
+ * gezinirse) tekrar çalışır — bu projede "sayfa değişti ama onMounted
+ * tekrar çalışmadı" hatası daha önce yaşandı, watch o tuzağı kapatıyor.
+ */
+watch(() => product.value?.option_groups, gruplar => {
+  secimler.value = (gruplar ?? [])
+    .filter(g => g.values.length > 0)
+    .map(g => {
+      const ilk = g.values[0]!
 
-const sepeteEklenebilir = computed(() => eksikZorunlular.value.length === 0)
+      return {
+        value_id: ilk.id,
+        group_name: g.name,
+        value_name: ilk.name,
+        swatch_hex: ilk.swatch_hex,
+      }
+    })
+}, { immediate: true })
 
 function sepeteEkle() {
   if (!product.value)
@@ -152,23 +168,18 @@ function sepeteEkle() {
           <!-- CTA'lar. "Sepete Ekle" gerçek (Faz 2); WhatsApp da hâlâ sitenin
                bir dönüşüm yolu, o yüzden hemen altında (spec §2.3). -->
           <div class="mt-8 space-y-3">
+            <!--
+              Buton hiç kilitlenmiyor: her grubun ilk değeri otomatik
+              seçili geldiği için "önce seçim yap" durumu oluşmuyor.
+            -->
             <button
               type="button"
               class="btn-primary text-label-caps w-full"
-              :disabled="!sepeteEklenebilir"
-              :class="{ 'opacity-60 cursor-not-allowed': !sepeteEklenebilir }"
               @click="sepeteEkle"
             >
               <Icon name="material-symbols:shopping-cart-outline" size="18" />
               Sepete Ekle
             </button>
-
-            <p
-              v-if="eksikZorunlular.length"
-              class="mt-2 text-body-sm text-error"
-            >
-              {{ eksikZorunlular.join(', ') }} seçiniz.
-            </p>
 
             <WhatsAppButton :product="product" />
           </div>

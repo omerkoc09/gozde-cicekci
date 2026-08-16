@@ -104,10 +104,7 @@ const loadProduct = async () => {
     is_active: data.is_active,
     is_featured: data.is_featured,
     category_ids: data.category_ids ?? [],
-    option_groups: (data.option_groups ?? []).map(g => ({
-      group_id: g.id,
-      is_required: g.is_required,
-    })),
+    option_groups: (data.option_groups ?? []).map(g => ({ group_id: g.id })),
   }
 }
 
