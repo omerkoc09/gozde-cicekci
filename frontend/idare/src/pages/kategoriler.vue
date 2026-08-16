@@ -54,9 +54,12 @@ const byAxis = (axis: Axis) =>
 const occasionCategories = computed(() => byAxis('occasion'))
 const typeCategories = computed(() => byAxis('type'))
 
+// Kolon sıralaması kapalı: ok butonları satır index'ine dayanıyor, tablo
+// yeniden sıralanırsa yanlış çift takas edilir. TÜM kolonlarda sortable:
+// false olmalı — tek bir sıralanabilir başlık bile move()'u bozar.
 const headers = [
   { title: 'Görsel', key: 'image', sortable: false, width: 90 },
-  { title: 'Ad', key: 'name' },
+  { title: 'Ad', key: 'name', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Öne Çıkan', key: 'is_featured', sortable: false, width: 130 },
   { title: 'Sıra', key: 'sira', sortable: false, width: 110 },

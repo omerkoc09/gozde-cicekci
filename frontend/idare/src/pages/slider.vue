@@ -49,9 +49,12 @@ onBeforeUnmount(() => {
 const sirali = computed(() =>
   [...slides.value].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id))
 
+// Kolon sıralaması kapalı: ok butonları satır index'ine dayanıyor, tablo
+// yeniden sıralanırsa yanlış çift takas edilir. TÜM kolonlarda sortable:
+// false olmalı — tek bir sıralanabilir başlık bile move()'u bozar.
 const headers = [
   { title: 'Görsel', key: 'image', sortable: false, width: 120 },
-  { title: 'Başlık', key: 'title' },
+  { title: 'Başlık', key: 'title', sortable: false },
   { title: 'Alt Başlık', key: 'subtitle', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Sıra', key: 'sira', sortable: false, width: 110 },

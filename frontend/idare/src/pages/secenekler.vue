@@ -25,8 +25,11 @@ const siraliDegerler = computed(() =>
     ? [...seciliGrup.value.values].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
     : [])
 
+// Kolon sıralaması kapalı: ok butonları satır index'ine dayanıyor, tablo
+// yeniden sıralanırsa yanlış çift takas edilir. TÜM kolonlarda sortable:
+// false olmalı — tek bir sıralanabilir başlık bile move()'u bozar.
 const groupHeaders = [
-  { title: 'Ad', key: 'name' },
+  { title: 'Ad', key: 'name', sortable: false },
   { title: 'Tip', key: 'kind', sortable: false, width: 100 },
   { title: 'Seçenek', key: 'value_count', sortable: false, width: 100 },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
@@ -34,9 +37,10 @@ const groupHeaders = [
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 110 },
 ]
 
+// Aynı sebep: moveValue() de satır index'ine dayanıyor.
 const valueHeaders = [
   { title: 'Renk', key: 'swatch', sortable: false, width: 70 },
-  { title: 'Ad', key: 'name' },
+  { title: 'Ad', key: 'name', sortable: false },
   { title: 'Aktif', key: 'is_active', sortable: false, width: 110 },
   { title: 'Sıra', key: 'sira', sortable: false, width: 110 },
   { title: 'İşlemler', key: 'actions', sortable: false, align: 'end' as const, width: 70 },
