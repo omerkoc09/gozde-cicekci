@@ -149,3 +149,14 @@ func normalizeLimit(limit int) int {
 	}
 	return limit
 }
+
+// AdjustStock elle stok düzeltmesi (panel). WhatsApp satışı, sayım
+// düzeltmesi veya yeni parti girişi için kullanılır.
+func (s *Service) AdjustStock(ctx context.Context, in ManualAdjustInput) (*Product, error) {
+	return s.store.ManualAdjust(ctx, in)
+}
+
+// Movements ürünün stok hareket geçmişi (yeniden eskiye).
+func (s *Service) Movements(ctx context.Context, productID int64, limit int) ([]Movement, error) {
+	return s.store.ListMovements(ctx, productID, limit)
+}

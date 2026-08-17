@@ -46,8 +46,9 @@ func newTestOrderAdminAPI(t *testing.T) (app *fiber.App, token string, svc *orde
 		Districts: []string{"Ödemiş", "Tire"},
 	}
 	optSvc := productoption.NewService(productoption.NewStore(pool))
-	svc = order.NewService(order.NewStore(pool), prodStore, optSvc, deliveryCfg,
-		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
+	svc = order.NewService(order.NewStore(pool), prodStore, optSvc, prodStore,
+		deliveryCfg, payment.NewMockProvider(),
+		"https://example.com/ok", "https://example.com/fail")
 
 	app = fiber.New()
 	Register(app.Group("/api/admin"), Deps{

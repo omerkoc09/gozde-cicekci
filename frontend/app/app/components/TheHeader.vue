@@ -127,6 +127,14 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
         />
 
         <NuxtLink
+          to="/indirimli"
+          class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
+          active-class="border-b border-accent-gold font-semibold !text-primary"
+        >
+          İndirimli
+        </NuxtLink>
+
+        <NuxtLink
           to="/hakkimizda"
           class="text-nav-link text-on-surface-variant transition-colors duration-300 hover:text-secondary"
           active-class="border-b border-accent-gold font-semibold !text-primary"
@@ -220,6 +228,9 @@ function menuAc(menu: 'ozel' | 'koleksiyon') {
             </NuxtLink>
           </div>
 
+          <NuxtLink to="/indirimli" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
+            İndirimli Ürünler
+          </NuxtLink>
           <NuxtLink to="/hakkimizda" class="block border-b border-outline-variant/20 py-3 font-serif text-lg">
             Hakkımızda
           </NuxtLink>

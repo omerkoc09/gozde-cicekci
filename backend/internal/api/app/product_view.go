@@ -18,14 +18,24 @@ type ImageView struct {
 // is_active alanı KASITLI olarak yok — public'e sızmaz (spec §4.6).
 // Price string olarak gider: JSON float precision sorununu önler.
 type ProductView struct {
-	ID           int64                   `json:"id"`
-	Name         string                  `json:"name"`
-	Slug         string                  `json:"slug"`
-	Description  string                  `json:"description"`
-	Price        string                  `json:"price"`
-	CategoryIDs  []int64                 `json:"category_ids"`
-	Images       []ImageView             `json:"images"`
-	OptionGroups []PublicOptionGroupView `json:"option_groups"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+	// Price GEÇERLİ fiyat — indirim aktifse indirimli fiyat. Sepet ve toplam
+	// hesapları bu alanı kullanır, değişiklik gerektirmez.
+	Price string `json:"price"`
+	// OldPrice indirim aktifse üstü çizili gösterilecek normal fiyat.
+	OldPrice *string `json:"old_price"`
+	// InStock takipsiz üründe her zaman true.
+	InStock bool `json:"in_stock"`
+	// StockQuantity takipsiz üründe null — adet bilgisi anlamsız.
+	StockQuantity *int `json:"stock_quantity"`
+	// DiscountRemaining kalan indirimli adet; indirim yoksa null.
+	DiscountRemaining *int                    `json:"discount_remaining"`
+	CategoryIDs       []int64                 `json:"category_ids"`
+	Images            []ImageView             `json:"images"`
+	OptionGroups      []PublicOptionGroupView `json:"option_groups"`
 }
 
 // PublicOptionValueView müşteriye görünen seçenek değeri.
@@ -81,15 +91,26 @@ func toImageViews(imgSvc *image.Service, list []image.ProductImage) []ImageView 
 }
 
 func toProductView(p product.Product, imgSvc *image.Service, imgs []image.ProductImage) ProductView {
-	return ProductView{
-		ID:          p.ID,
-		Name:        p.Name,
-		Slug:        p.Slug,
-		Description: p.Description,
-		Price:       p.Price.StringFixed(2),
-		CategoryIDs: p.CategoryIDs,
-		Images:      toImageViews(imgSvc, imgs),
+	v := ProductView{
+		ID:                p.ID,
+		Name:              p.Name,
+		Slug:              p.Slug,
+		Description:       p.Description,
+		Price:             p.EffectivePrice().StringFixed(2),
+		InStock:           p.InStock(),
+		DiscountRemaining: p.DiscountRemaining(),
+		CategoryIDs:       p.CategoryIDs,
+		Images:            toImageViews(imgSvc, imgs),
 	}
+	if old := p.OldPrice(); old != nil {
+		s := old.StringFixed(2)
+		v.OldPrice = &s
+	}
+	// Takipsiz üründe adet anlamsız — null gider.
+	if adet, sinirli := p.Available(); sinirli {
+		v.StockQuantity = &adet
+	}
+	return v
 }
 
 // toProductViews N+1 sorgu yapmaz — görseller tek sorguda gelir (grouped).

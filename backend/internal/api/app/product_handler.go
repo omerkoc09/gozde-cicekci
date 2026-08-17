@@ -36,6 +36,8 @@ func (h *productHandler) list(c *fiber.Ctx) error {
 	// one_cikan=true → ana sayfa vitrini. Verilmezse tüm aktif ürünler döner;
 	// katalog sayfası öne çıkmaya göre filtrelemiyor.
 	f.FeaturedOnly = c.QueryBool("one_cikan", false)
+	// İndirimli Ürünler sayfası — kotası dolmuş indirim listede görünmez.
+	f.DiscountedOnly = c.QueryBool("indirimli", false)
 
 	list, err := h.svc.ListPublic(c.Context(), f)
 	if err != nil {

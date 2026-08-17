@@ -29,6 +29,8 @@ export function useProductList(query: {
   q?: MaybeRefOrGetter<string | undefined>
   /** true → yalnızca panelden öne çıkarılmış ürünler (ana sayfa vitrini). */
   oneCikan?: boolean
+  /** true → yalnızca indirimi AKTİF ürünler (/indirimli sayfası). */
+  indirimli?: boolean
   limit?: number
 }) {
   const url = computed(() => {
@@ -48,6 +50,9 @@ export function useProductList(query: {
 
     if (query.oneCikan)
       params.set('one_cikan', 'true')
+
+    if (query.indirimli)
+      params.set('indirimli', 'true')
 
     params.set('limit', String(query.limit ?? 24))
 

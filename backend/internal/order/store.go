@@ -95,6 +95,15 @@ func (s *Store) createOnce(ctx context.Context, in NewOrder) (*Order, error) {
 	}
 	defer tx.Rollback(ctx)
 
+	// Stok rezervasyonu sipariş ile AYNI transaction'da: sipariş yazılamazsa
+	// rezervasyon da geri alınır, rezervasyon başarısızsa sipariş hiç
+	// oluşmaz (spec §4.1). Nil ise stok yönetimi devrede değil.
+	if in.Reserve != nil {
+		if err := in.Reserve(ctx, tx); err != nil {
+			return nil, err
+		}
+	}
+
 	// Bugünün kaçıncı siparişi
 	now := time.Now()
 	var todayCount int
@@ -126,9 +135,11 @@ func (s *Store) createOnce(ctx context.Context, in NewOrder) (*Order, error) {
 	for _, it := range in.Items {
 		var itemID int64
 		err = tx.QueryRow(ctx, `
-			INSERT INTO order_items (order_id, product_id, product_name, price_at_order, quantity)
-			VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-			id, it.ProductID, it.ProductName, it.PriceAtOrder, it.Quantity).Scan(&itemID)
+			INSERT INTO order_items (order_id, product_id, product_name,
+			                         price_at_order, quantity, was_discounted)
+			VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+			id, it.ProductID, it.ProductName, it.PriceAtOrder, it.Quantity,
+			it.WasDiscounted).Scan(&itemID)
 		if err != nil {
 			return nil, err
 		}
@@ -505,4 +516,55 @@ func (s *Store) RecentAddresses(ctx context.Context, customerID int64) ([]Recent
 		adresler = append(adresler, a)
 	}
 	return adresler, rows.Err()
+}
+
+// BeginTx sipariş ve stok işlemlerinin aynı transaction'da yürümesi için.
+func (s *Store) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	return s.pool.Begin(ctx)
+}
+
+// SetPaidTx SetPaid'in transaction'a katılan varyantı. Stok kesinleşmesi
+// ile ödeme aynı transaction'da olmalı — para hareketi ile stok ayrışamaz
+// (spec §8).
+func (s *Store) SetPaidTx(ctx context.Context, tx pgx.Tx, id int64) error {
+	ct, err := tx.Exec(ctx, `
+		UPDATE orders SET status = 'paid', paid_at = now(), updated_at = now()
+		WHERE id = $1 AND status = 'awaiting_payment'`, id)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return errorsx.ErrNotFound
+	}
+	return nil
+}
+
+// StockLine stok işlemleri için sipariş kalemi özeti.
+type StockLine struct {
+	ProductID     int64
+	Quantity      int
+	WasDiscounted bool
+}
+
+// ItemsForStock siparişin stok etkileyen kalemlerini döner. Ürünü silinmiş
+// kalem (product_id NULL) atlanır — düşülecek stok yok.
+func (s *Store) ItemsForStock(ctx context.Context, orderID int64) ([]StockLine, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT product_id, quantity, was_discounted
+		  FROM order_items
+		 WHERE order_id = $1 AND product_id IS NOT NULL`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("stok kalemleri: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]StockLine, 0)
+	for rows.Next() {
+		var l StockLine
+		if err := rows.Scan(&l.ProductID, &l.Quantity, &l.WasDiscounted); err != nil {
+			return nil, fmt.Errorf("stok kalemi scan: %w", err)
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
 }

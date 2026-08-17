@@ -97,8 +97,11 @@ func setupServiceWithPay(t *testing.T, pay PaymentStarter) (svc *Service, pool *
 		 VALUES ('51 Gül Buket', 'test', 1850.00, true) RETURNING id`).Scan(&productID)
 	require.NoError(t, err)
 
-	svc = NewService(NewStore(pool), product.NewStore(pool), fakeOptionReader{}, testDeliveryConfig(),
-		pay, "https://example.com/ok", "https://example.com/fail")
+	// Tek product.Store: hem ProductReader hem StockManager olarak kullanılır.
+	// Sahte yerine gerçek store — stok davranışı da bu testlerde doğrulanıyor.
+	prodStore := product.NewStore(pool)
+	svc = NewService(NewStore(pool), prodStore, fakeOptionReader{}, prodStore,
+		testDeliveryConfig(), pay, "https://example.com/ok", "https://example.com/fail")
 
 	return svc, pool, productID
 }
@@ -616,4 +619,273 @@ func TestService_List_DefaultAwaitingPaymentGizler(t *testing.T) {
 		}
 	}
 	assert.True(t, sawAwaitingExplicit, "status=awaiting_payment açıkça istenirse görünmeli")
+}
+
+// --- Stok yönetimi testleri (spec §4) ---
+
+// setStockFor test ürününe stok takibi açar.
+func setStockFor(t *testing.T, pool *pgxpool.Pool, productID int64, qty int) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET track_stock=true, stock_quantity=$2 WHERE id=$1`,
+		productID, qty)
+	require.NoError(t, err)
+}
+
+func stockOf(t *testing.T, pool *pgxpool.Pool, productID int64) (qty, reserved, discountSold int) {
+	t.Helper()
+	err := pool.QueryRow(context.Background(),
+		`SELECT stock_quantity, stock_reserved, discount_sold FROM products WHERE id=$1`,
+		productID).Scan(&qty, &reserved, &discountSold)
+	require.NoError(t, err)
+	return
+}
+
+func TestService_Create_StokRezerveEdilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	setStockFor(t, pool, productID, 10)
+
+	// testCreateInput 2 adet sipariş veriyor
+	_, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	qty, reserved, _ := stockOf(t, pool, productID)
+	assert.Equal(t, 10, qty, "ödeme onaylanmadan fiziksel stok düşmez")
+	assert.Equal(t, 2, reserved, "sipariş anında rezerve edilmeli")
+}
+
+func TestService_Create_StokYetmezse_SiparisOlusmaz(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	setStockFor(t, pool, productID, 1) // 2 adet isteniyor, 1 var
+
+	_, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
+	assert.Contains(t, err.Error(), "1 adet kaldı", "müşteriye kaç adet kaldığı söylenmeli")
+
+	var siparisSayisi int
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM orders`).Scan(&siparisSayisi))
+	assert.Equal(t, 0, siparisSayisi, "stok yetmezse sipariş hiç yazılmamalı")
+
+	_, reserved, _ := stockOf(t, pool, productID)
+	assert.Equal(t, 0, reserved, "başarısız rezervasyon iz bırakmamalı")
+}
+
+func TestService_ApplyCallback_StokKesinlesir(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, pool, productID := setupServiceWithPay(t, pay)
+	setStockFor(t, pool, productID, 10)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	accepted, err := svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef, Status: "success",
+		TotalAmount: "375000", Hash: "gecerli-hash",
+	}, []byte(`{"status":"success"}`))
+	require.NoError(t, err)
+	require.True(t, accepted)
+
+	qty, reserved, _ := stockOf(t, pool, productID)
+	assert.Equal(t, 8, qty, "ödeme onayında fiziksel stok düşmeli")
+	assert.Equal(t, 0, reserved, "rezerve serbest kalmalı")
+}
+
+// Aynı callback iki kez gelirse stok BİR KEZ düşmeli — idempotency.
+func TestService_ApplyCallback_IkiKez_StokBirKezDuser(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, pool, productID := setupServiceWithPay(t, pay)
+	setStockFor(t, pool, productID, 10)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	cbIn := payment.CallbackInput{
+		MerchantOID: o.PaymentRef, Status: "success",
+		TotalAmount: "375000", Hash: "gecerli-hash",
+	}
+	raw := []byte(`{"status":"success"}`)
+
+	_, err = svc.ApplyCallback(context.Background(), cbIn, raw)
+	require.NoError(t, err)
+	_, err = svc.ApplyCallback(context.Background(), cbIn, raw)
+	require.NoError(t, err)
+
+	qty, _, _ := stockOf(t, pool, productID)
+	assert.Equal(t, 8, qty, "ikinci callback stoğu tekrar düşürmemeli (6 değil 8)")
+}
+
+func TestService_Create_IndirimliFiyatSipariseYazilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1450.00, discount_quota=10, discount_sold=3
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	// 1450 × 2 = 2900 (normal fiyat 1850 olsaydı 3700 olurdu)
+	assert.Equal(t, "2900", o.ItemsTotal.String(), "indirimli fiyattan hesaplanmalı")
+
+	var priceAtOrder string
+	var wasDiscounted bool
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT price_at_order, was_discounted FROM order_items WHERE order_id=$1`,
+		o.ID).Scan(&priceAtOrder, &wasDiscounted))
+	assert.Equal(t, "1450.00", priceAtOrder)
+	assert.True(t, wasDiscounted, "kota muhasebesi için işaretlenmeli")
+}
+
+func TestService_ApplyCallback_IndirimliSatis_KotaTuketilir(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, pool, productID := setupServiceWithPay(t, pay)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1450.00, discount_quota=10, discount_sold=3
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	_, _, discountSold := stockOf(t, pool, productID)
+	assert.Equal(t, 3, discountSold, "rezervasyonda kota tüketilmez")
+
+	_, err = svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef, Status: "success",
+		TotalAmount: "295000", Hash: "gecerli-hash",
+	}, []byte(`{"status":"success"}`))
+	require.NoError(t, err)
+
+	_, _, discountSold = stockOf(t, pool, productID)
+	assert.Equal(t, 5, discountSold, "ödeme onayında kota tüketilmeli (3+2)")
+}
+
+func TestService_Refund_StokIadeEdilir(t *testing.T) {
+	pay := &fakePay{callbackOK: true}
+	svc, pool, productID := setupServiceWithPay(t, pay)
+	setStockFor(t, pool, productID, 10)
+
+	o, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+	_, err = svc.ApplyCallback(context.Background(), payment.CallbackInput{
+		MerchantOID: o.PaymentRef, Status: "success",
+		TotalAmount: "375000", Hash: "gecerli-hash",
+	}, []byte(`{"status":"success"}`))
+	require.NoError(t, err)
+
+	qty, _, _ := stockOf(t, pool, productID)
+	require.Equal(t, 8, qty)
+
+	_, err = svc.Refund(context.Background(), o.ID)
+	require.NoError(t, err)
+
+	qty, _, _ = stockOf(t, pool, productID)
+	assert.Equal(t, 10, qty, "iade sonrası ürün rafa dönmeli")
+}
+
+func TestService_Create_TakipsizUrun_StokDegismez(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	// track_stock varsayılan false — mevcut ürünlerin davranışı
+
+	_, _, err := svc.Create(context.Background(), testCreateInput(productID), "127.0.0.1", nil)
+	require.NoError(t, err)
+
+	qty, reserved, _ := stockOf(t, pool, productID)
+	assert.Equal(t, 0, qty)
+	assert.Equal(t, 0, reserved, "takipsiz üründe rezerve sayacı artmamalı")
+}
+
+// --- İndirim kotası ve adet (2026-08-17 düzeltmesi) ---
+
+// EN KRİTİK: kota 1 iken 5 adet sipariş edilirse 5'i de indirimli
+// satılamaz. Esnaf 1 adet indirim planlarken 5 adet vermiş olurdu.
+func TestService_Create_KotadanFazlaIndirimliAdetReddedilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=1, discount_sold=0
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 5
+
+	_, _, err = svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
+	assert.Contains(t, err.Error(), "1 adet", "müşteriye kaç adet alabileceği söylenmeli")
+
+	var siparisSayisi int
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM orders`).Scan(&siparisSayisi))
+	assert.Equal(t, 0, siparisSayisi, "kota aşılırsa sipariş yazılmamalı")
+}
+
+// Kota kadar sipariş geçmeli — sınır dahil.
+func TestService_Create_KotaSinirindaGecer(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=3, discount_sold=0
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 3
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "4500", o.ItemsTotal.String(), "3 × 1500")
+}
+
+// Kısmen tüketilmiş kotada kalan adet dikkate alınmalı.
+func TestService_Create_KismenTuketilmisKota(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	// Kota 5, 4'ü satılmış → yalnızca 1 adet kaldı
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=5, discount_sold=4
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 2
+
+	_, _, err = svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "1 adet")
+}
+
+// İndirimi OLMAYAN üründe adet sınırı uygulanmaz — kota kavramı yok.
+func TestService_Create_IndirimsizUrunAdetSinirsiz(t *testing.T) {
+	svc, _, productID := setupService(t)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 50
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err, "indirimsiz üründe kota sınırı olmamalı")
+	assert.Equal(t, "92500", o.ItemsTotal.String(), "50 × 1850")
+}
+
+// Kotası DOLMUŞ üründe indirim sönmüş olur; ürün normal fiyattan
+// sınırsız satılabilir (spec §2: stok ve indirim bağımsız).
+func TestService_Create_KotasiDolmusUrun_NormalFiyattanSatilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=2, discount_sold=2
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 4
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "7400", o.ItemsTotal.String(), "4 × 1850 normal fiyat")
 }

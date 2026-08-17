@@ -1,8 +1,10 @@
 package order
 
 import (
+	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
 )
 
@@ -99,6 +101,11 @@ type NewOrder struct {
 	CustomerID *int64
 
 	Items []NewOrderItem
+
+	// Reserve sipariş transaction'ı içinde çağrılır — stok rezervasyonu
+	// sipariş kaydıyla atomik olsun diye (spec §4.1). Hata dönerse sipariş
+	// hiç oluşmaz. Nil olabilir: stok yönetimi devrede değilse dokunulmaz.
+	Reserve func(ctx context.Context, tx pgx.Tx) error
 }
 
 type NewOrderItem struct {
@@ -107,4 +114,9 @@ type NewOrderItem struct {
 	PriceAtOrder decimal.Decimal
 	Quantity     int
 	Options      []OrderItemOption
+
+	// WasDiscounted sipariş anında indirimli fiyattan satıldı mı — kota
+	// muhasebesi için gerekli. Fiyat sonradan değişebileceği için
+	// price_at_order karşılaştırmasıyla anlaşılamaz.
+	WasDiscounted bool
 }

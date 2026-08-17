@@ -105,8 +105,13 @@ watch(() => product.value?.option_groups, gruplar => {
     })
 }, { immediate: true })
 
+/** Takipsiz ürün in_stock=true geldiği için hiç tükendi görünmez. */
+const tukendi = computed(() => product.value !== null && !product.value.in_stock)
+
 function sepeteEkle() {
-  if (!product.value)
+  // Tükenen ürün sepete eklenemez — buton zaten kilitli, bu ikinci kapı
+  // (sunucu da rezervasyonda reddediyor, spec §4.1).
+  if (!product.value || tukendi.value)
     return
 
   add({
@@ -147,8 +152,33 @@ function sepeteEkle() {
           </h1>
 
           <p class="mt-4 text-body-lg text-on-surface">
-            {{ formatPrice(product.price) }}
+            <!-- Eski fiyat üstü çizili, indirimli fiyat vurgulu (spec §6.1) -->
+            <span
+              v-if="product.old_price"
+              class="me-2 text-base text-on-surface-variant/60 line-through"
+            >
+              {{ formatPrice(product.old_price) }}
+            </span>
+            <span :class="product.old_price ? 'font-medium text-primary' : ''">
+              {{ formatPrice(product.price) }}
+            </span>
             <span class="text-sm text-on-surface-variant/70">(KDV dahil)</span>
+          </p>
+
+          <p
+            v-if="product.discount_remaining !== null"
+            class="mt-1.5 text-sm text-primary"
+          >
+            Son {{ product.discount_remaining }} adet bu fiyata —
+            en fazla {{ product.discount_remaining }} adet alabilirsiniz
+          </p>
+
+          <p
+            v-if="tukendi"
+            class="mt-3 inline-flex items-center gap-1.5 rounded bg-surface-container px-3 py-1.5 text-sm text-on-surface-variant"
+          >
+            <Icon name="material-symbols:info-outline" size="16" />
+            Bu ürün şu anda tükendi
           </p>
 
           <hr class="my-7 border-outline-variant/40">
@@ -174,19 +204,33 @@ function sepeteEkle() {
             -->
             <button
               type="button"
-              class="btn-primary text-label-caps w-full"
+              class="btn-primary text-label-caps w-full disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="tukendi"
               @click="sepeteEkle"
             >
               <Icon name="material-symbols:shopping-cart-outline" size="18" />
-              Sepete Ekle
+              {{ tukendi ? 'Tükendi' : 'Sepete Ekle' }}
             </button>
 
-            <WhatsAppButton :product="product" />
+            <!--
+              Seçimler mesaja da gidiyor: müşteri renk seçip WhatsApp'tan
+              sipariş verirse esnaf ne hazırlayacağını görmeli.
+            -->
+            <WhatsAppButton
+              :product="product"
+              :out-of-stock="tukendi"
+              :options="secimler"
+            />
           </div>
 
           <p class="mt-3 text-center text-xs text-on-surface-variant">
-            Siparişiniz WhatsApp üzerinden alınır. Mesajı gönderin, en kısa
-            sürede dönüş yapalım.
+            <template v-if="tukendi">
+              Bu ürün tükendi. Ne zaman geleceğini WhatsApp'tan sorabilirsiniz.
+            </template>
+            <template v-else>
+              Siparişiniz WhatsApp üzerinden alınır. Mesajı gönderin, en kısa
+              sürede dönüş yapalım.
+            </template>
           </p>
 
           <div v-if="productCategories.length" class="mt-8 flex flex-wrap gap-2">

@@ -91,7 +91,8 @@ func newOptionTestEnv(t *testing.T) *optionTestEnv {
 		{GroupID: otherGrup.ID},
 	}))
 
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
+	prodStore := product.NewStore(pool)
+	svc := order.NewService(order.NewStore(pool), prodStore, optSvc, prodStore,
 		testOptionsDeliveryConfig(), &fakeOptionsPay{}, "https://example.com/ok", "https://example.com/fail")
 
 	return &optionTestEnv{

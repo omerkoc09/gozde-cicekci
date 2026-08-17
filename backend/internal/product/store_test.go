@@ -415,3 +415,136 @@ func TestStore_Update_EmptySlugLeavesSlugAlone(t *testing.T) {
 		`SELECT count(*) FROM product_slugs WHERE product_id = $1`, p.ID).Scan(&count))
 	assert.Equal(t, 1, count, "yeni slug kaydı eklenmemeli")
 }
+
+// setStock test için doğrudan stok alanlarını yazar — service katmanına
+// bağımlı olmadan store davranışını sınamak için (insertCategory deseni).
+func setStock(t *testing.T, pool *pgxpool.Pool, id int64,
+	track bool, qty, reserved int) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET track_stock=$2, stock_quantity=$3, stock_reserved=$4
+		 WHERE id=$1`, id, track, qty, reserved)
+	require.NoError(t, err)
+}
+
+func setDiscount(t *testing.T, pool *pgxpool.Pool, id int64,
+	price string, quota, sold int) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=$2, discount_quota=$3, discount_sold=$4
+		 WHERE id=$1`, id, price, quota, sold)
+	require.NoError(t, err)
+}
+
+func TestStore_GetByID_StokAlanlariOkunur(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Gül Buketi", Price: price(t, "1850.00"), IsActive: true,
+	}, "gul-buketi")
+	require.NoError(t, err)
+	setStock(t, pool, p.ID, true, 10, 3)
+	setDiscount(t, pool, p.ID, "1450.00", 10, 2)
+
+	got, err := store.GetByID(ctx, p.ID)
+	require.NoError(t, err)
+
+	assert.True(t, got.TrackStock)
+	assert.Equal(t, 10, got.StockQuantity)
+	assert.Equal(t, 3, got.StockReserved)
+	require.NotNil(t, got.DiscountPrice)
+	assert.Equal(t, "1450", got.DiscountPrice.String())
+	require.NotNil(t, got.DiscountQuota)
+	assert.Equal(t, 10, *got.DiscountQuota)
+	assert.Equal(t, 2, got.DiscountSold)
+	assert.True(t, got.DiscountActive())
+}
+
+func TestStore_GetByID_IndirimsizUrun_NilDoner(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Orkide", Price: price(t, "900.00"), IsActive: true,
+	}, "orkide")
+	require.NoError(t, err)
+
+	got, err := store.GetByID(ctx, p.ID)
+	require.NoError(t, err)
+
+	assert.False(t, got.TrackStock, "varsayılan takipsiz olmalı")
+	assert.Nil(t, got.DiscountPrice)
+	assert.Nil(t, got.DiscountQuota)
+	assert.False(t, got.DiscountActive())
+}
+
+func TestStore_ListPublic_DiscountedOnly(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+
+	indirimli, err := store.Create(ctx, CreateInput{
+		Name: "İndirimli Buket", Price: price(t, "1850.00"), IsActive: true,
+	}, "indirimli-buket")
+	require.NoError(t, err)
+	setDiscount(t, pool, indirimli.ID, "1450.00", 10, 3)
+
+	// Kotası dolmuş ürün indirimli listede GÖRÜNMEMELİ
+	kotasiDolmus, err := store.Create(ctx, CreateInput{
+		Name: "Kotası Dolmuş", Price: price(t, "1200.00"), IsActive: true,
+	}, "kotasi-dolmus")
+	require.NoError(t, err)
+	setDiscount(t, pool, kotasiDolmus.ID, "1000.00", 5, 5)
+
+	_, err = store.Create(ctx, CreateInput{
+		Name: "Normal Ürün", Price: price(t, "700.00"), IsActive: true,
+	}, "normal-urun")
+	require.NoError(t, err)
+
+	list, err := store.ListPublic(ctx, Filter{DiscountedOnly: true, Limit: 50})
+	require.NoError(t, err)
+
+	require.Len(t, list, 1, "yalnızca indirimi AKTİF ürün dönmeli")
+	assert.Equal(t, "İndirimli Buket", list[0].Name)
+}
+
+func TestStore_Update_StokVeIndirimYazilir(t *testing.T) {
+	store, _, ctx := newTestStore(t)
+
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Lilyum", Price: price(t, "600.00"), IsActive: true,
+	}, "lilyum")
+	require.NoError(t, err)
+
+	track := true
+	qty := 25
+	dp := price(t, "450.00")
+	quota := 8
+	updated, err := store.Update(ctx, p.ID, UpdateInput{
+		TrackStock: &track, StockQuantity: &qty,
+		DiscountPrice: &dp, DiscountQuota: &quota,
+	}, "")
+	require.NoError(t, err)
+
+	assert.True(t, updated.TrackStock)
+	assert.Equal(t, 25, updated.StockQuantity)
+	require.NotNil(t, updated.DiscountPrice)
+	assert.Equal(t, "450", updated.DiscountPrice.String())
+	assert.Equal(t, 8, *updated.DiscountQuota)
+}
+
+func TestStore_Update_ClearDiscount_SayaciSifirlar(t *testing.T) {
+	store, pool, ctx := newTestStore(t)
+
+	p, err := store.Create(ctx, CreateInput{
+		Name: "Papatya", Price: price(t, "300.00"), IsActive: true,
+	}, "papatya")
+	require.NoError(t, err)
+	setDiscount(t, pool, p.ID, "250.00", 5, 4)
+
+	updated, err := store.Update(ctx, p.ID, UpdateInput{ClearDiscount: true}, "")
+	require.NoError(t, err)
+
+	assert.Nil(t, updated.DiscountPrice)
+	assert.Nil(t, updated.DiscountQuota)
+	// Sıfırlanmazsa aynı ürüne ikinci indirim girildiğinde kota baştan
+	// dolu görünür (spec §5.2).
+	assert.Equal(t, 0, updated.DiscountSold, "sayaç sıfırlanmalı")
+}

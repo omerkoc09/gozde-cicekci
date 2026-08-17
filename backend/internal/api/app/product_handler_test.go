@@ -54,7 +54,8 @@ func newTestAPIFull(t *testing.T) (fiberApp *fiber.App, orderSvc *order.Service,
 		Districts: []string{"Ödemiş", "Tire"},
 	}
 	optSvc := productoption.NewService(productoption.NewStore(pool))
-	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc, deliveryCfg,
+	orderSvc = order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
+		product.NewStore(pool), deliveryCfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	custSvc = customer.NewService(customer.NewStore(pool), testJWTSecret)
@@ -343,4 +344,121 @@ func TestProductHandler_GetBySlug_TumDegerleriPasifGrupHicGorunmez(t *testing.T)
 	var view ProductView
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
 	assert.Empty(t, view.OptionGroups, "değeri kalmamış grup public yanıtta hiç görünmemeli")
+}
+
+// --- Stok ve indirim gösterimi (spec §6.1, §7) ---
+
+// setStockAndDiscount test ürününe stok/indirim alanlarını doğrudan yazar.
+func setStockAndDiscount(t *testing.T, pool *pgxpool.Pool, id int64, sql string, args ...any) {
+	t.Helper()
+	all := append([]any{id}, args...)
+	_, err := pool.Exec(context.Background(), sql, all...)
+	require.NoError(t, err)
+}
+
+func TestProductHandler_List_IndirimliUrun_EskiVeYeniFiyat(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	p, err := prodSvc.Create(context.Background(), product.CreateInput{
+		Name: "Gül Buketi", Price: mustPrice(t, "1850"), IsActive: true,
+	})
+	require.NoError(t, err)
+	setStockAndDiscount(t, pool, p.ID,
+		`UPDATE products SET discount_price=1450.00, discount_quota=10, discount_sold=3
+		 WHERE id=$1`)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	require.NoError(t, err)
+
+	var views []ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 1)
+	assert.Equal(t, "1450.00", views[0].Price, "price indirimli fiyat olmalı")
+	require.NotNil(t, views[0].OldPrice)
+	assert.Equal(t, "1850.00", *views[0].OldPrice, "eski fiyat da gösterilmeli")
+	require.NotNil(t, views[0].DiscountRemaining)
+	assert.Equal(t, 7, *views[0].DiscountRemaining)
+	assert.True(t, views[0].InStock)
+}
+
+func TestProductHandler_List_KotasiDolmus_EskiFiyatGosterilmez(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	p, err := prodSvc.Create(context.Background(), product.CreateInput{
+		Name: "Kotası Dolmuş", Price: mustPrice(t, "1850"), IsActive: true,
+	})
+	require.NoError(t, err)
+	setStockAndDiscount(t, pool, p.ID,
+		`UPDATE products SET discount_price=1450.00, discount_quota=5, discount_sold=5
+		 WHERE id=$1`)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	require.NoError(t, err)
+
+	var views []ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 1)
+	assert.Equal(t, "1850.00", views[0].Price, "kota dolunca normal fiyata dönmeli")
+	assert.Nil(t, views[0].OldPrice)
+	assert.Nil(t, views[0].DiscountRemaining)
+}
+
+func TestProductHandler_List_TukenenUrun_ListedeKalir(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	p, err := prodSvc.Create(context.Background(), product.CreateInput{
+		Name: "Tükenen", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+	setStockAndDiscount(t, pool, p.ID,
+		`UPDATE products SET track_stock=true, stock_quantity=2, stock_reserved=2
+		 WHERE id=$1`)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	require.NoError(t, err)
+
+	var views []ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 1, "tükenen ürün listeden GİZLENMEZ (spec §6.1)")
+	assert.False(t, views[0].InStock)
+	require.NotNil(t, views[0].StockQuantity)
+	assert.Equal(t, 0, *views[0].StockQuantity)
+}
+
+func TestProductHandler_List_TakipsizUrun_StokNull(t *testing.T) {
+	app, svc, _ := newTestAPI(t)
+	_, err := svc.Create(context.Background(), product.CreateInput{
+		Name: "Takipsiz", Price: mustPrice(t, "500"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products", nil))
+	require.NoError(t, err)
+
+	var views []ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 1)
+	assert.True(t, views[0].InStock, "takipsiz ürün her zaman satılabilir")
+	assert.Nil(t, views[0].StockQuantity, "takipsiz üründe adet null gitmeli")
+}
+
+func TestProductHandler_List_IndirimliFiltresi(t *testing.T) {
+	app, _, prodSvc, _, _, pool := newTestAPIFull(t)
+	indirimli, err := prodSvc.Create(context.Background(), product.CreateInput{
+		Name: "İndirimli", Price: mustPrice(t, "1850"), IsActive: true,
+	})
+	require.NoError(t, err)
+	setStockAndDiscount(t, pool, indirimli.ID,
+		`UPDATE products SET discount_price=1450.00, discount_quota=10, discount_sold=0
+		 WHERE id=$1`)
+
+	_, err = prodSvc.Create(context.Background(), product.CreateInput{
+		Name: "Normal", Price: mustPrice(t, "700"), IsActive: true,
+	})
+	require.NoError(t, err)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/products?indirimli=true", nil))
+	require.NoError(t, err)
+
+	var views []ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 1, "yalnızca indirimi aktif ürün dönmeli")
+	assert.Equal(t, "İndirimli", views[0].Name)
 }

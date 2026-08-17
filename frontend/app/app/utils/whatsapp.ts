@@ -1,4 +1,4 @@
-import type { Product } from '~/types/api'
+import type { CartItemOption, Product } from '~/types/api'
 import { whatsappPrice } from './price'
 
 /**
@@ -9,15 +9,25 @@ import { whatsappPrice } from './price'
  * siparişle başlıyor. Fiyat mesajda: esnafı koruyor (müşteri hangi fiyatı
  * gördüğünü belgeliyor) ve esnaf ürünü sitede aramak zorunda kalmıyor.
  *
+ * Seçenekler (ambalaj/kurdele rengi vb.) ürün satırının altına yazılıyor:
+ * müşteri sitede renk seçip WhatsApp'tan sipariş verirse esnaf seçimi
+ * görmeli, yoksa telefonla sormak zorunda kalır. Seçim yoksa hiç satır
+ * eklenmiyor — mesaj eskisi gibi kalıyor.
+ *
  * Teslimat/tarih/kart mesajı alanları KASITLI olarak yok — Faz 2'nin işi.
  * Şablona form gibi alanlar koymak müşteriye ödev listesi yaratır.
  *
  * Nuxt'tan bağımsız tutuldu ki test edilebilsin; composable sarmalıyor.
  */
-export function buildOrderMessage(product: Product, siteUrl: string): string {
+export function buildOrderMessage(
+  product: Product,
+  siteUrl: string,
+  options: CartItemOption[] = [],
+): string {
   return [
     'Merhaba, bu ürünü sipariş etmek istiyorum:',
     `${product.name} — ${whatsappPrice(product.price)}`,
+    ...options.map(o => `${o.group_name}: ${o.value_name}`),
     `${siteUrl}/urun/${product.slug}`,
   ].join('\n')
 }
@@ -27,8 +37,36 @@ export function buildWhatsAppUrl(
   phoneNumber: string,
   product: Product,
   siteUrl: string,
+  options: CartItemOption[] = [],
 ): string {
-  const message = buildOrderMessage(product, siteUrl)
+  const message = buildOrderMessage(product, siteUrl, options)
+
+  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+}
+
+/**
+ * Tükenen ürün için WhatsApp mesajı (spec §6.1).
+ *
+ * Ürün sitede görünür kalıyor — müşteri "ne zaman gelir" diye sorabilsin,
+ * satış fırsatı kaybolmasın. Sipariş mesajının aksine FİYAT YOK: müşteri
+ * satın alamadığı bir ürünün fiyatını konuşmaya davet edilmemeli.
+ */
+export function buildOutOfStockMessage(product: Product, siteUrl: string): string {
+  return [
+    'Merhaba, bu ürün tükenmiş görünüyor:',
+    product.name,
+    `${siteUrl}/urun/${product.slug}`,
+    'Ne zaman tekrar gelir?',
+  ].join('\n')
+}
+
+/** Tükenen ürün için wa.me linki. */
+export function buildOutOfStockUrl(
+  phoneNumber: string,
+  product: Product,
+  siteUrl: string,
+): string {
+  const message = buildOutOfStockMessage(product, siteUrl)
 
   return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
 }

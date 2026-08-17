@@ -17,6 +17,19 @@ type Product struct {
 	CategoryIDs []int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+
+	// Stok takibi ürün başına isteğe bağlı. TrackStock false ise ürün
+	// sınırsız satılır ve diğer stok alanları anlamsızdır.
+	TrackStock    bool
+	StockQuantity int
+	// StockReserved ödeme bekleyen adet — satılabilir hesabından düşülür.
+	StockReserved int
+
+	// DiscountPrice nil ise indirim yok. Kota dolduğunda indirim
+	// kendiliğinden söner (DiscountActive), alan temizlenmez.
+	DiscountPrice *decimal.Decimal
+	DiscountQuota *int
+	DiscountSold  int
 }
 
 type CreateInput struct {
@@ -37,6 +50,16 @@ type UpdateInput struct {
 	IsActive    *bool
 	IsFeatured  *bool
 	CategoryIDs []int64
+
+	TrackStock    *bool
+	StockQuantity *int
+
+	// DiscountPrice ve DiscountQuota BİRLİKTE set edilir; ikisi de doluysa
+	// indirim açılır ve sayaç sıfırlanır. ClearDiscount true ise indirim
+	// kaldırılır (sayaç yine sıfırlanır — bkz. store.Update).
+	DiscountPrice *decimal.Decimal
+	DiscountQuota *int
+	ClearDiscount bool
 }
 
 // Filter iki eksenli filtreleme. İkisi de doluysa AND — her iki koşula da
@@ -52,6 +75,10 @@ type Filter struct {
 	// FeaturedOnly true ise yalnızca öne çıkan ürünler döner — ana sayfa
 	// vitrini bunu kullanıyor. false ise öne çıkma durumu filtrelemez.
 	FeaturedOnly bool
+
+	// DiscountedOnly true ise yalnızca indirimi AKTİF ürünler döner —
+	// /indirimli sayfası bunu kullanıyor (FeaturedOnly ile aynı desen).
+	DiscountedOnly bool
 
 	Limit  int
 	Offset int
