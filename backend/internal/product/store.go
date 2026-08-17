@@ -28,15 +28,26 @@ const productSelect = `
 	          FROM product_categories pc WHERE pc.product_id = p.id),
 	         '{}'
 	       ),
-	       p.created_at, p.updated_at
+	       p.created_at, p.updated_at,
+	       p.track_stock, p.stock_quantity, p.stock_reserved,
+	       p.discount_price, p.discount_quota, p.discount_sold
 	FROM products p
 	LEFT JOIN product_slugs ps ON ps.product_id = p.id AND ps.is_current
 `
 
+// scanProductInto productSelect'in kolon sırasını TEK yerde tutar. Tekil
+// okuma (scanProduct) ve liste okuması (queryProducts) aynı fonksiyondan
+// geçer — biri güncellenip diğeri unutulursa scan hatası alınır.
+func scanProductInto(row pgx.Row, p *Product) error {
+	return row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.Price,
+		&p.IsActive, &p.IsFeatured, &p.CategoryIDs, &p.CreatedAt, &p.UpdatedAt,
+		&p.TrackStock, &p.StockQuantity, &p.StockReserved,
+		&p.DiscountPrice, &p.DiscountQuota, &p.DiscountSold)
+}
+
 func scanProduct(row pgx.Row) (*Product, error) {
 	var p Product
-	err := row.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.Price,
-		&p.IsActive, &p.IsFeatured, &p.CategoryIDs, &p.CreatedAt, &p.UpdatedAt)
+	err := scanProductInto(row, &p)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errorsx.ErrNotFound
 	}
@@ -176,19 +187,48 @@ func (s *Store) Update(ctx context.Context, id int64, in UpdateInput, newSlug st
 
 	tag, err := tx.Exec(ctx,
 		`UPDATE products SET
-		   name        = COALESCE($2, name),
-		   description = COALESCE($3, description),
-		   price       = COALESCE($4, price),
-		   is_active   = COALESCE($5, is_active),
-		   is_featured = COALESCE($6, is_featured),
-		   updated_at  = now()
+		   name           = COALESCE($2, name),
+		   description    = COALESCE($3, description),
+		   price          = COALESCE($4, price),
+		   is_active      = COALESCE($5, is_active),
+		   is_featured    = COALESCE($6, is_featured),
+		   track_stock    = COALESCE($7, track_stock),
+		   stock_quantity = COALESCE($8, stock_quantity),
+		   updated_at     = now()
 		 WHERE id = $1`,
-		id, in.Name, in.Description, in.Price, in.IsActive, in.IsFeatured)
+		id, in.Name, in.Description, in.Price, in.IsActive, in.IsFeatured,
+		in.TrackStock, in.StockQuantity)
 	if err != nil {
 		return nil, fmt.Errorf("ürün güncelle: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return nil, errorsx.ErrNotFound
+	}
+
+	// stock_reserved buradan YAZILMAZ — yalnızca rezervasyon/kesinleşme
+	// akışının atomik ifadeleri değiştirir.
+	//
+	// ClearDiscount NULL yazar; COALESCE deseni NULL'ı "değişme" olarak
+	// yorumladığı için ayrı ifade gerekiyor. discount_sold da sıfırlanır:
+	// aksi halde ürüne ikinci kez indirim girildiğinde kota baştan dolu
+	// görünür (spec §5.2).
+	if in.ClearDiscount {
+		if _, err := tx.Exec(ctx,
+			`UPDATE products
+			    SET discount_price = NULL, discount_quota = NULL,
+			        discount_sold = 0, updated_at = now()
+			  WHERE id = $1`, id); err != nil {
+			return nil, fmt.Errorf("indirim kaldır: %w", err)
+		}
+	} else if in.DiscountPrice != nil && in.DiscountQuota != nil {
+		// Yeni indirim: sayaç sıfırdan başlar.
+		if _, err := tx.Exec(ctx,
+			`UPDATE products
+			    SET discount_price = $2, discount_quota = $3,
+			        discount_sold = 0, updated_at = now()
+			  WHERE id = $1`, id, *in.DiscountPrice, *in.DiscountQuota); err != nil {
+			return nil, fmt.Errorf("indirim yaz: %w", err)
+		}
 	}
 
 	// CategoryIDs nil ise dokunma; boş slice ise hepsini kaldır.
@@ -269,6 +309,12 @@ func (s *Store) ListPublic(ctx context.Context, f Filter) ([]Product, error) {
 		query += ` AND p.is_featured`
 	}
 
+	// İndirimi AKTİF ürünler: kotası dolmuş indirim sayılmaz (spec §6.2).
+	if f.DiscountedOnly {
+		query += ` AND p.discount_price IS NOT NULL
+		           AND p.discount_sold < p.discount_quota`
+	}
+
 	if f.OccasionSlug != nil {
 		query += fmt.Sprintf(`
 			AND EXISTS (
@@ -331,8 +377,7 @@ func (s *Store) queryProducts(ctx context.Context, query string, args ...any) ([
 	out := make([]Product, 0)
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Slug, &p.Description, &p.Price,
-			&p.IsActive, &p.IsFeatured, &p.CategoryIDs, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := scanProductInto(rows, &p); err != nil {
 			return nil, fmt.Errorf("ürün scan: %w", err)
 		}
 		out = append(out, p)
