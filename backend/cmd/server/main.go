@@ -85,8 +85,12 @@ func main() {
 
 	optSvc := productoption.NewService(productoption.NewStore(pool))
 
-	orderSvc := order.NewService(order.NewStore(pool), product.NewStore(pool), optSvc,
-		deliveryCfg, payProvider, okURL, failURL)
+	// Tek product.Store örneği: sipariş akışı (StockManager) ve süpürücü
+	// aynı store üzerinden çalışır.
+	productStore := product.NewStore(pool)
+
+	orderSvc := order.NewService(order.NewStore(pool), productStore, optSvc,
+		productStore, deliveryCfg, payProvider, okURL, failURL)
 
 	custSvc := customer.NewService(customer.NewStore(pool), cfg.JWTSecret)
 

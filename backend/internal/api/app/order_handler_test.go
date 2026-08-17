@@ -36,8 +36,9 @@ func TestCreateOrder_FiyatGovdedenGelmez(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool),
-		productoption.NewService(productoption.NewStore(pool)), cfg,
+	prodStore := product.NewStore(pool)
+	svc := order.NewService(order.NewStore(pool), prodStore,
+		productoption.NewService(productoption.NewStore(pool)), prodStore, cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()
@@ -88,8 +89,9 @@ func newCallbackTestOrder(t *testing.T) (svc *order.Service, oh *orderHandler, m
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc = order.NewService(order.NewStore(pool), product.NewStore(pool),
-		productoption.NewService(productoption.NewStore(pool)), cfg,
+	prodStore2 := product.NewStore(pool)
+	svc = order.NewService(order.NewStore(pool), prodStore2,
+		productoption.NewService(productoption.NewStore(pool)), prodStore2, cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 	oh = &orderHandler{svc: svc, cfg: cfg}
 
@@ -234,8 +236,9 @@ func TestCreateOrder_BozukCustomerCookieMisafirSiparisVerir(t *testing.T) {
 		SameDayCutoff: "16:00", MaxDays: 30,
 		Districts: []string{"Ödemiş"},
 	}
-	svc := order.NewService(order.NewStore(pool), product.NewStore(pool),
-		productoption.NewService(productoption.NewStore(pool)), cfg,
+	prodStore := product.NewStore(pool)
+	svc := order.NewService(order.NewStore(pool), prodStore,
+		productoption.NewService(productoption.NewStore(pool)), prodStore, cfg,
 		payment.NewMockProvider(), "https://example.com/ok", "https://example.com/fail")
 
 	f := fiber.New()

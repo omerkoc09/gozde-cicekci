@@ -1,6 +1,7 @@
 package order
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/omerkoc/cicekci/internal/payment"
 	"github.com/omerkoc/cicekci/internal/product"
 	"github.com/omerkoc/cicekci/pkg/errorsx"
@@ -33,6 +35,21 @@ type OptionReader interface {
 	// Hata verir: değer yok, pasif, bu ürüne kapalı gruba ait, aynı
 	// gruptan birden çok değer, zorunlu grup eksik.
 	ResolveForProduct(ctx context.Context, productID int64, valueIDs []int64) ([]OrderItemOption, error)
+}
+
+// StockManager order paketinin stok için ihtiyaç duyduğu tek şey.
+// Dar arayüz: order paketi product'ın tamamına bağlanmasın (ProductReader
+// ile aynı gerekçe).
+type StockManager interface {
+	// Reserve sipariş transaction'ına katılır — stok yetmezse hata döner
+	// ve sipariş hiç oluşmaz.
+	Reserve(ctx context.Context, tx pgx.Tx, productID int64, qty int) error
+	// CommitReservation rezervasyonu kesin düşüşe çevirir; ödemeyi paid
+	// yapan transaction'a katılır.
+	CommitReservation(ctx context.Context, tx pgx.Tx, productID int64, qty int,
+		orderID int64, discounted bool) error
+	// RestoreStock iade sonrası ürünü rafa geri koyar.
+	RestoreStock(ctx context.Context, productID int64, qty int, orderID *int64) error
 }
 
 // DeliveryConfig teslimat kuralları — config'den gelir (spec §4).
@@ -81,15 +98,17 @@ type Service struct {
 	store   *Store
 	prod    ProductReader
 	opt     OptionReader
+	stock   StockManager
 	cfg     DeliveryConfig
 	pay     PaymentStarter
 	okURL   string
 	failURL string
 }
 
-func NewService(store *Store, prod ProductReader, opt OptionReader, cfg DeliveryConfig,
-	pay PaymentStarter, okURL, failURL string) *Service {
-	return &Service{store: store, prod: prod, opt: opt, cfg: cfg, pay: pay, okURL: okURL, failURL: failURL}
+func NewService(store *Store, prod ProductReader, opt OptionReader, stock StockManager,
+	cfg DeliveryConfig, pay PaymentStarter, okURL, failURL string) *Service {
+	return &Service{store: store, prod: prod, opt: opt, stock: stock, cfg: cfg,
+		pay: pay, okURL: okURL, failURL: failURL}
 }
 
 // maxQuantity absürt girdiye karşı duvar. UI'da limit YOK — 50 buket gerçek
@@ -133,17 +152,24 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, cus
 			return nil, "", err
 		}
 
-		// p.Price zaten decimal.Decimal — dönüşüm gerekmez
-		itemsTotal = itemsTotal.Add(p.Price.Mul(decimal.NewFromInt(int64(ci.Quantity))))
+		// İndirim aktifse indirimli fiyat kullanılır. Sipariş anındaki fiyat
+		// BAĞLAYICI: müşteri indirimli fiyatı görüp kota bu sırada dolsa bile
+		// gördüğü fiyattan öder (spec §4.4).
+		birimFiyat := p.EffectivePrice()
+		indirimli := p.DiscountActive()
+
+		itemsTotal = itemsTotal.Add(birimFiyat.Mul(decimal.NewFromInt(int64(ci.Quantity))))
 		items = append(items, NewOrderItem{
-			ProductID:    p.ID,
-			ProductName:  p.Name,
-			PriceAtOrder: p.Price,
-			Quantity:     ci.Quantity,
-			Options:      opts,
+			ProductID:     p.ID,
+			ProductName:   p.Name,
+			PriceAtOrder:  birimFiyat,
+			Quantity:      ci.Quantity,
+			Options:       opts,
+			WasDiscounted: indirimli,
 		})
 		basket = append(basket, payment.BasketItem{
-			Name: p.Name, PriceKurus: payment.KurusFromDecimal(p.Price), Quantity: ci.Quantity,
+			Name: p.Name, PriceKurus: payment.KurusFromDecimal(birimFiyat),
+			Quantity: ci.Quantity,
 		})
 	}
 
@@ -161,7 +187,30 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, cus
 	}
 	total := itemsTotal.Add(fee)
 
+	// Rezervasyon sipariş transaction'ının İÇİNDE çalışır (store.createOnce
+	// çağırır) — sipariş yazılamazsa stok da geri döner.
+	//
+	// Deadlock önlemi: iki müşteri aynı iki ürünü ters sırayla sepete koyarsa
+	// kilitler çaprazlanır. Sabit sıra (product_id artan) bunu imkânsız kılar
+	// (spec §4.1).
+	rezerveSirasi := make([]NewOrderItem, len(items))
+	copy(rezerveSirasi, items)
+	slices.SortFunc(rezerveSirasi, func(a, b NewOrderItem) int {
+		return cmp.Compare(a.ProductID, b.ProductID)
+	})
+
+	reserve := func(ctx context.Context, tx pgx.Tx) error {
+		for _, it := range rezerveSirasi {
+			if err := s.stock.Reserve(ctx, tx, it.ProductID, it.Quantity); err != nil {
+				// StockError müşteriye "kaç adet kaldı" bilgisini taşır.
+				return err
+			}
+		}
+		return nil
+	}
+
 	o, err := s.store.Create(ctx, NewOrder{
+		Reserve:          reserve,
 		BuyerName:        in.BuyerName,
 		BuyerPhone:       in.BuyerPhone,
 		BuyerEmail:       in.BuyerEmail,
@@ -348,7 +397,31 @@ func (s *Service) ApplyCallback(ctx context.Context, in payment.CallbackInput, r
 		return true, nil
 	}
 
-	if _, err := s.store.SetPaid(ctx, o.ID); err != nil {
+	// Stok kesinleşmesi ödeme ile AYNI transaction'da: biri yazılıp diğeri
+	// yazılmazsa para hareketi ile stok ayrışır. Hata olursa PayTR'ye OK
+	// dönülmez, retry gönderir (spec §8).
+	tx, err := s.store.BeginTx(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.store.SetPaidTx(ctx, tx, o.ID); err != nil {
+		return false, err
+	}
+
+	lines, err := s.store.ItemsForStock(ctx, o.ID)
+	if err != nil {
+		return false, err
+	}
+	for _, l := range lines {
+		if err := s.stock.CommitReservation(ctx, tx, l.ProductID, l.Quantity,
+			o.ID, l.WasDiscounted); err != nil {
+			return false, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
 		return false, err
 	}
 	// callback_ok yazımı idempotency'nin TEMELİ — yazılamazsa bir sonraki
@@ -389,6 +462,21 @@ func (s *Service) Refund(ctx context.Context, id int64) (*Order, error) {
 		return nil, err
 	}
 	_ = s.store.AddPaymentEvent(ctx, id, "refund", nil)
+
+	// Stok iadesi başarısız olsa bile iade GEÇERLİdir — para geri gitti,
+	// geri alınamaz. Stoğu esnaf panelden düzeltebilir (spec §8).
+	lines, lerr := s.store.ItemsForStock(ctx, id)
+	if lerr != nil {
+		log.Printf("KRİTİK: iade sonrası stok kalemleri okunamadı (order=%d): %v", id, lerr)
+	} else {
+		for _, l := range lines {
+			if err := s.stock.RestoreStock(ctx, l.ProductID, l.Quantity, &id); err != nil {
+				log.Printf("KRİTİK: iade sonrası stok geri eklenemedi (order=%d, product=%d): %v",
+					id, l.ProductID, err)
+			}
+		}
+	}
+
 	return refunded, nil
 }
 
