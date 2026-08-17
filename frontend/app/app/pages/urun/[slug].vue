@@ -211,9 +211,14 @@ function sepeteEkle() {
               {{ tukendi ? 'Tükendi' : 'Sepete Ekle' }}
             </button>
 
+            <!--
+              Seçimler mesaja da gidiyor: müşteri renk seçip WhatsApp'tan
+              sipariş verirse esnaf ne hazırlayacağını görmeli.
+            -->
             <WhatsAppButton
               :product="product"
               :out-of-stock="tukendi"
+              :options="secimler"
             />
           </div>
 

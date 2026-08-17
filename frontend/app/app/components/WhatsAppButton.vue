@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Product } from '~/types/api'
+import type { CartItemOption, Product } from '~/types/api'
 
 /**
  * Ürün detaydaki WhatsApp sipariş CTA'sı — sitenin TEK gerçek dönüşüm yolu
@@ -11,9 +11,16 @@ const props = withDefaults(defineProps<{
 
   /** Tükenen üründe mesaj "ne zaman gelir"e döner (spec §6.1). */
   outOfStock?: boolean
-}>(), { outOfStock: false })
 
-const link = useWhatsAppLink(() => props.product, () => props.outOfStock)
+  /** Seçilen renkler mesaja yazılır — esnaf telefonla sormasın. */
+  options?: CartItemOption[]
+}>(), { outOfStock: false, options: () => [] })
+
+const link = useWhatsAppLink(
+  () => props.product,
+  () => props.outOfStock,
+  () => props.options,
+)
 </script>
 
 <template>

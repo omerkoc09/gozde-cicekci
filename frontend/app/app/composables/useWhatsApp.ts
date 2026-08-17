@@ -1,4 +1,4 @@
-import type { Product } from '~/types/api'
+import type { CartItemOption, Product } from '~/types/api'
 import { buildOutOfStockUrl, buildWhatsAppUrl } from '~/utils/whatsapp'
 
 /**
@@ -8,10 +8,14 @@ import { buildOutOfStockUrl, buildWhatsAppUrl } from '~/utils/whatsapp'
  * outOfStock true ise "ne zaman gelir" mesajı kurulur: tükenen ürün sitede
  * görünür kalıyor ve müşteri satın alamadığı için sipariş mesajı anlamsız
  * olurdu (spec §6.1).
+ *
+ * options reaktif: müşteri rengi değiştirince link de değişmeli. Tükenen
+ * üründe seçim yazılmıyor — o mesaj satın almaya değil stok sorusuna dair.
  */
 export function useWhatsAppLink(
   product: MaybeRefOrGetter<Product>,
   outOfStock: MaybeRefOrGetter<boolean> = false,
+  options: MaybeRefOrGetter<CartItemOption[]> = [],
 ) {
   const { public: cfg } = useRuntimeConfig()
 
@@ -20,7 +24,7 @@ export function useWhatsAppLink(
 
     return toValue(outOfStock)
       ? buildOutOfStockUrl(cfg.whatsappNumber, p, cfg.siteUrl)
-      : buildWhatsAppUrl(cfg.whatsappNumber, p, cfg.siteUrl)
+      : buildWhatsAppUrl(cfg.whatsappNumber, p, cfg.siteUrl, toValue(options))
   })
 }
 
