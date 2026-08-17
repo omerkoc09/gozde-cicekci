@@ -45,7 +45,8 @@ const filtrelenmisUrunler = computed(() => products.value.filter(p => {
 const headers = [
   { title: '', key: 'cover', sortable: false, width: 72 },
   { title: 'Ürün', key: 'name' },
-  { title: 'Fiyat', key: 'price', width: 130 },
+  { title: 'Fiyat', key: 'price', width: 150 },
+  { title: 'Stok', key: 'stock', sortable: false, width: 150 },
   { title: 'Kategoriler', key: 'category_ids', sortable: false },
   { title: 'Durum', key: 'is_active', width: 110 },
   { title: 'Vitrin', key: 'is_featured', sortable: false, width: 110 },
@@ -56,6 +57,26 @@ const headers = [
 const coverOf = (p: Product) =>
   [...(p.images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]
 
+// --- Stok ---
+
+const stokDialogAcik = ref(false)
+const stokUrunu = ref<Product | null>(null)
+const stokYonu = ref<'dusur' | 'artir'>('dusur')
+
+const stokDialogAc = (p: Product, yon: 'dusur' | 'artir') => {
+  stokUrunu.value = p
+  stokYonu.value = yon
+  stokDialogAcik.value = true
+}
+
+/** İndirim aktif mi — kota dolduysa indirim sönmüş sayılır (spec §3.3). */
+const indirimAktif = (p: Product) =>
+  p.discount_price !== null && p.discount_quota !== null
+  && p.discount_sold < p.discount_quota
+
+/** Satılabilir adet: rezerve (ödeme bekleyen) düşülür. */
+const satilabilir = (p: Product) =>
+  Math.max(p.stock_quantity - p.stock_reserved, 0)
 
 const goToProduct = (id: number | string) =>
   router.push({ name: 'urunler-id', params: { id: String(id) } })
@@ -222,9 +243,62 @@ const remove = async (p: Product) => {
         </template>
 
         <template #item.price="{ item }">
-          <span :class="{ 'text-disabled': !item.is_active }">
-            {{ priceText(item.price) }}
-          </span>
+          <div :class="{ 'text-disabled': !item.is_active }">
+            <template v-if="indirimAktif(item)">
+              <span class="text-decoration-line-through text-medium-emphasis text-caption">
+                {{ priceText(item.price) }}
+              </span>
+              <div class="text-error font-weight-medium">
+                {{ priceText(item.discount_price!) }}
+              </div>
+              <span class="text-caption text-medium-emphasis">
+                {{ item.discount_quota! - item.discount_sold }} adet kaldı
+              </span>
+            </template>
+            <span v-else>{{ priceText(item.price) }}</span>
+          </div>
+        </template>
+
+        <template #item.stock="{ item }">
+          <!-- Takipsiz üründe stok kavramı yok — düğme de gösterilmez. -->
+          <span
+            v-if="!item.track_stock"
+            class="text-disabled"
+          >—</span>
+          <div
+            v-else
+            class="d-flex align-center ga-1"
+          >
+            <VBtn
+              icon="tabler-minus"
+              size="x-small"
+              variant="tonal"
+              :disabled="item.stock_quantity === 0"
+              @click.stop="stokDialogAc(item, 'dusur')"
+            />
+            <div
+              class="text-center"
+              style="min-inline-size: 2.5rem;"
+            >
+              <span
+                class="font-weight-medium"
+                :class="{ 'text-error': satilabilir(item) === 0 }"
+              >{{ item.stock_quantity }}</span>
+              <div
+                v-if="item.stock_reserved > 0"
+                class="text-caption text-medium-emphasis"
+                style="line-height: 1;"
+              >
+                {{ item.stock_reserved }} rezerve
+              </div>
+            </div>
+            <VBtn
+              icon="tabler-plus"
+              size="x-small"
+              variant="tonal"
+              @click.stop="stokDialogAc(item, 'artir')"
+            />
+          </div>
         </template>
 
         <template #item.category_ids="{ item }">
@@ -315,5 +389,12 @@ const remove = async (p: Product) => {
         </template>
       </VDataTable>
     </VCard>
+
+    <StokDusurDialog
+      v-model="stokDialogAcik"
+      :product="stokUrunu"
+      :yon="stokYonu"
+      @saved="load"
+    />
   </div>
 </template>

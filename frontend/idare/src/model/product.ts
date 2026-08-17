@@ -38,6 +38,42 @@ export interface Product {
   category_ids: number[]
   images: ProductImage[]
   option_groups: ProductOptionGroup[]
+
+  /** Stok takibi ürün başına isteğe bağlı; false ise ürün sınırsız satılır. */
+  track_stock: boolean
+  stock_quantity: number
+
+  /** Ödeme bekleyen adet — satılabilir = stock_quantity - stock_reserved. */
+  stock_reserved: number
+
+  /** null ise indirim yok. Kota dolunca indirim kendiliğinden söner. */
+  discount_price: string | null
+  discount_quota: number | null
+  discount_sold: number
+}
+
+/** Stok hareketi sebebi — DB'deki CHECK ile birebir aynı. */
+export type StokSebep
+  = 'siparis' | 'whatsapp_satisi' | 'sayim_duzeltme'
+  | 'yeni_parti' | 'iptal_iade' | 'rezervasyon_iptal'
+
+/** Panelde gösterilen stok hareketi. */
+export interface StokHareket {
+  id: number
+  delta: number
+  reason: StokSebep
+  order_id: number | null
+  was_discounted: boolean
+  note: string
+  created_at: string
+}
+
+/** Elle stok düzeltmesi gövdesi. Delta negatif → düşüş, pozitif → giriş. */
+export interface StokDuzeltme {
+  delta: number
+  reason: StokSebep
+  was_discounted?: boolean
+  note?: string
 }
 
 export interface ProductCreate {
@@ -60,4 +96,14 @@ export interface ProductUpdate {
   is_featured?: boolean
   category_ids?: number[]
   option_groups?: ProductOptionGroupLink[]
+
+  track_stock?: boolean
+  stock_quantity?: number
+
+  /** discount_price ve discount_quota BİRLİKTE gönderilir. */
+  discount_price?: string
+  discount_quota?: number
+
+  /** true ise indirim kaldırılır ve satılan sayacı sıfırlanır. */
+  clear_discount?: boolean
 }
