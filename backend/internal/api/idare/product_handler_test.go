@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/omerkoc/cicekci/internal/auth"
 	"github.com/omerkoc/cicekci/internal/category"
 	"github.com/omerkoc/cicekci/internal/image"
@@ -26,6 +27,14 @@ import (
 const testSecret = "test-secret-that-is-long-enough-32"
 
 func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
+	t.Helper()
+	app, token, _ := newTestAdminAPIWithPool(t)
+	return app, token
+}
+
+// newTestAdminAPIWithPool newTestAdminAPI ile aynı, ama pool'u da döner —
+// stok/indirim alanlarını doğrudan SQL ile hazırlamak gerekiyor.
+func newTestAdminAPIWithPool(t *testing.T) (*fiber.App, string, *pgxpool.Pool) {
 	t.Helper()
 	pool := database.NewTestDB(t)
 
@@ -62,7 +71,7 @@ func newTestAdminAPI(t *testing.T) (*fiber.App, string) {
 
 	token, err := auth.GenerateToken(1, "cicekci", testSecret)
 	require.NoError(t, err)
-	return app, token
+	return app, token, pool
 }
 
 func authedRequest(method, path, body, token string) *http.Request {
@@ -316,4 +325,189 @@ func TestProduct_OptionGroups_PatchSemantigi(t *testing.T) {
 
 	urun2 := getProduct(t, app, token, pid)
 	assert.Empty(t, urun2.OptionGroups, "boş dizi tüm bağları kaldırmalı")
+}
+
+// --- Stok yönetimi uçları (spec §5, §7) ---
+
+func createProductWithStock(t *testing.T, app *fiber.App, token string,
+	pool *pgxpool.Pool, name string, qty int) int64 {
+	t.Helper()
+	resp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"`+name+`","price":"1850.00"}`, token))
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+
+	_, err = pool.Exec(context.Background(),
+		`UPDATE products SET track_stock=true, stock_quantity=$2 WHERE id=$1`,
+		view.ID, qty)
+	require.NoError(t, err)
+	return view.ID
+}
+
+func TestAdmin_AdjustStock_WhatsAppSatisi(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	id := createProductWithStock(t, app, token, pool, "Gül Buketi", 12)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1450.00, discount_quota=10 WHERE id=$1`, id)
+	require.NoError(t, err)
+
+	resp, err := app.Test(authedRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock",
+		`{"delta":-1,"reason":"whatsapp_satisi","was_discounted":true}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	assert.Equal(t, 11, view.StockQuantity)
+	assert.Equal(t, 1, view.DiscountSold, "indirimli WhatsApp satışı kotayı tüketir")
+}
+
+func TestAdmin_AdjustStock_GecersizSebep(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	id := createProductWithStock(t, app, token, pool, "Orkide", 5)
+
+	resp, err := app.Test(authedRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock",
+		`{"delta":-1,"reason":"hatali_sebep"}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAdmin_AdjustStock_StokAltinda(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	id := createProductWithStock(t, app, token, pool, "Lilyum", 2)
+
+	resp, err := app.Test(authedRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock",
+		`{"delta":-5,"reason":"whatsapp_satisi"}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestAdmin_AdjustStock_AuthGerekli(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	id := createProductWithStock(t, app, token, pool, "Papatya", 5)
+
+	resp, err := app.Test(httptest.NewRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock", strings.NewReader(`{"delta":-1}`)))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAdmin_ListMovements(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	id := createProductWithStock(t, app, token, pool, "Karanfil", 20)
+
+	_, err := app.Test(authedRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock",
+		`{"delta":-2,"reason":"whatsapp_satisi"}`, token))
+	require.NoError(t, err)
+	_, err = app.Test(authedRequest(http.MethodPost,
+		"/api/admin/products/"+itoa(id)+"/stock",
+		`{"delta":10,"reason":"yeni_parti"}`, token))
+	require.NoError(t, err)
+
+	resp, err := app.Test(authedRequest(http.MethodGet,
+		"/api/admin/products/"+itoa(id)+"/movements", "", token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var views []MovementView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&views))
+	require.Len(t, views, 2)
+	// Yeniden eskiye sıralı
+	assert.Equal(t, "yeni_parti", views[0].Reason)
+	assert.Equal(t, 10, views[0].Delta)
+	assert.Equal(t, "whatsapp_satisi", views[1].Reason)
+	assert.Equal(t, -2, views[1].Delta)
+}
+
+func TestAdmin_UpdateProduct_IndirimGirilir(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"İndirimli Buket","price":"1850.00"}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID),
+		`{"discount_price":"1450.00","discount_quota":10}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	require.NotNil(t, view.DiscountPrice)
+	assert.Equal(t, "1450.00", *view.DiscountPrice)
+	require.NotNil(t, view.DiscountQuota)
+	assert.Equal(t, 10, *view.DiscountQuota)
+	assert.Equal(t, "1850.00", view.Price, "panelde normal fiyat gösterilir")
+}
+
+func TestAdmin_UpdateProduct_KotasizIndirimReddedilir(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"Test","price":"1850.00"}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID),
+		`{"discount_price":"1450.00"}`, token))
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode,
+		"kotasız indirim süresiz indirimdir — reddedilmeli")
+}
+
+func TestAdmin_UpdateProduct_IndirimKaldirilir(t *testing.T) {
+	app, token, pool := newTestAdminAPIWithPool(t)
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"Test","price":"1850.00"}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+	_, err = pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1450.00, discount_quota=5, discount_sold=4
+		 WHERE id=$1`, created.ID)
+	require.NoError(t, err)
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID), `{"clear_discount":true}`, token))
+
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	assert.Nil(t, view.DiscountPrice)
+	assert.Equal(t, 0, view.DiscountSold, "sayaç sıfırlanmalı (spec §5.2)")
+}
+
+func TestAdmin_UpdateProduct_StokTakibiAcilir(t *testing.T) {
+	app, token := newTestAdminAPI(t)
+	createResp, err := app.Test(authedRequest(http.MethodPost, "/api/admin/products",
+		`{"name":"Stoklu","price":"500.00"}`, token))
+	require.NoError(t, err)
+	var created ProductView
+	require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
+	assert.False(t, created.TrackStock, "yeni ürün varsayılan takipsiz")
+
+	resp, err := app.Test(authedRequest(http.MethodPatch,
+		"/api/admin/products/"+itoa(created.ID),
+		`{"track_stock":true,"stock_quantity":25}`, token))
+
+	require.NoError(t, err)
+	var view ProductView
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&view))
+	assert.True(t, view.TrackStock)
+	assert.Equal(t, 25, view.StockQuantity)
 }

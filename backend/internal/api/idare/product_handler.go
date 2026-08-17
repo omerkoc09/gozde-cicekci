@@ -51,6 +51,24 @@ type updateProductRequest struct {
 	// OptionGroups nil ise gruplar DEĞİŞMEZ; boş dizi hepsini kaldırır
 	// (CategoryIDs ile aynı PATCH semantiği).
 	OptionGroups []optionGroupLinkRequest `json:"option_groups"`
+
+	TrackStock    *bool `json:"track_stock"`
+	StockQuantity *int  `json:"stock_quantity"`
+
+	// DiscountPrice ve DiscountQuota birlikte gönderilir. ClearDiscount
+	// true ise indirim kaldırılır ve sayaç sıfırlanır.
+	DiscountPrice *string `json:"discount_price"`
+	DiscountQuota *int    `json:"discount_quota"`
+	ClearDiscount bool    `json:"clear_discount"`
+}
+
+// adjustStockRequest elle stok hareketi. Delta negatif → düşüş
+// (WhatsApp satışı), pozitif → giriş (yeni parti).
+type adjustStockRequest struct {
+	Delta         int    `json:"delta"`
+	Reason        string `json:"reason"`
+	WasDiscounted bool   `json:"was_discounted"`
+	Note          string `json:"note"`
 }
 
 // list GET /api/admin/products — pasifler dahil
@@ -194,11 +212,15 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 	}
 
 	in := product.UpdateInput{
-		Name:        req.Name,
-		Description: req.Description,
-		IsActive:    req.IsActive,
-		IsFeatured:  req.IsFeatured,
-		CategoryIDs: req.CategoryIDs,
+		Name:          req.Name,
+		Description:   req.Description,
+		IsActive:      req.IsActive,
+		IsFeatured:    req.IsFeatured,
+		CategoryIDs:   req.CategoryIDs,
+		TrackStock:    req.TrackStock,
+		StockQuantity: req.StockQuantity,
+		DiscountQuota: req.DiscountQuota,
+		ClearDiscount: req.ClearDiscount,
 	}
 
 	if req.Price != nil {
@@ -207,6 +229,31 @@ func (h *productHandler) update(c *fiber.Ctx) error {
 			return badRequest(c, "Geçersiz fiyat")
 		}
 		in.Price = &price
+	}
+
+	if req.StockQuantity != nil && *req.StockQuantity < 0 {
+		return badRequest(c, "Stok adedi negatif olamaz")
+	}
+
+	if req.DiscountPrice != nil {
+		dp, err := decimal.NewFromString(*req.DiscountPrice)
+		if err != nil {
+			return badRequest(c, "Geçersiz indirimli fiyat")
+		}
+		if dp.IsNegative() {
+			return badRequest(c, "İndirimli fiyat negatif olamaz")
+		}
+		in.DiscountPrice = &dp
+	}
+	// İndirim açılıyorsa kota zorunlu — kotasız indirim süresiz indirimdir
+	// (DB'deki products_discount_pair kısıtının kullanıcıya dönük hali).
+	if !req.ClearDiscount {
+		if (in.DiscountPrice == nil) != (req.DiscountQuota == nil) {
+			return badRequest(c, "İndirimli fiyat ve adet birlikte girilmeli")
+		}
+		if req.DiscountQuota != nil && *req.DiscountQuota <= 0 {
+			return badRequest(c, "İndirimli adet sıfırdan büyük olmalı")
+		}
 	}
 
 	p, err := h.svc.Update(c.Context(), int64(id), in)
@@ -256,4 +303,56 @@ func (h *productHandler) delete(c *fiber.Ctx) error {
 		return api.WriteError(c, err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// adjustStock POST /api/admin/products/:id/stock — elle stok hareketi.
+// WhatsApp'tan yapılan satışlar sisteme bu uçtan giriyor (spec §5.1).
+func (h *productHandler) adjustStock(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return badRequest(c, "Geçersiz id")
+	}
+
+	var req adjustStockRequest
+	if err := c.BodyParser(&req); err != nil {
+		return badRequest(c, "Geçersiz istek")
+	}
+
+	in := product.ManualAdjustInput{
+		ProductID:     int64(id),
+		Delta:         req.Delta,
+		Reason:        product.Reason(req.Reason),
+		WasDiscounted: req.WasDiscounted,
+		Note:          req.Note,
+	}
+	// Hareketi kimin yaptığı denetim izi için saklanır; oturum yoksa boş kalır.
+	if uid, ok := c.Locals("userID").(int64); ok {
+		in.AdminUserID = &uid
+	}
+
+	p, err := h.svc.AdjustStock(c.Context(), in)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+
+	imgs, err := h.imgSvc.ListByProduct(c.Context(), p.ID)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	return c.JSON(toProductView(*p, h.imgSvc, imgs))
+}
+
+// listMovements GET /api/admin/products/:id/movements — stok hareket geçmişi.
+func (h *productHandler) listMovements(c *fiber.Ctx) error {
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return badRequest(c, "Geçersiz id")
+	}
+	limit := c.QueryInt("limit", 50)
+
+	list, err := h.svc.Movements(c.Context(), int64(id), limit)
+	if err != nil {
+		return api.WriteError(c, err)
+	}
+	return c.JSON(toMovementViews(list))
 }

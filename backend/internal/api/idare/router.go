@@ -54,6 +54,8 @@ func Register(router fiber.Router, d Deps) {
 	protected.Get("/products/:id", ph.get)
 	protected.Patch("/products/:id", ph.update)
 	protected.Delete("/products/:id", ph.delete)
+	protected.Post("/products/:id/stock", ph.adjustStock)
+	protected.Get("/products/:id/movements", ph.listMovements)
 
 	protected.Get("/products/:id/images", ih.list)
 	protected.Post("/products/:id/images", ih.upload)
