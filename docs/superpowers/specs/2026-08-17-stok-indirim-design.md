@@ -336,8 +336,24 @@ Bilinçli olarak yapılmıyor:
   yok, üyelikte de kapsam dışı bırakılmıştı.
 - **Varyant bazlı stok** — renk seçenekleri stoğu paylaşır. Ambalaj rengi başına
   ayrı stok, `product_option_groups` modelini baştan yazmayı gerektirir.
-- **Tarih aralıklı otomatik indirim** ("15–20 Ağustos arası") — kota bazlı
-  indirim esnafın istediğini karşılıyor.
+- **Tarih aralıklı otomatik indirim** ("15–20 Ağustos arası") — kota ile aynı
+  şeyi çözmüyor: kota indirimin **maliyetini** sınırlar, tarih **süresini**.
+  İkisi birbirinin yerine geçmez ve esnaf ileride ikisini birden isteyebilir.
+  Bu turda kapsam dışı çünkü (a) istenen özellik kota bazlıydı, (b) tarih
+  desteği saat dilimi (Europe/Istanbul), "yarın başlıyor" durumu ve ödeme
+  sırasında sınırı geçen müşteri gibi ek kararlar getiriyor.
+
+  **Sonradan eklemek ucuz — şema bunu engellemiyor:**
+
+  ```sql
+  ALTER TABLE products
+      ADD COLUMN discount_starts_at TIMESTAMPTZ,
+      ADD COLUMN discount_ends_at   TIMESTAMPTZ;
+  ```
+
+  `indirimAktif()` tek yerde tanımlı olduğu için (§3.3) koşula iki madde
+  eklenir; ürün kartı, `/indirimli` sayfası ve sipariş fiyatlaması otomatik
+  uyar. Veri taşıma gerekmez, bu turda yazılan kod yeniden yazılmaz.
 - **Toplu stok içe aktarma (CSV)** — 40 ürünlük katalog için gereksiz.
 - **Stok raporu/grafik** — `stock_movements` verisi duruyor, ihtiyaç olursa
   sonra eklenir.
