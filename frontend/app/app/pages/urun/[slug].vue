@@ -169,7 +169,8 @@ function sepeteEkle() {
             v-if="product.discount_remaining !== null"
             class="mt-1.5 text-sm text-primary"
           >
-            Son {{ product.discount_remaining }} adet bu fiyata
+            Son {{ product.discount_remaining }} adet bu fiyata —
+            en fazla {{ product.discount_remaining }} adet alabilirsiniz
           </p>
 
           <p

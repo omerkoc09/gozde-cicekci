@@ -158,6 +158,22 @@ func (s *Service) Create(ctx context.Context, in CreateInput, userIP string, cus
 		birimFiyat := p.EffectivePrice()
 		indirimli := p.DiscountActive()
 
+		// Kotadan fazla adet indirimli satılamaz. Bu kontrol olmadan kota 1
+		// iken 5 adet sipariş edilirse 5'i de indirimli giderdi — esnaf 1
+		// adet indirim planlarken 5 adet vermiş olurdu.
+		//
+		// Karma fiyat (1 adet indirimli + 4 adet normal) yerine sipariş
+		// reddediliyor: order_items satır başına TEK fiyat tutuyor, karma
+		// fiyat kalemi ikiye bölmeyi gerektirirdi. Kampanya niyeti de
+		// "herkese N adet" olduğu için sınırlamak daha doğru.
+		if indirimli {
+			if kalan := p.DiscountRemaining(); kalan != nil && ci.Quantity > *kalan {
+				return nil, "", fmt.Errorf(
+					"%w: %q üründen en fazla %d adet indirimli alınabilir",
+					errorsx.ErrInvalidInput, p.Name, *kalan)
+			}
+		}
+
 		itemsTotal = itemsTotal.Add(birimFiyat.Mul(decimal.NewFromInt(int64(ci.Quantity))))
 		items = append(items, NewOrderItem{
 			ProductID:     p.ID,

@@ -797,3 +797,95 @@ func TestService_Create_TakipsizUrun_StokDegismez(t *testing.T) {
 	assert.Equal(t, 0, qty)
 	assert.Equal(t, 0, reserved, "takipsiz üründe rezerve sayacı artmamalı")
 }
+
+// --- İndirim kotası ve adet (2026-08-17 düzeltmesi) ---
+
+// EN KRİTİK: kota 1 iken 5 adet sipariş edilirse 5'i de indirimli
+// satılamaz. Esnaf 1 adet indirim planlarken 5 adet vermiş olurdu.
+func TestService_Create_KotadanFazlaIndirimliAdetReddedilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=1, discount_sold=0
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 5
+
+	_, _, err = svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errorsx.ErrInvalidInput)
+	assert.Contains(t, err.Error(), "1 adet", "müşteriye kaç adet alabileceği söylenmeli")
+
+	var siparisSayisi int
+	require.NoError(t, pool.QueryRow(context.Background(),
+		`SELECT count(*) FROM orders`).Scan(&siparisSayisi))
+	assert.Equal(t, 0, siparisSayisi, "kota aşılırsa sipariş yazılmamalı")
+}
+
+// Kota kadar sipariş geçmeli — sınır dahil.
+func TestService_Create_KotaSinirindaGecer(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=3, discount_sold=0
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 3
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "4500", o.ItemsTotal.String(), "3 × 1500")
+}
+
+// Kısmen tüketilmiş kotada kalan adet dikkate alınmalı.
+func TestService_Create_KismenTuketilmisKota(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	// Kota 5, 4'ü satılmış → yalnızca 1 adet kaldı
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=5, discount_sold=4
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 2
+
+	_, _, err = svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "1 adet")
+}
+
+// İndirimi OLMAYAN üründe adet sınırı uygulanmaz — kota kavramı yok.
+func TestService_Create_IndirimsizUrunAdetSinirsiz(t *testing.T) {
+	svc, _, productID := setupService(t)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 50
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err, "indirimsiz üründe kota sınırı olmamalı")
+	assert.Equal(t, "92500", o.ItemsTotal.String(), "50 × 1850")
+}
+
+// Kotası DOLMUŞ üründe indirim sönmüş olur; ürün normal fiyattan
+// sınırsız satılabilir (spec §2: stok ve indirim bağımsız).
+func TestService_Create_KotasiDolmusUrun_NormalFiyattanSatilir(t *testing.T) {
+	svc, pool, productID := setupService(t)
+	_, err := pool.Exec(context.Background(),
+		`UPDATE products SET discount_price=1500.00, discount_quota=2, discount_sold=2
+		 WHERE id=$1`, productID)
+	require.NoError(t, err)
+
+	in := testCreateInput(productID)
+	in.Items[0].Quantity = 4
+
+	o, _, err := svc.Create(context.Background(), in, "127.0.0.1", nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "7400", o.ItemsTotal.String(), "4 × 1850 normal fiyat")
+}
