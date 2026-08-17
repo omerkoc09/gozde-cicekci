@@ -45,10 +45,13 @@ const form = ref({
   track_stock: false,
   stock_quantity: 0,
 
-  // Boş string = indirim yok. Kaydederken ikisi de doluysa indirim açılır,
+  // Boş = indirim yok. Kaydederken ikisi de doluysa indirim açılır,
   // ikisi de boşsa (ve önceden indirim varsa) indirim kaldırılır.
-  discount_price: '',
-  discount_quota: '',
+  //
+  // Tip null içeriyor: VTextField `clearable` ile temizlenince modele ''
+  // değil null yazıyor. Okurken daima temizle() ile normalize edilir.
+  discount_price: '' as string | null,
+  discount_quota: '' as string | null,
 })
 
 // --- Stok hareketleri ---
@@ -107,10 +110,19 @@ const kalanIndirimliAdet = computed(() => {
   return Math.max(p.discount_quota - p.discount_sold, 0)
 })
 
+/**
+ * Alan değerini güvenle string'e indirger.
+ *
+ * VTextField `clearable` ile temizlendiğinde modele '' değil NULL yazıyor;
+ * doğrudan .trim() çağırmak TypeError atıp save()'i sessizce yarıda kesiyordu
+ * (indirim kaldırılamıyordu).
+ */
+const temizle = (v: string | null | undefined) => (v ?? '').trim()
+
 // İndirimli fiyat normal fiyattan yüksekse esnaf muhtemelen yanlış giriyor.
 const indirimFiyatUyarisi = computed(() => {
-  const indirimli = Number.parseFloat(form.value.discount_price)
-  const normal = Number.parseFloat(form.value.price)
+  const indirimli = Number.parseFloat(temizle(form.value.discount_price))
+  const normal = Number.parseFloat(temizle(form.value.price))
 
   if (Number.isNaN(indirimli) || Number.isNaN(normal))
     return ''
@@ -214,10 +226,10 @@ const save = async () => {
   if (indirimFiyatUyarisi.value)
     return ErrorPopup(indirimFiyatUyarisi.value)
 
-  const indirimliFiyatDolu = form.value.discount_price.trim() !== ''
-  const indirimliAdetDolu = form.value.discount_quota.trim() !== ''
+  const indirimliFiyat = temizle(form.value.discount_price)
+  const indirimliAdet = temizle(form.value.discount_quota)
 
-  if (indirimliFiyatDolu !== indirimliAdetDolu)
+  if ((indirimliFiyat !== '') !== (indirimliAdet !== ''))
     return ErrorPopup('İndirimli fiyat ve adet birlikte girilmeli')
 
   // Fiyat API'ye string gidiyor: "1850.00" (float precision — spec §4.1).
@@ -237,15 +249,13 @@ const save = async () => {
     payload.track_stock = form.value.track_stock
     payload.stock_quantity = form.value.track_stock ? Number(form.value.stock_quantity) : 0
 
-    const indirimliFiyat = form.value.discount_price.trim()
-    const indirimliAdet = form.value.discount_quota.trim()
-
     if (indirimliFiyat !== '' && indirimliAdet !== '') {
       payload.discount_price = Number.parseFloat(indirimliFiyat).toFixed(2)
       payload.discount_quota = Number(indirimliAdet)
     }
-    else if (product.value?.discount_price !== null) {
-      // Alanlar boşaltıldı ve üründe indirim vardı → indirimi kaldır.
+    else if (product.value?.discount_price) {
+      // Alanlar boşaltıldı ve üründe indirim VARDI → indirimi kaldır.
+      // product yüklenmemişse (undefined) hiçbir şey gönderilmez.
       payload.clear_discount = true
     }
   }
