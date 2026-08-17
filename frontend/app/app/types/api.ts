@@ -11,8 +11,24 @@ export interface Product {
   name: string
   slug: string
   description: string
-  /** "1850.00" — float precision için string (spec §4.1) */
+  /**
+   * "1850.00" — float precision için string (spec §4.1).
+   * GEÇERLİ fiyat: indirim aktifse indirimli fiyat gelir.
+   */
   price: string
+
+  /** İndirim aktifse üstü çizili gösterilecek normal fiyat, yoksa null. */
+  old_price: string | null
+
+  /** Stok takibi kapalı ürünlerde her zaman true. */
+  in_stock: boolean
+
+  /** Takipsiz üründe null — adet bilgisi anlamsız. */
+  stock_quantity: number | null
+
+  /** Kalan indirimli adet; indirim yoksa null. */
+  discount_remaining: number | null
+
   category_ids: number[]
   images: ProductImage[]
   option_groups?: ProductOptionGroup[]

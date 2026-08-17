@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildOrderMessage, buildWhatsAppUrl } from './whatsapp'
+import {
+  buildOrderMessage,
+  buildOutOfStockMessage,
+  buildOutOfStockUrl,
+  buildWhatsAppUrl,
+} from './whatsapp'
 
 const urun = {
   id: 1,
@@ -7,6 +12,10 @@ const urun = {
   slug: '51-gul-buket',
   description: '',
   price: '1850.00',
+  old_price: null,
+  in_stock: true,
+  stock_quantity: null,
+  discount_remaining: null,
   category_ids: [],
   images: [],
 }
@@ -50,5 +59,31 @@ describe('buildWhatsAppUrl', () => {
 
     expect(query).not.toContain('ü')
     expect(query).toContain('%0A') // satır başı
+  })
+})
+
+describe('buildOutOfStockMessage', () => {
+  it('tükenen ürün için ne zaman geleceğini sorar (spec §6.1)', () => {
+    const msg = buildOutOfStockMessage(urun, 'https://cicekci.com')
+
+    expect(msg).toContain('51 Gül Buket')
+    expect(msg).toContain('tükenmiş')
+    expect(msg).toContain('https://cicekci.com/urun/51-gul-buket')
+  })
+
+  // Tükenen üründe fiyat yazmak anlamsız: müşteri satın alamıyor, pazarlığa
+  // davet etmiş oluruz. Sipariş mesajından ayrıldığı nokta bu.
+  it('fiyat İÇERMEZ', () => {
+    const msg = buildOutOfStockMessage(urun, 'https://cicekci.com')
+
+    expect(msg).not.toContain('1.850')
+  })
+
+  it('wa.me linki Türkçe karakterleri kodlar', () => {
+    const url = buildOutOfStockUrl('905551234567', urun, 'https://cicekci.com')
+    const text = new URL(url).searchParams.get('text')
+
+    expect(url).toContain('https://wa.me/905551234567')
+    expect(text).toBe(buildOutOfStockMessage(urun, 'https://cicekci.com'))
   })
 })

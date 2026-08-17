@@ -10,6 +10,23 @@ const props = defineProps<{ product: Product }>()
 
 /** Kapak = ilk görsel; backend sort_order'a göre sıralı döndürüyor (spec §4.4). */
 const kapak = computed(() => props.product.images?.[0])
+
+/**
+ * İndirim yüzdesi eski/yeni fiyattan hesaplanır — ayrı alan tutulmuyor.
+ * old_price yalnızca indirim aktifken doluyor (spec §3.3).
+ */
+const indirimYuzdesi = computed(() => {
+  const eski = Number.parseFloat(props.product.old_price ?? '')
+  const yeni = Number.parseFloat(props.product.price)
+
+  if (Number.isNaN(eski) || Number.isNaN(yeni) || eski <= 0 || yeni >= eski)
+    return 0
+
+  return Math.round((1 - yeni / eski) * 100)
+})
+
+/** Tükendi rozeti — takipsiz ürün in_stock=true geldiği için hiç görünmez. */
+const tukendi = computed(() => !props.product.in_stock)
 </script>
 
 <template>
@@ -41,6 +58,29 @@ const kapak = computed(() => props.product.images?.[0])
       >
         <Icon name="material-symbols:local-florist-outline" size="40" />
       </div>
+
+      <!-- İki rozet bağımsız, aynı anda görünebilir: karşı köşelere
+           konumlandırıldılar ki üst üste binmesinler (spec §6.1). -->
+      <span
+        v-if="indirimYuzdesi > 0"
+        class="absolute left-2 top-2 rounded bg-primary px-2 py-1 text-xs font-medium tracking-wide text-on-primary"
+      >
+        %{{ indirimYuzdesi }} İNDİRİM
+      </span>
+
+      <span
+        v-if="tukendi"
+        class="absolute right-2 top-2 rounded bg-surface/95 px-2 py-1 text-xs font-medium tracking-wide text-on-surface-variant"
+      >
+        TÜKENDİ
+      </span>
+
+      <!-- Tükenen ürün soluk gösterilir ama gizlenmez — müşteri görüp
+           WhatsApp'tan sorabilsin (spec §6.1). -->
+      <div
+        v-if="tukendi"
+        class="pointer-events-none absolute inset-0 bg-surface/45"
+      />
     </div>
 
     <div class="px-1 pb-2 text-center">
@@ -48,7 +88,17 @@ const kapak = computed(() => props.product.images?.[0])
         {{ product.name }}
       </h3>
       <p class="mt-2 text-body-md text-on-surface-variant">
-        {{ formatPrice(product.price) }}
+        <!-- Eski fiyat üstü çizili, indirimli fiyat vurgulu — ikisi de
+             görünür olmalı (spec §6.1). -->
+        <span
+          v-if="product.old_price"
+          class="me-1.5 text-sm text-on-surface-variant/60 line-through"
+        >
+          {{ formatPrice(product.old_price) }}
+        </span>
+        <span :class="product.old_price ? 'font-medium text-primary' : ''">
+          {{ formatPrice(product.price) }}
+        </span>
         <span class="text-xs text-on-surface-variant/70">(KDV dahil)</span>
       </p>
     </div>

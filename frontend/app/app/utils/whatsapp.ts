@@ -32,3 +32,30 @@ export function buildWhatsAppUrl(
 
   return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
 }
+
+/**
+ * Tükenen ürün için WhatsApp mesajı (spec §6.1).
+ *
+ * Ürün sitede görünür kalıyor — müşteri "ne zaman gelir" diye sorabilsin,
+ * satış fırsatı kaybolmasın. Sipariş mesajının aksine FİYAT YOK: müşteri
+ * satın alamadığı bir ürünün fiyatını konuşmaya davet edilmemeli.
+ */
+export function buildOutOfStockMessage(product: Product, siteUrl: string): string {
+  return [
+    'Merhaba, bu ürün tükenmiş görünüyor:',
+    product.name,
+    `${siteUrl}/urun/${product.slug}`,
+    'Ne zaman tekrar gelir?',
+  ].join('\n')
+}
+
+/** Tükenen ürün için wa.me linki. */
+export function buildOutOfStockUrl(
+  phoneNumber: string,
+  product: Product,
+  siteUrl: string,
+): string {
+  const message = buildOutOfStockMessage(product, siteUrl)
+
+  return `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`
+}
