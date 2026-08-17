@@ -150,6 +150,12 @@ func main() {
 		})
 	}
 
+	// Ödemesi yarım kalan siparişlerin stok rezervasyonlarını serbest bırakır
+	// (spec §4.3). Kapanışta ctx iptal edilir, döngü temiz çıkar.
+	sweeperCtx, sweeperCancel := context.WithCancel(ctx)
+	defer sweeperCancel()
+	go product.NewSweeper(productStore, 20*time.Minute, 5*time.Minute).Run(sweeperCtx)
+
 	go func() {
 		if err := f.Listen(":" + cfg.Port); err != nil {
 			log.Fatalf("sunucu: %v", err)
@@ -161,6 +167,7 @@ func main() {
 	<-quit
 
 	log.Println("kapatılıyor...")
+	sweeperCancel()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := f.ShutdownWithContext(shutdownCtx); err != nil {
